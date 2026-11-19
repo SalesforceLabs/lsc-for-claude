@@ -32,6 +32,13 @@ import { applyEdit, isEditFix, previewEdit } from "./edits.js";
 import { inList, query, splitList, type Row } from "./helpers.js";
 import { step, type FixTracker } from "./fix-progress.js";
 import { withReach } from "./reach.js";
+import {
+  applyCreatePresentation,
+  applyDeletePresentation,
+  previewCreatePresentation,
+  previewDeletePresentation,
+} from "./content/create.js";
+import { applyEditPresentation, previewEditPresentation } from "./content/fixes.js";
 import type { FixPreview, FixResult, RecordRef, StudioFix } from "./types.js";
 
 // --- Permission set licenses -------------------------------------------------
@@ -508,6 +515,12 @@ async function previewByKind(
     case "editMetadata":
     case "copyForProfile":
       return previewEdit(fix, org, progress);
+    case "editPresentation":
+      return previewEditPresentation(fix, org, progress);
+    case "createPresentation":
+      return previewCreatePresentation(fix, org, progress);
+    case "deletePresentation":
+      return previewDeletePresentation(fix, org, progress);
   }
 }
 
@@ -647,5 +660,11 @@ async function applyFixNow(fix: StudioFix, org: string, progress?: FixTracker): 
     case "editMetadata":
     case "copyForProfile":
       return applyEdit(fix, org, progress);
+    case "editPresentation":
+      return applyEditPresentation(fix, org, progress);
+    case "createPresentation":
+      return applyCreatePresentation(fix, org, progress);
+    case "deletePresentation":
+      return applyDeletePresentation(fix, org, progress);
   }
 }

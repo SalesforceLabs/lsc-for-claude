@@ -102,8 +102,8 @@ Run through this checklist in order:
 ### "Samples/DTP/Marketing Items sidebar sections are inactive"
 Two scenarios:
 
-1. **HCO account, default settings.** HCOs cannot receive samples/DTP/marketing items unless **`HcoTypesForSamplesAndItems`** is configured. Add the HCO RecordType developer name(s) separated by semicolons in the admin console setting.
-2. **Attendee/Child Visit address mismatch.** The Attendee Account on a child visit must share the **same address** as the Location selected on the Parent Visit; otherwise samples are disabled.
+1. **HCP attendee on an HCO visit.** Samples are disabled when the attendee's primary address does not match the parent visit's address. Working as designed. Do not start with `HcoTypesForSamplesAndItems` or a profile override when that mismatch is present. See [support-engineering-visit-attendee-sample-address.md](./support-engineering-visit-attendee-sample-address.md).
+2. **HCO account itself, default settings.** HCOs cannot receive samples/DTP/marketing items unless **`HcoTypesForSamplesAndItems`** includes that HCO record type. This is not the attendee case.
 
 ## Product Allocations (Direct-to-Physician)
 
@@ -158,6 +158,21 @@ The Product Item dropdown applies the signature rule. `SamplesPlugin.canInsertFo
 
 ### "A lookup label ends in ID on Visit Engagement"
 A `ProviderVisitProdDetailing` field on the layout forces a parent pick, so the lookup shows its raw label with an ID suffix. Remove the field. Not a label regression. See [support-engineering-visit-lookup-id-suffix.md](./support-engineering-visit-lookup-id-suffix.md).
+
+### "iOS Visit throws a data inconsistency error"
+The same custom-field API name is on `Visit` and `ProviderVisit`. The mobile app shows the Visit copy. Remove the duplicate. Do not refresh the metadata cache or check `LifeSciMetadataRecord`. See [support-engineering-visit-duplicate-field-api.md](./support-engineering-visit-duplicate-field-api.md).
+
+### "Visit Engagement removes an attendee who has samples, then the visit is stuck"
+The client blocks removal only when the attendee visit is signed. Sample protection is server-only, so an unsigned attendee with samples is removed and the page stays that way until undo. Visit Action Validation has no removal event. Working as designed. See [support-engineering-visit-attendee-remove-samples.md](./support-engineering-visit-attendee-remove-samples.md).
+
+### "Visit expense allocation fails with Script-thrown exception"
+`REQUIRED_FIELD_MISSING [Name]` on `ExpenseParticipant`. A missing `ExpenseParticipantNameHandler` record leaves the handler inactive. Setup does not create system-handler records. Open a support case. Do not create the row. See [support-engineering-visit-expense-participant-name.md](./support-engineering-visit-expense-participant-name.md).
+
+### "Web and iPad show different names for the same product"
+Web Apex labels the Samples, Direct to Practitioner, or Items dropdown with `Product2.Name`. iOS uses `LifeSciMarketableProduct.Name`. The saved Product2 id is the same. Set both names equal. Do not say the web LWC reads the marketable-product name. See [support-engineering-visit-product-name-fields.md](./support-engineering-visit-product-name-fields.md).
+
+### "Web Visit Details shows Account ID, Place ID, or Record Type ID"
+`lightning-output-field` in the web Details component sets no label, so the page shows the lookup API label that ends in ID. The mobile app uses the field label. Not a Setup label override. See [support-engineering-visit-details-id-label.md](./support-engineering-visit-details-id-label.md).
 
 ### "Desktop shows NextVisitObjectiveLabel on package 264"
 en_US dropped that key from the LSC translations document because another key has the same text. Package 264 does not fall back to REST, so the raw key is shown. See [support-engineering-visit-next-objective-label.md](./support-engineering-visit-next-objective-label.md).
@@ -256,13 +271,14 @@ Always opens the **parent visit** — by design, not a bug.
 3. Check `RemainingQuantity` is > 0
 
 ### "Field not appearing"
-1. Run metadata cache
-2. Confirm field is on the **right object's layout** (custom fields on Visit don't render on the merged screen — they must be on ProviderVisit)
-3. Confirm FLS for the user's profile
+1. If the same custom API name exists on both `Visit` and `ProviderVisit` and iOS reports a data inconsistency, remove the duplicate. iOS shows the Visit copy. See [support-engineering-visit-duplicate-field-api.md](./support-engineering-visit-duplicate-field-api.md). Do not start with a metadata cache.
+2. Run metadata cache
+3. Confirm field is on the **right object's layout** (custom fields on Visit don't render on the merged screen — they must be on ProviderVisit)
+4. Confirm FLS for the user's profile
 
 ### "Cannot disburse samples (sidebar disabled)"
-1. HCO + `HcoTypesForSamplesAndItems` not configured → add HCO RT
-2. Child visit attendee address ≠ parent visit Location → fix addresses
+1. HCP attendee on an HCO visit, and the attendee's primary address does not match the parent visit address → working as designed. See [support-engineering-visit-attendee-sample-address.md](./support-engineering-visit-attendee-sample-address.md). Do not start with the HCO allow-list or a profile override.
+2. Samples disabled on the HCO account itself, and `HcoTypesForSamplesAndItems` omits that record type → add the HCO record type.
 
 ### "Products missing from sidebar"
 Run the 6-step Product Display checklist above

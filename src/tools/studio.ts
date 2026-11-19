@@ -1,3 +1,5 @@
+import { loadConsent } from "../studio/screens/consent/consent.js";
+import { loadSurveyForm, loadSurveys } from "../studio/screens/surveys/surveys.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { refreshSharedReads, withSharedReads } from "../config/read-cache.js";
 import { z } from "zod";
@@ -26,6 +28,17 @@ import { fixesForToolCall } from "../studio/fix-for-tool.js";
 import { publishStatus, startPublish } from "../studio/publish.js";
 import { loadIpadReports, loadPublishedIpad, searchProfileUsers } from "../studio/published.js";
 import { runReport } from "../studio/screens/report-data.js";
+import { loadContentPlayer } from "../studio/screens/content-player.js";
+import {
+  checkDraft,
+  deleteDraft,
+  draftFiles,
+  draftPlayer,
+  writeDraft,
+} from "../studio/content/drafts.js";
+import { loadKamPlan } from "../studio/screens/kam/plan.js";
+import { loadMyTeamWeek } from "../studio/screens/manager/myTeam.js";
+import { loadDashboardDetail } from "../studio/screens/manager/dashboards.js";
 import { loadProgress } from "../studio/published-progress.js";
 import { mapProgress, mapKey, readinessKey } from "../studio/map-progress.js";
 import { collectUnpublished } from "../studio/unpublished.js";
@@ -43,6 +56,12 @@ import { apiVersionInfo, setApiVersion } from "../studio/api-version.js";
 import { lscScope } from "../studio/scope.js";
 import type { StudioFix } from "../studio/types.js";
 import { collectScriptDetail, collectScriptLibrary } from "../studio/scripts/library.js";
+import {
+  loadDetail as loadContentDetail,
+  loadNewOptions as loadNewContentOptions,
+  pageThumbnails as contentPageThumbnails,
+  loadLibrary as loadContentLibrary,
+} from "../studio/content/read.js";
 import {
   activePerfRun,
   cancelPerfRun,
@@ -265,6 +284,57 @@ const compactLayoutName = z
   .max(255);
 const listViewName = compactLayoutName;
 
+const named = z.object({ id, name: z.string().max(255) });
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .nullable();
+const draftSchemaWith = (pageId: z.ZodType<string>) =>
+  z.object({
+    fields: z.object({
+      name: z.string().max(255),
+      status: z.string().max(40),
+      activationDate: isoDate,
+      deactivationDate: isoDate,
+      gesture: z.string().max(40).nullable(),
+      pinchZoom: z.boolean(),
+      doubleTapZoom: z.boolean(),
+      canEmail: z.boolean(),
+      locked: z.boolean(),
+    }),
+    pages: z
+      .array(
+        z.object({
+          pageId,
+          name: z.string().max(255),
+          mandatory: z.boolean(),
+          products: z.array(named).max(200),
+        })
+      )
+      .max(500),
+    topics: z.array(named).max(200),
+    shares: z
+      .array(
+        z.object({
+          groupId: id,
+          territoryId: id,
+          name: z.string().max(255),
+          subordinates: z.boolean(),
+        })
+      )
+      .max(2000),
+  });
+const presentationDraftSchema = draftSchemaWith(id);
+const draftId = z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/);
+const newPageId = z.string().regex(/^new:[a-z0-9][a-z0-9-]{0,39}$/);
+const createPresentationSchema = z.object({
+  kind: z.literal("createPresentation"),
+  label: z.string(),
+  key: z.string().regex(/^[a-z0-9-]{1,40}$/),
+  draft: draftSchemaWith(id.or(newPageId)),
+  newPages: z.array(z.object({ pageId: newPageId, draftId, name: z.string().max(255) })).max(20),
+});
+
 const fixSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("assignPsl"),
@@ -402,6 +472,24 @@ const fixSchema = z.discriminatedUnion("kind", [
     to: id.nullable(),
   }),
   // --- end custom scripts: server ---
+  z.object({
+    kind: z.literal("editPresentation"),
+    label: z.string(),
+    presentationId: id,
+    presentationName: z.string(),
+    from: presentationDraftSchema,
+    to: presentationDraftSchema,
+  }),
+  createPresentationSchema,
+  z.object({
+    kind: z.literal("deletePresentation"),
+    label: z.string(),
+    presentationId: id,
+    presentationName: z.string(),
+    created: z.object({ pageIds: z.array(id).max(20), contentDocumentIds: z.array(id).max(20) }),
+    before: presentationDraftSchema.shape.pages,
+    recreate: createPresentationSchema,
+  }),
   z.object({
     kind: z.literal("setCustomScriptCode"),
     label: z.string(),
@@ -951,15 +1039,28 @@ export function register(server: McpServer) {
         .describe(
           "Logins Studio made through the LSC mobile app's connected app. When one belongs to the previewed rep, the live screens and records are read with it (their own sharing and field-level security, rows limited to their sync filter); otherwise the sf CLI connection reads and approximates. Tokens are used for this load only and never returned."
         ),
+      language: z
+        .string()
+        .regex(/^[A-Za-z]{2,3}(_[A-Za-z0-9]{2,4})*$/)
+        .optional()
+        .describe(
+          "Draw the iPad in this language (a translation file in the cache, like de or pt_BR) instead of the user's own; one the cache lacks falls back to en_US as the app does."
+        ),
     },
-    async ({ profile, userId, mobileLogins }) => {
+    async ({ profile, userId, mobileLogins, language }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
         return json(
-          await loadPublishedIpad(profile, connection.targetOrg, userId, mobileLogins ?? [])
+          await loadPublishedIpad(
+            profile,
+            connection.targetOrg,
+            userId,
+            mobileLogins ?? [],
+            language
+          )
         );
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
@@ -1098,6 +1199,113 @@ export function register(server: McpServer) {
     }
   );
 
+  server.tool(
+    "studio_content_library",
+    "LSC Studio (GUI data): the Intelligent Content builder's library — every presentation (not deleted) with status, dates, page count, topics, territories it's distributed to and a first-page image for the most recent. Read-only. Returns JSON.",
+    {},
+    async () => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await loadContentLibrary(connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_content_presentation",
+    "LSC Studio (GUI data): one presentation for the Intelligent Content builder — its settings, pages in order (required, products), topics and territories as a draft, the pages, topics, products and territories that can be added, and which pages other presentations share. Never cached. Read-only. Returns JSON.",
+    { id },
+    async ({ id: presentationId }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await loadContentDetail(connection.targetOrg, presentationId));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_content_new",
+    "LSC Studio (GUI data): what a new Intelligent Content presentation can be made from — the org's active HTML ZIP pages (a PDF presentation shows one PDF, so its pages can't be put together), topics, products and territories, plus the Status and gesture values the org takes and whether it's production. Read-only. Returns JSON.",
+    {},
+    async () => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await loadNewContentOptions(connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_content_page_images",
+    "LSC Studio (GUI data): the first image of each Intelligent Content page by id (pages picked for a new presentation). Read-only. Returns JSON { images: { [pageId]: dataUrl } }.",
+    { pageIds: z.array(id).max(60) },
+    async ({ pageIds }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json({ images: await contentPageThumbnails(connection.targetOrg, pageIds) });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_content_draft",
+    "LSC Studio (GUI data): a page Roz drafts for Intelligent Content, kept on this computer in the engine's CLM folder (drafts/<draftId>), never in the org. `files` (with `replace`, all of them in place of the old ones) are written first; slides are .html files at the top (01_intro.html), other files at most one folder deep. Returns JSON { player, checks, files, thumbnails } — the draft laid out for the live player like an org page, the problems that keep it from being a page (errors) or that the iPad shows differently (warnings), its files, and the slide thumbnails the app still has to draw. `remove: true` deletes the draft instead. Nothing is sent to the org.",
+    {
+      draftId,
+      name: z.string().max(255).optional(),
+      files: z
+        .array(
+          z.object({
+            path: z.string().max(200),
+            content: z.string().max(3_000_000),
+            base64: z.boolean().optional(),
+          })
+        )
+        .max(60)
+        .optional(),
+      replace: z.boolean().optional(),
+      remove: z.boolean().optional(),
+    },
+    async ({ draftId: d, name, files, replace, remove }) => {
+      try {
+        if (remove) {
+          deleteDraft(d);
+          return json({ removed: true });
+        }
+        if (files?.length || replace) writeDraft(d, files ?? [], !!replace);
+        const player = draftPlayer(d, name || "Draft");
+        return json({
+          player,
+          checks: checkDraft(d),
+          files: draftFiles(d),
+          thumbnails: player.slides.filter((sl) => !sl.thumbnail).map((sl) => sl.name),
+        });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
   // --- custom scripts: server ---
   server.tool(
     "studio_custom_scripts",
@@ -1176,6 +1384,50 @@ export function register(server: McpServer) {
   );
 
   server.tool(
+    "studio_content_player",
+    "LSC Studio (GUI data): one Intelligent Content presentation laid out for the iPad preview's live player, as LSC Mobile keeps it: each active page's ZIP unpacked into its own folder with its slides rendered as Mustache templates and the player script added, or a PDF presentation's pages drawn as images; additional-content pages listed as assets. Files go to this user's private temp folder for the Electron app to serve to a sandboxed frame. Read-only against the org; never cached. Returns JSON { root, presentation, pages, slides, assets, notes }.",
+    {
+      presentationId: z.string().regex(/^[a-zA-Z0-9]{15,18}$/),
+      userId: z
+        .string()
+        .regex(/^[a-zA-Z0-9]{15,18}$/)
+        .optional(),
+    },
+    async ({ presentationId, userId }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await loadContentPlayer(connection.targetOrg, presentationId, userId ?? ""));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_kam_plan",
+    "LSC Studio (GUI data): one Key Account Management plan the iPad preview's list didn't include (the preview reads the 25 most recently changed plans), with its objectives, action plans, tactics, stakeholders and participants, read as the connected account over the tables `sync` names (the viewer's sync filters can't be applied here). Read-only. Returns JSON { plan, mode, nomenclature, notes }; plan is null when the account can't read it.",
+    {
+      object: z.enum(["AccountPlan", "TerritoryBusinessPlan"]),
+      planId: z.string().regex(/^[a-zA-Z0-9]{15,18}$/),
+      sync: z.array(z.string().max(80)).max(20),
+    },
+    async ({ object, planId, sync }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await loadKamPlan(connection.targetOrg, object, planId, sync));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
     "studio_report_data",
     "LSC Studio (GUI data): one report's result for the iPad preview's View Report sheet, run read-only as the connected account (Summary and Tabular only; first 150 rows), reused for six hours from memory. Read-only. Returns JSON { id, data } — data is null when the report couldn't be run here. `userId` is the previewed rep; it doesn't change the run.",
     {
@@ -1193,6 +1445,117 @@ export function register(server: McpServer) {
       try {
         const data = await runReport(reportId, connection.targetOrg);
         return json({ id: reportId, data: data ?? null });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_manager_data",
+    "LSC Studio (GUI data): on-demand reads for the iPad preview's manager screens, read-only. kind dashboardDetail: one dashboard's describe (and cached results when it runs as a specified user) as { detail }. kind myTeamWeek: one territory's activities for the week holding `date` (Connect API weekly-territory-activities), mapped like the device's My Team tab. Returns JSON { week } or { error }.",
+    {
+      kind: z.enum(["myTeamWeek", "dashboardDetail"]),
+      dashboardId: z
+        .string()
+        .regex(/^01Z[A-Za-z0-9]{12,15}$/)
+        .optional(),
+      territoryId: z
+        .string()
+        .regex(/^[a-zA-Z0-9]{15,18}$/)
+        .optional(),
+      date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .default("1970-01-01"),
+      firstDay: z.string().max(12).default("Monday"),
+      timeZone: z.string().max(64).default("UTC"),
+      locale: z.string().max(16).default("en-US"),
+    },
+    async ({ kind, dashboardId, territoryId, date, firstDay, timeZone, locale }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        if (kind === "dashboardDetail") {
+          if (!dashboardId) return jsonError("dashboardId is required.");
+          return json({ detail: await loadDashboardDetail(connection.targetOrg, dashboardId) });
+        }
+        return json({
+          week: await loadMyTeamWeek(connection.targetOrg, {
+            territoryId,
+            date,
+            firstDay,
+            timeZone,
+            locale,
+          }),
+        });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_consent_data",
+    "LSC Studio (GUI data): the Capture Consent sheet for one account, read-only: the org's consent settings, subscriptions with their channels and the account's contact points and active consents, laid out as the device's mapper does (module/OPT/Consent). Returns JSON { consent } or { error }.",
+    { accountId: z.string().regex(/^[a-zA-Z0-9]{15,18}$/) },
+    async ({ accountId }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json({ consent: await loadConsent(connection.targetOrg, accountId) });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_survey_data",
+    "LSC Studio (GUI data): the Surveys sheet for one account, read-only. Without developerName it lists the account's surveys (newest invitation per survey, Open / Completed status from the viewer's response); with developerName, cacheRecordId and optionally version it returns that survey's pages and questions from the flow in the profile's metadata cache, typed as the device's mapper does (SurveysQuestionViewModel). Returns JSON { surveys, notes } or { form } or { error }.",
+    {
+      accountId: z
+        .string()
+        .regex(/^[a-zA-Z0-9]{15,18}$/)
+        .optional(),
+      viewerUserId: z
+        .string()
+        .regex(/^[a-zA-Z0-9]{15,18}$/)
+        .optional(),
+      developerName: z
+        .string()
+        .regex(/^\w{1,80}$/)
+        .optional(),
+      version: z.number().int().nullable().optional(),
+      cacheRecordId: z
+        .string()
+        .regex(/^[a-zA-Z0-9]{15,18}$/)
+        .optional(),
+    },
+    async ({ accountId, viewerUserId, developerName, version, cacheRecordId }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        if (developerName) {
+          if (!cacheRecordId)
+            return jsonError("cacheRecordId is required for a survey's questions.");
+          return json({
+            form: await loadSurveyForm(
+              connection.targetOrg,
+              cacheRecordId,
+              developerName,
+              version ?? null
+            ),
+          });
+        }
+        if (!accountId) return jsonError("accountId is required.");
+        return json(await loadSurveys(connection.targetOrg, accountId, viewerUserId));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

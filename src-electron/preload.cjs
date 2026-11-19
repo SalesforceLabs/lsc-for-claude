@@ -164,18 +164,29 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioLwcRequest: (method, path, body) => ipcRenderer.invoke("studio:call", "studio_lwc_request", body === undefined ? { method, path } : { method, path, body }),
   studioLwcRequestAs: (loginId, method, path, body) =>
     ipcRenderer.invoke("studio:lwcRequestAs", loginId, body === undefined ? { method, path } : { method, path, body }),
-  studioIpadPublished: (profile, refresh = false, userId) =>
-    ipcRenderer.invoke("studio:call", "studio_ipad_published", userId ? { profile, userId } : { profile }, refresh),
+  studioIpadPublished: (profile, refresh = false, userId, language) =>
+    ipcRenderer.invoke("studio:call", "studio_ipad_published", { profile, ...(userId ? { userId } : {}), ...(language ? { language } : {}) }, refresh),
   studioIpadPublishedUsers: (profile, search) => ipcRenderer.invoke("studio:call", "studio_ipad_published_users", { profile, search }),
   studioUnpublished: (profile, known, refresh = false) =>
     ipcRenderer.invoke("studio:call", "studio_unpublished", known ? { profile, known } : { profile }, refresh),
   studioIpadReports: (userId) => ipcRenderer.invoke("studio:call", "studio_ipad_reports", { userId }),
+  studioKamPlan: (object, planId, sync) => ipcRenderer.invoke("studio:call", "studio_kam_plan", { object, planId, sync }),
   studioReportData: (reportId, userId) => ipcRenderer.invoke("studio:call", "studio_report_data", userId ? { reportId, userId } : { reportId }),
+  studioManagerData: (args) => ipcRenderer.invoke("studio:call", "studio_manager_data", args),
+  studioConsentData: (accountId) => ipcRenderer.invoke("studio:call", "studio_consent_data", { accountId }),
+  studioSurveyData: (args) => ipcRenderer.invoke("studio:call", "studio_survey_data", args),
+  studioSurveyData: (args) => ipcRenderer.invoke("studio:call", "studio_survey_data", args),
   studioIpadPublishedProgress: (profile) => ipcRenderer.invoke("studio:call", "studio_ipad_published_progress", { profile }),
   // --- custom scripts: editor ---
   // The library is cached in the main process; `refresh` bypasses the cache. A single script is never cached.
   studioCustomScripts: (refresh = false) => ipcRenderer.invoke("studio:call", "studio_custom_scripts", {}, refresh),
   studioCustomScript: (id) => ipcRenderer.invoke("studio:call", "studio_custom_script", { id }),
+  // --- intelligent content: builder ---
+  // The library is cached in the main process; `refresh` bypasses the cache. One presentation is never cached.
+  studioContentLibrary: (refresh = false) => ipcRenderer.invoke("studio:call", "studio_content_library", {}, refresh),
+  studioContentPresentation: (id) => ipcRenderer.invoke("studio:call", "studio_content_presentation", { id }, true),
+  studioContentNew: () => ipcRenderer.invoke("studio:call", "studio_content_new", {}, true),
+  studioContentPageImages: (pageIds) => ipcRenderer.invoke("studio:call", "studio_content_page_images", { pageIds }),
   // --- custom scripts: runner ---
   // Read-only: records to test against, and a simulated run of the editor's code against one of them. Never cached.
   studioScriptTestRecords: (args) => ipcRenderer.invoke("studio:call", "studio_script_test_records", args, false),
@@ -316,6 +327,22 @@ contextBridge.exposeInMainWorld("lscApi", {
   // Live LWC preview documents, served as lsc-frame:// with their own CSP
   registerFrame: (html) => ipcRenderer.invoke("frame:register", html),
   releaseFrame: (url) => ipcRenderer.invoke("frame:release", url),
+  // The iPad preview's live CLM player: unpacks a presentation and serves it under lsc-frame://clm/<token>/
+  studioContentPlayer: (presentationId, userId) => ipcRenderer.invoke("studio:contentPlayer", presentationId, userId),
+  studioContentPlayerRelease: (base) => ipcRenderer.invoke("studio:contentPlayerRelease", base),
+  contentDraftList: () => ipcRenderer.invoke("contentDraft:list"),
+  contentDraftGet: (id) => ipcRenderer.invoke("contentDraft:get", id),
+  contentDraftCreate: (prompt) => ipcRenderer.invoke("contentDraft:create", prompt),
+  contentDraftSend: (id, prompt) => ipcRenderer.invoke("contentDraft:send", id, prompt),
+  contentDraftStop: (id) => ipcRenderer.invoke("contentDraft:stop", id),
+  contentDraftRename: (id, name) => ipcRenderer.invoke("contentDraft:rename", id, name),
+  contentDraftDelete: (id) => ipcRenderer.invoke("contentDraft:delete", id),
+  contentDraftPreview: (id) => ipcRenderer.invoke("contentDraft:preview", id),
+  onContentDraftEvent: (callback) => {
+    const handler = (_e, payload) => callback(payload);
+    ipcRenderer.on("contentDraft:event", handler);
+    return () => ipcRenderer.removeListener("contentDraft:event", handler);
+  },
 
   // Guide section reading
   readGuideSection: (guideSlug, sectionSlug) =>

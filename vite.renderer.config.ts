@@ -13,7 +13,7 @@ const APP_CSP = [
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
-  "img-src 'self' data: blob: https://*.salesforce.com https://*.force.com https://*.sfdcstatic.com https://*.documentforce.com",
+  "img-src 'self' data: blob: lsc-frame: https://*.salesforce.com https://*.force.com https://*.sfdcstatic.com https://*.documentforce.com",
   "connect-src 'self'",
   "frame-src lsc-frame:",
   "object-src 'none'",
@@ -25,7 +25,13 @@ function contentSecurityPolicy(): Plugin {
   return {
     name: "lsc-content-security-policy",
     apply: "build",
-    transformIndexHtml: () => [{ tag: "meta", attrs: { "http-equiv": "Content-Security-Policy", content: APP_CSP }, injectTo: "head-prepend" }],
+    transformIndexHtml: () => [
+      {
+        tag: "meta",
+        attrs: { "http-equiv": "Content-Security-Policy", content: APP_CSP },
+        injectTo: "head-prepend",
+      },
+    ],
   };
 }
 

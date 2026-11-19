@@ -1,5 +1,15 @@
 // Structural copy of src/studio/types.ts — the renderer bundle cannot import from src/. Keep in sync.
-import type { AssignCustomScriptFix, CreateCustomScriptFix, DeleteCustomScriptFix, SaveCustomScriptFix } from "./scripts/script-types";
+import type {
+  AssignCustomScriptFix,
+  CreateCustomScriptFix,
+  DeleteCustomScriptFix,
+  SaveCustomScriptFix,
+} from "./scripts/script-types";
+import type {
+  CreatePresentationFix,
+  DeletePresentationFix,
+  EditPresentationFix,
+} from "./content/content-types";
 
 export type Severity = "error" | "warning" | "info";
 
@@ -16,7 +26,14 @@ export interface StudioFinding {
  * (`from`), so a fix is refused if the org changed since the map was loaded.
  */
 export type StudioFix =
-  | { kind: "assignPsl"; label: string; userId: string; userName: string; pslId: string; pslLabel: string }
+  | {
+      kind: "assignPsl";
+      label: string;
+      userId: string;
+      userName: string;
+      pslId: string;
+      pslLabel: string;
+    }
   | {
       kind: "removePsl";
       label: string;
@@ -48,9 +65,22 @@ export type StudioFix =
       to: string[];
     }
   | CreateConfigFix
-  | { kind: "deleteConfigRecord"; label: string; category: string; developerName: string; recordLabel: string }
+  | {
+      kind: "deleteConfigRecord";
+      label: string;
+      category: string;
+      developerName: string;
+      recordLabel: string;
+    }
   | { kind: "assignAccess"; label: string; userId: string; userName: string; access: AccessRef }
-  | { kind: "removeAccess"; label: string; userId: string; userName: string; access: AccessRef; assignmentId: string }
+  | {
+      kind: "removeAccess";
+      label: string;
+      userId: string;
+      userName: string;
+      access: AccessRef;
+      assignmentId: string;
+    }
   | CreateCustomScriptFix
   | SaveCustomScriptFix
   | DeleteCustomScriptFix
@@ -76,7 +106,10 @@ export type StudioFix =
       add: boolean;
     }
   | EditMetadataFix
-  | CopyForProfileFix;
+  | CopyForProfileFix
+  | EditPresentationFix
+  | CreatePresentationFix
+  | DeletePresentationFix;
 
 /** A page layout field's behavior. */
 export type FieldBehavior = "Edit" | "Required" | "Readonly";
@@ -108,7 +141,13 @@ export type LayoutOp =
   | { op: "setSectionHeading"; section: SectionRef; from: boolean; to: boolean }
   | { op: "moveRelatedList"; relatedList: string; before: string | null }
   | { op: "removeRelatedList"; relatedList: string }
-  | { op: "addRelatedList"; relatedList: string; before: string | null; xml?: string; object?: string }
+  | {
+      op: "addRelatedList";
+      relatedList: string;
+      before: string | null;
+      xml?: string;
+      object?: string;
+    }
   // Mobile & Lightning Actions: the Draft model doesn't draw these, they pass through to the server untouched.
   | { op: "addAction"; action: string; before: string | null; actionType?: string }
   | { op: "removeAction"; action: string; dropList?: boolean };
@@ -137,7 +176,13 @@ export type ListViewOp =
   | { op: "removeListColumn"; column: string }
   | { op: "addListColumn"; column: string; before: string | null }
   | { op: "setListFilterScope"; from: string | null; to: string }
-  | { op: "setListFilters"; from: ListViewFilter[]; to: ListViewFilter[]; fromLogic: string | null; toLogic: string | null };
+  | {
+      op: "setListFilters";
+      from: ListViewFilter[];
+      to: ListViewFilter[];
+      fromLogic: string | null;
+      toLogic: string | null;
+    };
 
 export interface MetadataDocRef {
   type: "Layout" | "CompactLayout" | "FlexiPage" | "ListView" | "CustomApplication";
@@ -176,7 +221,13 @@ export type FlexiPageOp =
       xml?: string;
       facets?: { xml: string; at: number }[];
     }
-  | { op: "setComponentProperty"; component: FlexiComponentRef; property: FlexiPageProperty; from: string | null; to: string | null };
+  | {
+      op: "setComponentProperty";
+      component: FlexiComponentRef;
+      property: FlexiPageProperty;
+      from: string | null;
+      to: string | null;
+    };
 
 /**
  * One edit to the tab bar of a Lightning app (a CustomApplication's `<tabs>`; for an app installed from a
@@ -241,7 +292,12 @@ export interface ComponentCatalog {
 export interface LiveLayout {
   type: "Layout";
   fullName: string;
-  sections: { label: string; nth: number; heading: boolean; columns: { field: string; behavior: FieldBehavior }[][] }[];
+  sections: {
+    label: string;
+    nth: number;
+    heading: boolean;
+    columns: { field: string; behavior: FieldBehavior }[][];
+  }[];
   relatedLists: string[];
   /** Profiles assigned the layout; null when that couldn't be read. */
   profiles: string[] | null;
@@ -272,7 +328,12 @@ export interface RelatedListOption {
  * Edits to one metadata document, deployed together. Each op is checked against
  * the document as retrieved; undo is the reversed inverse ops.
  */
-export type EditMetadataFix = LayoutEditFix | CompactLayoutEditFix | FlexiPageEditFix | ListViewEditFix | AppEditFix;
+export type EditMetadataFix =
+  | LayoutEditFix
+  | CompactLayoutEditFix
+  | FlexiPageEditFix
+  | ListViewEditFix
+  | AppEditFix;
 
 /**
  * "Make a copy just for this profile": clone a page layout or Lightning page under a new
@@ -451,7 +512,12 @@ export interface AccessOptions {
   /** Territories, labelled with their model; `planning` when the model isn't active. */
   territories: (AccessRef & { model: string; planning: boolean })[];
   /** Lists cut at the server's cap, with how many exist — find the rest by name. */
-  truncated?: Partial<Record<"permissionSets" | "permissionSetGroups" | "territories", { listed: number; total: number }>>;
+  truncated?: Partial<
+    Record<
+      "permissionSets" | "permissionSetGroups" | "territories",
+      { listed: number; total: number }
+    >
+  >;
 }
 
 /** A record Studio can switch on or off. */
@@ -645,7 +711,17 @@ export interface ItemDetail {
 /** One line of a flow's path; `depth` indents decision outcomes, loop bodies, and fault paths. */
 export interface FlowStep {
   depth: number;
-  kind: "decision" | "outcome" | "loop" | "lookup" | "assign" | "change" | "action" | "error" | "goto" | "path";
+  kind:
+    | "decision"
+    | "outcome"
+    | "loop"
+    | "lookup"
+    | "assign"
+    | "change"
+    | "action"
+    | "error"
+    | "goto"
+    | "path";
   text: string;
 }
 

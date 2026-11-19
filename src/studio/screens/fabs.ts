@@ -9,6 +9,7 @@ import type {
 } from "../published.js";
 import { type ScreenContext, softFail } from "./context.js";
 import { accountWhere, CARD_CAP, formatAddress } from "./accounts.js";
+import { collectOrder, type PublishedOrder } from "./actions/orders.js";
 
 /** What a custom action (or a layout's URL / App / LWC action) targets — enough to say what the app would open. */
 export interface PublishedFabAction {
@@ -69,6 +70,8 @@ export interface PublishedFabs {
   emailTemplates?: PublishedEmailTemplate[];
   /** New Visit from an account. */
   visitCreate?: PublishedVisitCreate;
+  /** Order (Quote) create: the price books and products, read only when a menu lists the action. */
+  order?: PublishedOrder;
   /** Home's menu, top to bottom: quick actions by sort order, then custom actions by label. */
   home: PublishedFabItem[];
   /** Record menus by object, then record type name. */
@@ -139,6 +142,10 @@ export interface HomeQuickAction {
 
 export interface HomeCustomAction {
   masterLabel: string;
+  /** The standard quick action it stands in for (CustomAction `QuickAction`), and its developer name. */
+  quickAction?: string;
+  developerName?: string;
+  entityName?: string;
   entityType: string;
   actionType: string;
   actionTarget?: string;
@@ -189,6 +196,20 @@ export interface LayoutActionItem {
   label: string;
   type: string;
   sortOrder: string;
+  /** The action's `lightningWebComponent` bundle (type LightningWebComponent). */
+  component?: string;
+}
+
+/**
+ * LMRModule.action(for:…) (LMRModule.swift:56-81): a LightningWebComponent action whose name doesn't start with
+ * lscMobileInline_ is run by SFLMRAction whatever its name, so it stays in the menu without being in SFActionType's list.
+ */
+function isLwcMenuAction(i: LayoutActionItem): boolean {
+  return (
+    i.type.toLowerCase() === "lightningwebcomponent" &&
+    !(i.name.split(".").pop() ?? i.name).toLowerCase().startsWith("lscmobileinline_") &&
+    !(i.component ?? "").toLowerCase().startsWith("lscmobileinline_")
+  );
 }
 
 /**
@@ -221,13 +242,58 @@ export function recordMenu(
   const seen = new Set<string>();
   return sorted
     .filter((i) => !/Account\.(AttendeeCall|ViewProfile)$/.test(i.name) && !/unlock$/i.test(i.name))
-    .filter((i) => supportedAction(i.name) && KEEPS_TYPE.has(i.type.toLowerCase()))
+    .filter(
+      (i) => (supportedAction(i.name) && KEEPS_TYPE.has(i.type.toLowerCase())) || isLwcMenuAction(i)
+    )
     .filter((i) => !seen.has(actionKey(i.name)) && !!seen.add(actionKey(i.name)))
     .map((i) => ({
       name: i.name,
       label: i.label || actionTitle(i.name) || i.name,
-      ...(i.type ? { action: { type: i.type.toLowerCase() } } : {}),
+      ...(i.type
+        ? {
+            action: { type: i.type.toLowerCase(), ...(i.component ? { target: i.component } : {}) },
+          }
+        : {}),
     }));
+}
+
+/**
+ * SFFlexiPageViewModel.makeActions (SFFlexiPageViewModel.swift:246-252): a custom action that corresponds to a layout
+ * action (OCEDBCustomActionModel.correspondsToStandardAction, OCEDBCustomActionModel.swift:261: its QuickAction or
+ * DeveloperName equals the action's name, ignoring case) replaces its type and target. Only LWC-typed layout actions
+ * are rewritten here: a URL custom action named like a quick action opens its URL, not the component.
+ */
+export function applyCustomOverrides(
+  records: PublishedFabs["records"],
+  custom: HomeCustomAction[]
+): PublishedFabs["records"] {
+  const out: PublishedFabs["records"] = {};
+  for (const [object, byType] of Object.entries(records)) {
+    out[object] = {};
+    for (const [rt, menu] of Object.entries(byType)) {
+      out[object][rt] = menu.map((item) => {
+        if (item.action?.type !== "lightningwebcomponent") return item;
+        const key = actionKey(item.name);
+        const c = custom.find(
+          (a) =>
+            (!a.entityName || a.entityName.toLowerCase() === object.toLowerCase()) &&
+            [a.quickAction, a.developerName].some((n) => !!n && actionKey(n) === key) &&
+            /^(url|utterance|app|lightningwebcomponent)$/i.test(a.actionType)
+        );
+        if (!c) return item;
+        return {
+          ...item,
+          action: {
+            type: c.actionType.toLowerCase(),
+            target: c.actionTarget || undefined,
+            targetType: c.targetType || undefined,
+            hideBrowser: c.hideBrowser || undefined,
+          },
+        };
+      });
+    }
+  }
+  return out;
 }
 
 const walk = (cs: PublishedComponent[]): string[] | undefined => {
@@ -541,6 +607,9 @@ async function collectEmailTemplates(ctx: ScreenContext): Promise<PublishedEmail
   );
 }
 
+/** SFActionType.swift:277 — newquote / createquote open the Quote create flow. */
+const ORDER_ACTION = /(^|\.)(lsc4ce__)?(new|create)?(quote|order)$/i;
+
 /**
  * Quick actions carry their audience in a `Profiles` field; custom actions have no audience at all —
  * the org hands every active one to every device (OCEDBCustomActionModel filters by location only).
@@ -550,27 +619,45 @@ export async function collectFabs(ctx: ScreenContext): Promise<PublishedFabs> {
     configRecords("QuickAction", ctx.adminOrg),
     configRecords("CustomAction", ctx.adminOrg),
   ]);
+  const customActions: HomeCustomAction[] = custom.map((r) => ({
+    masterLabel: r.label,
+    quickAction: str(r.fields.QuickAction),
+    developerName: str(r.fields.DeveloperName),
+    entityName: str(r.fields.EntityName),
+    entityType: str(r.fields.EntityType),
+    actionType: str(r.fields.ActionType),
+    actionTarget: str(r.fields.ActionTarget),
+    targetType: str(r.fields.TargetType),
+    hideBrowser: str(r.fields.HideViewInBrowserAction).toLowerCase() === "true",
+  }));
+  const home = homeMenu(
+    quick.map((r) => ({
+      actionName: str(r.fields.ActionName),
+      masterLabel: r.label,
+      location: str(r.fields.Location),
+      sortOrder: Number(r.fields.SortOrder ?? 0),
+      profiles: str(r.fields.Profiles),
+    })),
+    custom.map((r) => ({
+      masterLabel: r.label,
+      entityType: str(r.fields.EntityType),
+      actionType: str(r.fields.ActionType),
+      actionTarget: str(r.fields.ActionTarget),
+      targetType: str(r.fields.TargetType),
+      hideBrowser: str(r.fields.HideViewInBrowserAction).toLowerCase() === "true",
+    })),
+    ctx.core.profile
+  );
+  const records = applyCustomOverrides(recordMenus(ctx.core), customActions);
+  const listsOrder = (items: PublishedFabItem[]) => items.some((i) => ORDER_ACTION.test(i.name));
+  const hasOrder =
+    listsOrder(home) ||
+    Object.values(records).some((byType) => Object.values(byType).some(listsOrder));
   return {
-    home: homeMenu(
-      quick.map((r) => ({
-        actionName: str(r.fields.ActionName),
-        masterLabel: r.label,
-        location: str(r.fields.Location),
-        sortOrder: Number(r.fields.SortOrder ?? 0),
-        profiles: str(r.fields.Profiles),
-      })),
-      custom.map((r) => ({
-        masterLabel: r.label,
-        entityType: str(r.fields.EntityType),
-        actionType: str(r.fields.ActionType),
-        actionTarget: str(r.fields.ActionTarget),
-        targetType: str(r.fields.TargetType),
-        hideBrowser: str(r.fields.HideViewInBrowserAction).toLowerCase() === "true",
-      })),
-      ctx.core.profile
-    ),
-    records: recordMenus(ctx.core),
+    home,
+    records,
     visitCreate: await collectVisitCreate(ctx).catch(() => undefined),
     emailTemplates: await collectEmailTemplates(ctx).catch(() => undefined),
+    order: hasOrder ? await collectOrder(ctx).catch(() => undefined) : undefined,
   };
 }

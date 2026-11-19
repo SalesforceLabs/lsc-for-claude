@@ -654,7 +654,6 @@
   cursor: pointer;
 }
 
-
 /* Dashboard cards (device: card x 21, inner boxes x 31, 1px #747474 border, radius 16) */
 .studio-ipad-rec-card.dash {
   padding: 0;
@@ -1244,6 +1243,20 @@
   display: grid;
   grid-template-columns: repeat(3, 340px);
   gap: 16px 16px;
+}
+
+/* Measured on the device (Aaron Morita, Product segment): header text 8pt left of the cards, 30pt above them, groups 326pt apart. */
+.studio-ipad-rec-rt-product {
+  height: 24px;
+  margin: -3px 0 30px -8px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  color: #000;
+}
+
+.studio-ipad-rec-rt-group + .studio-ipad-rec-rt-group {
+  margin-top: 29px;
 }
 
 .studio-ipad-rec-rt-card {

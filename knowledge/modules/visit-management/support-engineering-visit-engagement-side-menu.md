@@ -11,6 +11,8 @@ The Visit Engagement screen is rendered from a **merged layout** that pulls from
 
 > **The cardinal rule:** Put custom fields on **`ProviderVisit`**, not on `Visit`. Custom fields on `Visit` are ignored on the engagement screen — only a hard-coded set of standard fields is extracted from the Visit layout.
 >
+> **Exception:** A custom field with the same API name on both `Visit` and `ProviderVisit` is not ignored. iOS shows the Visit copy and can throw a data inconsistency error. Remove the duplicate. See [support-engineering-visit-duplicate-field-api.md](./support-engineering-visit-duplicate-field-api.md).
+>
 > **Exception:** `ProviderVisitProductDtlId` does not belong on the Provider Visit layout. With it there, the Provider Visit Information merged fields render empty. Remove the field. See [support-engineering-visit-information-dtl-field.md](./support-engineering-visit-information-dtl-field.md).
 >
 > **Exception:** `ProviderVisit.AdditionalInformation` is system-managed JSON (account/provider snapshot). Do not put it on the Visit Engagement layout, even though it already lives on ProviderVisit. See [support-engineering-visit-additional-information.md](./support-engineering-visit-additional-information.md).
@@ -176,9 +178,9 @@ Configure: Admin Console → Intelligent Content → Presentation Settings → T
 **Cause:** Default behavior — HCOs blocked.
 **Fix:** Add HCO record type developer name to `HcoTypesForSamplesAndItems` (semicolon-separated).
 
-### "Sample sidebar disabled on attendee/child visit"
-**Cause:** Attendee account doesn't share an address with the parent Visit's Place.
-**Fix:** Verify `ContactPointAddress` records for the attendee match the parent Visit's Location.
+### "Sample sidebar disabled on an HCP attendee of an HCO visit"
+**Cause:** The attendee's primary address does not match the parent visit's address. Working as designed. The child visit `PlaceId` is set to the parent `PlaceId`, and Samples disable because the locations are equal.
+**Fix:** Documentation update. Do not lead with `HcoTypesForSamplesAndItems` or a profile override. See [support-engineering-visit-attendee-sample-address.md](./support-engineering-visit-attendee-sample-address.md).
 
 ### "Presentations grayed out for an account"
 **Cause:** `TargetingContext = Restrict` and the presentation's Source System Identifier isn't in `ProviderAcctTerritoryInfo.TargetedPresentationInfo` for this account/territory.

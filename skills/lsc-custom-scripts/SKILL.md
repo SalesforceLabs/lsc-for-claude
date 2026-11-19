@@ -352,7 +352,7 @@ When helping users write or debug custom scripts, **always warn about these**:
 
 4. **CodeText is the runtime source.** The platform executes from `CodeText`, not the deployed LWC. Always click Refresh after deploying.
 
-5. **ObjectName and OperationEventType required.** Without `ObjectName = 'ProviderVisit'` and `OperationEventType = 'OnUpdate'` on the LifeScienceCustomScript record, Visit Action Validation scripts silently don't execute.
+5. **ObjectName and OperationEventType required.** Without `ObjectName = 'ProviderVisit'` and `OperationEventType = 'OnUpdate'` on the LifeScienceCustomScript record, Visit Action Validation scripts silently don't execute. Visit Action Validation has no removal event. `OnDelete` is not a hook for removing an attendee. Do not tell a user to add an `OnDelete` Visit Action Validation script to block that removal.
 
 6. **Only one Visit Action Validation runs.** First by ID/creation date. Combine all rules in one script.
 

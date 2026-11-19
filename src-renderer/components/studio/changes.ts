@@ -1,5 +1,24 @@
-import type { ScriptDetail, ScriptFields, ScriptRole, ScriptSummary, StageObjectRow, CreateCustomScriptFix } from "./scripts/script-types";
-import type { AppOp, CompactOp, CopyForProfileFix, CreateConfigFix, FlexiPageOp, ItemEdit, LayoutOp, ListViewOp, StudioFix, StudioItem } from "./types";
+import type {
+  ScriptDetail,
+  ScriptFields,
+  ScriptRole,
+  ScriptSummary,
+  StageObjectRow,
+  CreateCustomScriptFix,
+} from "./scripts/script-types";
+import { sameDraft } from "./content/content-logic";
+import type {
+  AppOp,
+  CompactOp,
+  CopyForProfileFix,
+  CreateConfigFix,
+  FlexiPageOp,
+  ItemEdit,
+  LayoutOp,
+  ListViewOp,
+  StudioFix,
+  StudioItem,
+} from "./types";
 
 /**
  * Pending changes — edits queued in Studio's tray until the admin reviews and
@@ -50,10 +69,22 @@ export function changeKey(fix: StudioFix): string {
       return `metadata:${fix.doc.type}:${fix.doc.fullName}`;
     case "copyForProfile":
       return `copy:${fix.doc.type}:${fix.doc.fullName}:${fix.profile.toLowerCase()}`;
+    case "editPresentation":
+      // The draft is the whole presentation, so a newer edit replaces the older one (keeping the first `from`).
+      return `presentation:${fix.presentationId}`;
+    case "createPresentation":
+      // The draft is the whole new presentation, so a newer version replaces the older one.
+      return `presentation-new:${fix.key}`;
+    case "deletePresentation":
+      return `presentation-delete:${fix.presentationId}`;
   }
 }
 
-const listKey = (l: string[]) => l.map((n) => n.toLowerCase()).sort().join("|");
+const listKey = (l: string[]) =>
+  l
+    .map((n) => n.toLowerCase())
+    .sort()
+    .join("|");
 
 /** True when a change would leave the setting as it was. */
 function isNoop(fix: StudioFix): boolean {
@@ -72,6 +103,8 @@ function isNoop(fix: StudioFix): boolean {
       return (fix.from ?? null) === (fix.to ?? null);
     case "editMetadata":
       return fix.ops.length === 0;
+    case "editPresentation":
+      return sameDraft(fix.from, fix.to);
     default:
       return false;
   }
@@ -82,10 +115,12 @@ type SaveFix = Extract<StudioFix, { kind: "saveCustomScript" }>;
 /** A save's `to` without the parts that equal what the org had (`from`), and whether nothing is left. */
 function trimScriptTo(fix: SaveFix): { to: SaveFix["to"]; noop: boolean } {
   const to: SaveFix["to"] = {};
-  if (fix.to.code !== undefined && fix.to.code.trim() !== fix.from.code.trim()) to.code = fix.to.code;
+  if (fix.to.code !== undefined && fix.to.code.trim() !== fix.from.code.trim())
+    to.code = fix.to.code;
   const fields: Partial<ScriptFields> = {};
   for (const [k, v] of Object.entries(fix.to.fields ?? {})) {
-    if ((v ?? null) !== (fix.from.fields[k as keyof ScriptFields] ?? null)) (fields as Record<string, unknown>)[k] = v;
+    if ((v ?? null) !== (fix.from.fields[k as keyof ScriptFields] ?? null))
+      (fields as Record<string, unknown>)[k] = v;
   }
   if (Object.keys(fields).length) to.fields = fields;
   return { to, noop: to.code === undefined && !to.fields };
@@ -97,23 +132,37 @@ export function queueChange(pending: PendingChange[], change: PendingChange): Pe
   // Deleting a script makes its queued edits pointless.
   if (change.fix.kind === "deleteCustomScript") {
     const scriptId = change.fix.scriptId;
-    pending = pending.filter((p) => !((p.fix.kind === "saveCustomScript" || p.fix.kind === "setCustomScriptCode") && p.fix.scriptId === scriptId));
+    pending = pending.filter(
+      (p) =>
+        !(
+          (p.fix.kind === "saveCustomScript" || p.fix.kind === "setCustomScriptCode") &&
+          p.fix.scriptId === scriptId
+        )
+    );
   }
   const idx = pending.findIndex((p) => changeKey(p.fix) === key);
   if (idx < 0) return isNoop(change.fix) ? pending : [...pending, change];
   const prev = pending[idx].fix;
   // Giving and then taking away the same access (or the reverse) is no change at all.
-  if (prev.kind !== change.fix.kind && (prev.kind === "assignAccess" || prev.kind === "removeAccess")) {
+  if (
+    prev.kind !== change.fix.kind &&
+    (prev.kind === "assignAccess" || prev.kind === "removeAccess")
+  ) {
     return pending.filter((_, i) => i !== idx);
   }
   // Adding a related list and then taking it out again (or the reverse) is no change at all.
-  if (prev.kind === "setLayoutRelatedList" && change.fix.kind === "setLayoutRelatedList" && prev.add !== change.fix.add) {
+  if (
+    prev.kind === "setLayoutRelatedList" &&
+    change.fix.kind === "setLayoutRelatedList" &&
+    prev.add !== change.fix.add
+  ) {
     return pending.filter((_, i) => i !== idx);
   }
   // Repeated saves of one script are one pending change: the original `from`, the newest code, fields merged.
   if (prev.kind === "saveCustomScript" && change.fix.kind === "saveCustomScript") {
     const to = { ...prev.to, ...change.fix.to };
-    if (prev.to.fields || change.fix.to.fields) to.fields = { ...prev.to.fields, ...change.fix.to.fields };
+    if (prev.to.fields || change.fix.to.fields)
+      to.fields = { ...prev.to.fields, ...change.fix.to.fields };
     const mergedSave: SaveFix = { ...change.fix, from: prev.from, to };
     const trimmed = trimScriptTo(mergedSave);
     if (trimmed.noop) return pending.filter((_, i) => i !== idx);
@@ -139,7 +188,9 @@ export function pendingFor(pending: PendingChange[], fix: StudioFix): PendingCha
 export function isQueued(pending: PendingChange[], fix: StudioFix): boolean {
   const queued = pendingFor(pending, fix)?.fix;
   if (!queued) return false;
-  return !("to" in fix) || JSON.stringify((queued as { to?: unknown }).to) === JSON.stringify(fix.to);
+  return (
+    !("to" in fix) || JSON.stringify((queued as { to?: unknown }).to) === JSON.stringify(fix.to)
+  );
 }
 
 export function isMobileChange(fix: StudioFix): boolean {
@@ -182,10 +233,15 @@ export function publishProfiles(changes: PendingChange[]): string[] | null {
 
 // --- Stacking suggested profile changes -----------------------------------------
 
-type ProfileListFix = Extract<StudioFix, { kind: "setProfileAssignments" }> | Extract<StudioFix, { kind: "setConfigField" }>;
+type ProfileListFix =
+  | Extract<StudioFix, { kind: "setProfileAssignments" }>
+  | Extract<StudioFix, { kind: "setConfigField" }>;
 
 function isProfileListFix(fix: StudioFix): fix is ProfileListFix {
-  return fix.kind === "setProfileAssignments" || (fix.kind === "setConfigField" && fix.field === "Profiles");
+  return (
+    fix.kind === "setProfileAssignments" ||
+    (fix.kind === "setConfigField" && fix.field === "Profiles")
+  );
 }
 
 function listOf(fix: ProfileListFix, side: "from" | "to"): string[] {
@@ -204,7 +260,10 @@ function delta(fix: ProfileListFix): { add: string[]; remove: Set<string> } {
   const [from, to] = [listOf(fix, "from"), listOf(fix, "to")];
   const lower = (l: string[]) => new Set(l.map((n) => n.toLowerCase()));
   const [f, t] = [lower(from), lower(to)];
-  return { add: to.filter((n) => !f.has(n.toLowerCase())), remove: new Set(from.filter((n) => !t.has(n.toLowerCase())).map((n) => n.toLowerCase())) };
+  return {
+    add: to.filter((n) => !f.has(n.toLowerCase())),
+    remove: new Set(from.filter((n) => !t.has(n.toLowerCase())).map((n) => n.toLowerCase())),
+  };
 }
 
 function applyDelta(base: string[], d: { add: string[]; remove: Set<string> }): string[] {
@@ -220,7 +279,10 @@ function applyDelta(base: string[], d: { add: string[]; remove: Set<string> }): 
 export function stackChange(pending: PendingChange[], change: PendingChange): PendingChange {
   const queued = pendingFor(pending, change.fix)?.fix;
   if (!queued || !isProfileListFix(change.fix) || !isProfileListFix(queued)) return change;
-  return { ...change, fix: withList(change.fix, applyDelta(listOf(queued, "to"), delta(change.fix))) };
+  return {
+    ...change,
+    fix: withList(change.fix, applyDelta(listOf(queued, "to"), delta(change.fix))),
+  };
 }
 
 /** Whether a suggestion is in the tray — for profile lists, whether everything it adds and removes is pending. */
@@ -236,10 +298,17 @@ export function isSuggestionQueued(pending: PendingChange[], fix: StudioFix): bo
 export function withoutSuggestion(pending: PendingChange[], fix: StudioFix): PendingChange[] {
   const entry = pendingFor(pending, fix);
   if (!entry) return pending;
-  if (!isProfileListFix(fix) || !isProfileListFix(entry.fix)) return pending.filter((p) => p !== entry);
+  if (!isProfileListFix(fix) || !isProfileListFix(entry.fix))
+    return pending.filter((p) => p !== entry);
   const d = delta(fix);
-  const reversed = { add: [...d.remove].map((n) => listOf(fix, "from").find((f) => f.toLowerCase() === n)!), remove: new Set(d.add.map((n) => n.toLowerCase())) };
-  return queueChange(pending, { ...entry, fix: withList(entry.fix, applyDelta(listOf(entry.fix, "to"), reversed)) });
+  const reversed = {
+    add: [...d.remove].map((n) => listOf(fix, "from").find((f) => f.toLowerCase() === n)!),
+    remove: new Set(d.add.map((n) => n.toLowerCase())),
+  };
+  return queueChange(pending, {
+    ...entry,
+    fix: withList(entry.fix, applyDelta(listOf(entry.fix, "to"), reversed)),
+  });
 }
 
 // --- Building changes from inspector edits ------------------------------------
@@ -254,7 +323,10 @@ export function splitList(v: string): string[] {
 /** The item's profile list as currently edited — the queued value if there is one. */
 export function effectiveProfiles(edit: ItemEdit, pending: PendingChange[]): string[] {
   if (!edit.profiles) return [];
-  const probe = profileChange(edit, edit.profiles.source === "field" ? splitList(edit.profiles.raw) : edit.profiles.names);
+  const probe = profileChange(
+    edit,
+    edit.profiles.source === "field" ? splitList(edit.profiles.raw) : edit.profiles.names
+  );
   const queued = probe && pendingFor(pending, probe)?.fix;
   if (queued?.kind === "setConfigField") return splitList(String(queued.to ?? ""));
   if (queued?.kind === "setProfileAssignments") return queued.to;
@@ -267,7 +339,15 @@ export function profileChange(edit: ItemEdit, to: string[]): StudioFix | null {
   const { category, developerName, label } = edit.record;
   const changeLabel = `Change who sees ${label}`;
   if (edit.profiles.source === "assignments") {
-    return { kind: "setProfileAssignments", label: changeLabel, category, developerName, recordLabel: label, from: edit.profiles.names, to };
+    return {
+      kind: "setProfileAssignments",
+      label: changeLabel,
+      category,
+      developerName,
+      recordLabel: label,
+      from: edit.profiles.names,
+      to,
+    };
   }
   const raw = edit.profiles.raw;
   const sep = raw.includes(",") && !raw.includes(";") ? "," : ";";
@@ -275,12 +355,27 @@ export function profileChange(edit: ItemEdit, to: string[]): StudioFix | null {
   const kept = splitList(raw).filter((n) => lower.has(n.toLowerCase()));
   const keptLower = new Set(kept.map((n) => n.toLowerCase()));
   const value = [...kept, ...to.filter((n) => !keptLower.has(n.toLowerCase()))].join(sep);
-  return { kind: "setConfigField", label: changeLabel, category, developerName, recordLabel: label, field: "Profiles", from: raw, to: value };
+  return {
+    kind: "setConfigField",
+    label: changeLabel,
+    category,
+    developerName,
+    recordLabel: label,
+    field: "Profiles",
+    from: raw,
+    to: value,
+  };
 }
 
 export function activeChange(edit: ItemEdit, to: boolean): StudioFix | null {
   if (edit.active === undefined) return null;
-  return { kind: "setActive", label: `${to ? "Activate" : "Deactivate"} ${edit.record.label}`, record: edit.record, from: edit.active, to };
+  return {
+    kind: "setActive",
+    label: `${to ? "Activate" : "Deactivate"} ${edit.record.label}`,
+    record: edit.record,
+    from: edit.active,
+    to,
+  };
 }
 
 export function effectiveActive(edit: ItemEdit, pending: PendingChange[]): boolean | undefined {
@@ -297,7 +392,14 @@ export function itemAffects(item: StudioItem, extra: string[] = []): string[] | 
 
 /** A change setting a custom script's CodeText from `from` (what the map saw) to `to`. */
 export function scriptChange(item: StudioItem, from: string, to: string): StudioFix {
-  return { kind: "setCustomScriptCode", label: `Edit code of ${item.label}`, scriptId: item.id, scriptName: item.label, from, to };
+  return {
+    kind: "setCustomScriptCode",
+    label: `Edit code of ${item.label}`,
+    scriptId: item.id,
+    scriptName: item.label,
+    from,
+    to,
+  };
 }
 
 const fieldsOfSummary = (s: ScriptSummary): ScriptFields => ({
@@ -309,7 +411,10 @@ const fieldsOfSummary = (s: ScriptSummary): ScriptFields => ({
 });
 
 /** Save a script's code and/or fields (`to` holds only what changes). Repeated saves merge, keeping the first `from`. */
-export function scriptSaveChange(detail: ScriptDetail, to: { code?: string; fields?: Partial<ScriptFields> }): StudioFix {
+export function scriptSaveChange(
+  detail: ScriptDetail,
+  to: { code?: string; fields?: Partial<ScriptFields> }
+): StudioFix {
   return {
     kind: "saveCustomScript",
     label: `Save ${detail.name}`,
@@ -321,18 +426,33 @@ export function scriptSaveChange(detail: ScriptDetail, to: { code?: string; fiel
 }
 
 /** Create a script (and its component), optionally assigning it to stage objects. */
-export function scriptCreateChange(draft: Omit<CreateCustomScriptFix, "kind" | "label"> & { label?: string }): StudioFix {
+export function scriptCreateChange(
+  draft: Omit<CreateCustomScriptFix, "kind" | "label"> & { label?: string }
+): StudioFix {
   const { label, ...rest } = draft;
   return { kind: "createCustomScript", label: label ?? `Create script ${draft.name}`, ...rest };
 }
 
 /** Delete a script; its component goes with it when it is one Studio can delete (customer-made, not a package's). */
-export function scriptDeleteChange(summary: Pick<ScriptSummary, "id" | "name" | "lwc">, deleteBundle = summary.lwc.exists && summary.lwc.editable): StudioFix {
-  return { kind: "deleteCustomScript", label: `Delete script ${summary.name}`, scriptId: summary.id, scriptName: summary.name, deleteBundle };
+export function scriptDeleteChange(
+  summary: Pick<ScriptSummary, "id" | "name" | "lwc">,
+  deleteBundle = summary.lwc.exists && summary.lwc.editable
+): StudioFix {
+  return {
+    kind: "deleteCustomScript",
+    label: `Delete script ${summary.name}`,
+    scriptId: summary.id,
+    scriptName: summary.name,
+    deleteBundle,
+  };
 }
 
 /** Point a stage object's validation or checklist script at `to` (null clears it). */
-export function scriptAssignChange(stage: StageObjectRow, role: ScriptRole, to: string | null): StudioFix {
+export function scriptAssignChange(
+  stage: StageObjectRow,
+  role: ScriptRole,
+  to: string | null
+): StudioFix {
   const from = role === "validation" ? stage.validationScriptId : stage.checklistScriptId;
   return {
     kind: "assignCustomScript",
@@ -347,57 +467,121 @@ export function scriptAssignChange(stage: StageObjectRow, role: ScriptRole, to: 
 
 /** The layout ops queued for a page layout. */
 export function queuedLayoutOps(pending: PendingChange[], layoutName: string): LayoutOp[] {
-  const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "Layout" && p.fix.doc.fullName === layoutName)?.fix;
-  return queued?.kind === "editMetadata" && queued.doc.type === "Layout" ? (queued.ops as LayoutOp[]) : [];
+  const queued = pending.find(
+    (p) =>
+      p.fix.kind === "editMetadata" &&
+      p.fix.doc.type === "Layout" &&
+      p.fix.doc.fullName === layoutName
+  )?.fix;
+  return queued?.kind === "editMetadata" && queued.doc.type === "Layout"
+    ? (queued.ops as LayoutOp[])
+    : [];
 }
 
 /** The ops queued for a Lightning page. */
 export function queuedFlexiPageOps(pending: PendingChange[], fullName: string): FlexiPageOp[] {
-  const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "FlexiPage" && p.fix.doc.fullName === fullName)?.fix;
-  return queued?.kind === "editMetadata" && queued.doc.type === "FlexiPage" ? (queued.ops as FlexiPageOp[]) : [];
+  const queued = pending.find(
+    (p) =>
+      p.fix.kind === "editMetadata" &&
+      p.fix.doc.type === "FlexiPage" &&
+      p.fix.doc.fullName === fullName
+  )?.fix;
+  return queued?.kind === "editMetadata" && queued.doc.type === "FlexiPage"
+    ? (queued.ops as FlexiPageOp[])
+    : [];
 }
 
 /** A Lightning page change with these ops — what's queued for the page is replaced by it. */
 export function flexiPageOpsChange(fullName: string, label: string, ops: FlexiPageOp[]): StudioFix {
-  return { kind: "editMetadata", label: `Edit Lightning page ${label}`, doc: { type: "FlexiPage", fullName, label }, ops };
+  return {
+    kind: "editMetadata",
+    label: `Edit Lightning page ${label}`,
+    doc: { type: "FlexiPage", fullName, label },
+    ops,
+  };
 }
 
 /** A page layout change with these ops — what's queued for the layout is replaced by it. */
-export function layoutOpsChange(layoutName: string, layoutLabel: string, ops: LayoutOp[]): StudioFix {
-  return { kind: "editMetadata", label: `Edit page layout ${layoutLabel}`, doc: { type: "Layout", fullName: layoutName, label: layoutLabel }, ops };
+export function layoutOpsChange(
+  layoutName: string,
+  layoutLabel: string,
+  ops: LayoutOp[]
+): StudioFix {
+  return {
+    kind: "editMetadata",
+    label: `Edit page layout ${layoutLabel}`,
+    doc: { type: "Layout", fullName: layoutName, label: layoutLabel },
+    ops,
+  };
 }
 
 /** The compact layout ops queued for a record header. */
 export function queuedCompactOps(pending: PendingChange[], fullName: string): CompactOp[] {
-  const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "CompactLayout" && p.fix.doc.fullName === fullName)?.fix;
-  return queued?.kind === "editMetadata" && queued.doc.type === "CompactLayout" ? (queued.ops as CompactOp[]) : [];
+  const queued = pending.find(
+    (p) =>
+      p.fix.kind === "editMetadata" &&
+      p.fix.doc.type === "CompactLayout" &&
+      p.fix.doc.fullName === fullName
+  )?.fix;
+  return queued?.kind === "editMetadata" && queued.doc.type === "CompactLayout"
+    ? (queued.ops as CompactOp[])
+    : [];
 }
 
 /** A compact layout change with these ops — what's queued for the compact layout is replaced by it. */
 export function compactOpsChange(fullName: string, label: string, ops: CompactOp[]): StudioFix {
-  return { kind: "editMetadata", label: `Edit compact layout ${label}`, doc: { type: "CompactLayout", fullName, label }, ops };
+  return {
+    kind: "editMetadata",
+    label: `Edit compact layout ${label}`,
+    doc: { type: "CompactLayout", fullName, label },
+    ops,
+  };
 }
 
 /** The tab ops queued for a Lightning app. */
 export function queuedAppOps(pending: PendingChange[], fullName: string): AppOp[] {
-  const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "CustomApplication" && p.fix.doc.fullName === fullName)?.fix;
-  return queued?.kind === "editMetadata" && queued.doc.type === "CustomApplication" ? (queued.ops as AppOp[]) : [];
+  const queued = pending.find(
+    (p) =>
+      p.fix.kind === "editMetadata" &&
+      p.fix.doc.type === "CustomApplication" &&
+      p.fix.doc.fullName === fullName
+  )?.fix;
+  return queued?.kind === "editMetadata" && queued.doc.type === "CustomApplication"
+    ? (queued.ops as AppOp[])
+    : [];
 }
 
 /** A Lightning app change with these ops: what is queued for the app is replaced by it. */
 export function appOpsChange(fullName: string, label: string, ops: AppOp[]): StudioFix {
-  return { kind: "editMetadata", label: `Edit app ${label}`, doc: { type: "CustomApplication", fullName, label }, ops };
+  return {
+    kind: "editMetadata",
+    label: `Edit app ${label}`,
+    doc: { type: "CustomApplication", fullName, label },
+    ops,
+  };
 }
 
 /** The list view ops queued for a list view ("Object.Name"). */
 export function queuedListViewOps(pending: PendingChange[], fullName: string): ListViewOp[] {
-  const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "ListView" && p.fix.doc.fullName === fullName)?.fix;
-  return queued?.kind === "editMetadata" && queued.doc.type === "ListView" ? (queued.ops as ListViewOp[]) : [];
+  const queued = pending.find(
+    (p) =>
+      p.fix.kind === "editMetadata" &&
+      p.fix.doc.type === "ListView" &&
+      p.fix.doc.fullName === fullName
+  )?.fix;
+  return queued?.kind === "editMetadata" && queued.doc.type === "ListView"
+    ? (queued.ops as ListViewOp[])
+    : [];
 }
 
 /** A list view change with these ops — what's queued for the list view is replaced by it. */
 export function listViewOpsChange(fullName: string, label: string, ops: ListViewOp[]): StudioFix {
-  return { kind: "editMetadata", label: `Edit list view ${label}`, doc: { type: "ListView", fullName, label }, ops };
+  return {
+    kind: "editMetadata",
+    label: `Edit list view ${label}`,
+    doc: { type: "ListView", fullName, label },
+    ops,
+  };
 }
 
 /** The layout change with a related list added to or taken out of a Visit layout's engagement sidebar, on top of what's queued for the layout. */
@@ -412,9 +596,17 @@ export function layoutChange(
   const name = candidate.relationshipName;
   const wasAdded = queued.some((o) => o.op === "addRelatedList" && o.relatedList === name);
   const wasRemoved = queued.some((o) => o.op === "removeRelatedList" && o.relatedList === name);
-  const ops = queued.filter((o) => !((o.op === "addRelatedList" || o.op === "removeRelatedList") && o.relatedList === name));
+  const ops = queued.filter(
+    (o) => !((o.op === "addRelatedList" || o.op === "removeRelatedList") && o.relatedList === name)
+  );
   // Adding back a list queued for removal (or taking out one queued to be added) is no change for it.
-  if (add && !wasRemoved) ops.push({ op: "addRelatedList", relatedList: name, before: null, object: candidate.objectName });
+  if (add && !wasRemoved)
+    ops.push({
+      op: "addRelatedList",
+      relatedList: name,
+      before: null,
+      object: candidate.objectName,
+    });
   if (!add && !wasAdded) ops.push({ op: "removeRelatedList", relatedList: name });
   return layoutOpsChange(layoutName, layoutLabel, ops);
 }
@@ -424,13 +616,20 @@ export function layoutChange(
 type EditFix = Extract<StudioFix, { kind: "editMetadata" }>;
 
 const isEdit = (fix: StudioFix): fix is EditFix => fix.kind === "editMetadata";
-const isCopy = (fix: StudioFix): fix is CopyForProfileFix => fix.kind === "copyForProfile" && !fix.revert;
+const isCopy = (fix: StudioFix): fix is CopyForProfileFix =>
+  fix.kind === "copyForProfile" && !fix.revert;
 const sameProfile = (a: string, b: string | null) => !!b && a.toLowerCase() === b.toLowerCase();
 const docKey = (doc: { type: string; fullName: string }) => `${doc.type}:${doc.fullName}`;
 
 /** The copy queued for this document and profile. */
-export function queuedCopy(pending: PendingChange[], doc: { type: string; fullName: string }, profile: string | null): CopyForProfileFix | undefined {
-  for (const p of pending) if (isCopy(p.fix) && docKey(p.fix.doc) === docKey(doc) && sameProfile(p.fix.profile, profile)) return p.fix;
+export function queuedCopy(
+  pending: PendingChange[],
+  doc: { type: string; fullName: string },
+  profile: string | null
+): CopyForProfileFix | undefined {
+  for (const p of pending)
+    if (isCopy(p.fix) && docKey(p.fix.doc) === docKey(doc) && sameProfile(p.fix.profile, profile))
+      return p.fix;
   return undefined;
 }
 
@@ -446,13 +645,23 @@ export const pendingForProfile = (pending: PendingChange[], profile: string): Pe
  * (queueing, replacing, diffing against the org) then works on the document's name as before.
  */
 export function viewFor(pending: PendingChange[], profile: string | null): PendingChange[] {
-  const copies = pending.flatMap((p) => (isCopy(p.fix) && sameProfile(p.fix.profile, profile) ? [p.fix] : []));
+  const copies = pending.flatMap((p) =>
+    isCopy(p.fix) && sameProfile(p.fix.profile, profile) ? [p.fix] : []
+  );
   if (!copies.length) return pending;
   let out = pending;
   for (const copy of copies) {
     const key = docKey(copy.doc);
     const virtual: PendingChange | null = copy.ops?.length
-      ? { fix: { kind: "editMetadata", label: `Edit ${copy.copy.label}`, doc: copy.doc, ops: copy.ops } as StudioFix, affects: [copy.profile] }
+      ? {
+          fix: {
+            kind: "editMetadata",
+            label: `Edit ${copy.copy.label}`,
+            doc: copy.doc,
+            ops: copy.ops,
+          } as StudioFix,
+          affects: [copy.profile],
+        }
       : null;
     const at = out.findIndex((p) => isEdit(p.fix) && docKey(p.fix.doc) === key);
     if (at >= 0) out = out.flatMap((p, i) => (i === at ? (virtual ? [virtual] : []) : [p]));
@@ -467,8 +676,14 @@ export function viewFor(pending: PendingChange[], profile: string | null): Pendi
  * taken out in the view is kept or dropped as it says. Copies are kept ahead of edits of their own
  * document, so the copy is made from the document as it is in the org.
  */
-export function commitFrom(raw: PendingChange[], profile: string | null, next: PendingChange[]): PendingChange[] {
-  const rawCopies = raw.flatMap((p) => (isCopy(p.fix) && sameProfile(p.fix.profile, profile) ? [p.fix] : []));
+export function commitFrom(
+  raw: PendingChange[],
+  profile: string | null,
+  next: PendingChange[]
+): PendingChange[] {
+  const rawCopies = raw.flatMap((p) =>
+    isCopy(p.fix) && sameProfile(p.fix.profile, profile) ? [p.fix] : []
+  );
   if (!rawCopies.length && !next.some((p) => isCopy(p.fix))) return next;
   const docs = new Set(rawCopies.map((c) => docKey(c.doc)));
   const originalOf = (key: string) => raw.find((r) => isEdit(r.fix) && docKey(r.fix.doc) === key);
@@ -490,9 +705,11 @@ export function commitFrom(raw: PendingChange[], profile: string | null, next: P
     const original = originalOf(key);
     if (!seen.has(key) && original) out.push(original);
   }
-  const edited = (key: string) => next.find((n) => isEdit(n.fix) && docKey(n.fix.doc) === key)?.fix as EditFix | undefined;
+  const edited = (key: string) =>
+    next.find((n) => isEdit(n.fix) && docKey(n.fix.doc) === key)?.fix as EditFix | undefined;
   const result = out.map((p) => {
-    if (!isCopy(p.fix) || !sameProfile(p.fix.profile, profile) || !docs.has(docKey(p.fix.doc))) return p;
+    if (!isCopy(p.fix) || !sameProfile(p.fix.profile, profile) || !docs.has(docKey(p.fix.doc)))
+      return p;
     const ops = (edited(docKey(p.fix.doc))?.ops ?? []) as NonNullable<CopyForProfileFix["ops"]>;
     const { ops: _before, ...rest } = p.fix;
     return { ...p, fix: ops.length ? { ...rest, ops } : rest };
@@ -502,7 +719,15 @@ export function commitFrom(raw: PendingChange[], profile: string | null, next: P
 
 /** The tray with each copy ahead of any edit of the document it copies (the same array when already so). */
 export function copiesFirst(pending: PendingChange[]): PendingChange[] {
-  const late = pending.some((p, i) => isCopy(p.fix) && pending.slice(0, i).some((e) => isEdit(e.fix) && docKey(e.fix.doc) === docKey((p.fix as CopyForProfileFix).doc)));
+  const late = pending.some(
+    (p, i) =>
+      isCopy(p.fix) &&
+      pending
+        .slice(0, i)
+        .some(
+          (e) => isEdit(e.fix) && docKey(e.fix.doc) === docKey((p.fix as CopyForProfileFix).doc)
+        )
+  );
   if (!late) return pending;
   return [...pending.filter((p) => isCopy(p.fix)), ...pending.filter((p) => !isCopy(p.fix))];
 }

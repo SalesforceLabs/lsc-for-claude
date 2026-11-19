@@ -77,6 +77,8 @@ const ORG_ONLY = {
   script:
     "Custom scripts are records in the org (LifeScienceCustomScript); they have no source file.",
   handler: "Trigger handlers are switched on and off in the org; they have no source file.",
+  content:
+    "Presentations, their pages, topics and territories are records in the org; they have no source file.",
 } as const;
 
 /** Why a change has no source file, or null when it has one. Kept equal to the renderer's copy in `source-control.ts` by a test. */
@@ -92,6 +94,10 @@ export function orgOnlyReason(fix: StudioFix): string | null {
       return ORG_ONLY.script;
     case "setActive":
       return fix.record.type === "triggerHandler" ? ORG_ONLY.handler : null;
+    case "editPresentation":
+    case "createPresentation":
+    case "deletePresentation":
+      return ORG_ONLY.content;
     default:
       return null;
   }

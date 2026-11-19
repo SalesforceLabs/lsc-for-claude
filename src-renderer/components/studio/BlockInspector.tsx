@@ -23,6 +23,7 @@ import {
   Trash2,
   UsersRound,
   X,
+  Check,
   ListPlus,
   TextCursorInput,
   PanelTopOpen,
@@ -36,6 +37,7 @@ import type { LayoutStatus } from "./usePreviewEdit";
 import type { PropertyEdit } from "./flexipage-draft";
 import Spinner from "../ui/Spinner";
 import type { WhereRow } from "./where-this-is";
+import type { TextOrigin } from "./published-types";
 import "./org-ahead.css";
 import PropertiesSheet from "./PropertiesSheet";
 import StatusIcon from "../ui/StatusIcon";
@@ -99,6 +101,8 @@ export default function BlockInspector({
   onClose,
   selection,
   copy,
+  text,
+  language,
 }: {
   info: TargetInfo;
   profile: string;
@@ -139,6 +143,10 @@ export default function BlockInspector({
   selection?: string;
   /** Making a copy of the shared layout or page just for this profile (see usePreviewEdit). */
   copy?: CopyAction;
+  /** Where the block's label comes from (the snapshot's `texts`). */
+  text?: TextOrigin | null;
+  /** The language the preview is drawn in ("German"). */
+  language?: string;
 }) {
   // When Studio can make the change here, Setup's manual steps are the fallback, folded away.
   const studioActs = verbs.length > 0 || !!properties?.length || !!extra || copy?.kind === "offer";
@@ -197,6 +205,8 @@ export default function BlockInspector({
             </dl>
           </section>
         )}
+
+        {text && <TextSection text={text} language={language} />}
 
         {sync && (
           <div className="studio-block-sync" role="status">
@@ -360,6 +370,44 @@ export default function BlockInspector({
 }
 
 /** The manual way: Setup's steps for the change, with links into Setup. */
+/** Where the block's label comes from: each place the app looked, the one it used, and where to change it. */
+export function TextSection({ text, language }: { text: TextOrigin; language?: string }) {
+  const english = text.english;
+  const translated = /^(Translation|Custom label)/.test(text.steps[text.used]?.source ?? "");
+  return (
+    <section className="studio-block-section">
+      <h3 className="ui-section-title">Where this text comes from</h3>
+      <ol className="studio-block-text">
+        {text.steps.map((s, i) => (
+          <li key={i} className={i === text.used ? "used" : i > text.used ? "skipped" : undefined}>
+            <span className="studio-block-text-source">
+              {i === text.used && <Check size={12} aria-label="Used" />}
+              {s.source}
+            </span>
+            <span className="studio-block-text-value">{s.value == null || s.value === "" ? "None" : `"${s.value}"`}</span>
+          </li>
+        ))}
+      </ol>
+      {english != null && (
+        <p className="studio-inspector-desc">
+          {english !== text.shown
+            ? `In English: "${english}".`
+            : translated
+              ? "Same as English."
+              : `Same as English: nothing translates it${language ? ` into ${language}` : ""}.`}
+        </p>
+      )}
+      {text.labelFallback && (
+        <p className="studio-inspector-desc warn">
+          The custom label {text.labelFallback.key} has no {language ?? "local"} translation, so the app shows its{" "}
+          {text.labelFallback.language} value.
+        </p>
+      )}
+      <p className="studio-inspector-desc">{text.change}</p>
+    </section>
+  );
+}
+
 function SetupSteps({ info, onSetup }: { info: TargetInfo; onSetup?: (link: SetupLink) => void }) {
   return (
     <>

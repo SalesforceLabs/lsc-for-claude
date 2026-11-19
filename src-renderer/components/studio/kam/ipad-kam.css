@@ -1,0 +1,223 @@
+.studio-ipad-kam {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.studio-ipad-kam-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.studio-ipad-kam-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.studio-ipad-kam-card.inner {
+  background: #f9f9fb;
+}
+.studio-ipad-kam-nested {
+  padding: 0 12px 12px;
+}
+.studio-ipad-kam-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+}
+.studio-ipad-kam-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  flex: none;
+  background: #ba01ff;
+}
+.studio-ipad-kam-icon.plan {
+  background: #3ba755;
+}
+.studio-ipad-kam-main {
+  flex: 1;
+  min-width: 0;
+}
+.studio-ipad-kam-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #181818;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-ipad-kam-sub {
+  font-size: 11px;
+  color: #5c5c5c;
+}
+.studio-ipad-kam-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #444;
+}
+.studio-ipad-kam-chip .label {
+  color: #5c5c5c;
+}
+.studio-ipad-kam-chip.em {
+  font-weight: 600;
+}
+.studio-ipad-kam-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #e5e5e5;
+  color: #444;
+  white-space: nowrap;
+}
+.studio-ipad-kam-badge.info {
+  background: #d8e6fe;
+  color: #0250d9;
+}
+.studio-ipad-kam-badge.success {
+  background: #cdefc4;
+  color: #2e844a;
+}
+.studio-ipad-kam-mark {
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid #c9c9c9;
+  border-radius: 14px;
+  color: #0250d9;
+  white-space: nowrap;
+}
+.studio-ipad-kam-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.studio-ipad-kam-progress .bar {
+  width: 72px;
+  height: 6px;
+  background: #e5e5e5;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.studio-ipad-kam-progress .bar span {
+  display: block;
+  height: 100%;
+  background: #2e844a;
+}
+.studio-ipad-kam-chevron {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  background: none;
+  position: relative;
+  cursor: pointer;
+}
+.studio-ipad-kam-chevron::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 5px;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid #5c5c5c;
+  border-bottom: 2px solid #5c5c5c;
+  transform: rotate(45deg);
+}
+.studio-ipad-kam-chevron.open::after {
+  transform: rotate(-135deg);
+  top: 8px;
+}
+.studio-ipad-kam-chevron.none {
+  cursor: default;
+}
+.studio-ipad-kam-chevron.none::after {
+  display: none;
+}
+.studio-ipad-kam-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.studio-ipad-kam-table th {
+  text-align: left;
+  color: #5c5c5c;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-top: 1px solid #e5e5e5;
+}
+.studio-ipad-kam-table td {
+  padding: 8px 12px;
+  border-top: 1px solid #eee;
+}
+.studio-ipad-kam-table td.title {
+  font-weight: 600;
+}
+.studio-ipad-kam-table td.done {
+  text-align: right;
+}
+.studio-ipad-kam-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: #5c5c5c;
+  font-size: 13px;
+}
+.studio-ipad-kam-note {
+  font-size: 11px;
+  color: #747474;
+  padding: 4px 4px 0;
+}
+.studio-ipad-kam-tab {
+  padding: 0;
+}
+.studio-ipad-kam-row {
+  display: flex;
+  gap: 16px;
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  align-items: center;
+}
+.studio-ipad-kam-who {
+  flex: 1;
+  min-width: 0;
+}
+.studio-ipad-kam-col {
+  width: 140px;
+  font-size: 12px;
+}
+
+/* Header bar: title, search, Filter, Status, Add (ObjectiveAccordionHeaderView). */
+.studio-ipad-kam-bar { display: flex; align-items: center; gap: 8px; padding: 4px 2px 8px; }
+.studio-ipad-kam-bar-title { flex: 1; font-size: 17px; font-weight: 600; }
+.studio-ipad-kam-search { width: 180px; height: 30px; padding: 0 10px; border: 1px solid #c9c9c9; border-radius: 8px; font-size: 14px; background: #fff; color: #2e2e2e; }
+.studio-ipad-kam-search.wide { width: 100%; margin-bottom: 8px; box-sizing: border-box; }
+.studio-ipad-kam-menu { position: relative; display: inline-block; }
+.studio-ipad-kam-menubtn { height: 30px; padding: 0 12px; border: 1px solid #c9c9c9; border-radius: 8px; background: #fff; color: #0b5cab; font-size: 14px; cursor: pointer; }
+.studio-ipad-kam-menubtn.primary, .studio-ipad-kam-menu.primary > .studio-ipad-kam-menubtn { background: #0b5cab; border-color: #0b5cab; color: #fff; }
+.studio-ipad-kam-menu.kebab > .studio-ipad-kam-menubtn { border: 0; background: transparent; color: #666; padding: 0 6px; }
+.studio-ipad-kam-pop { position: absolute; right: 0; top: 34px; z-index: 5; display: flex; flex-direction: column; min-width: 220px; padding: 4px; border-radius: 10px; background: #fff; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25); }
+.studio-ipad-kam-pop button { text-align: left; padding: 10px 12px; border: 0; background: transparent; font-size: 15px; color: #2e2e2e; cursor: pointer; border-radius: 6px; }
+.studio-ipad-kam-pop button:hover { background: #f0f0f0; }
+.studio-ipad-kam-pop button.destructive { color: #c23934; }
+.studio-ipad-kam-table .kebab-cell { width: 36px; text-align: right; }
+.studio-ipad-kam-col.wide { flex: 2; }
+
+/* Sheets drawn over the iPad screen. */
+.studio-ipad-act-sheet.studio-ipad-kam-sheet { left: 205px; top: 89px; width: 800px; height: 650px; }
+.studio-ipad-act-sheet.studio-ipad-kam-sheet.small { left: 315px; top: 150px; width: 580px; height: 480px; }
+.studio-ipad-kam-sheet-body { position: relative; flex: 1; overflow: auto; padding: 12px 16px; }
+.studio-ipad-kam-sheet-foot { padding-top: 8px; }
+.studio-ipad-kam-pick { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 4px; border: 0; border-bottom: 1px solid #e5e5e5; background: transparent; font-size: 15px; text-align: left; color: #2e2e2e; box-sizing: border-box; }
+.studio-ipad-kam-pick > span:first-of-type { flex: 1; }
+.studio-ipad-kam-pick .count { color: #777; font-size: 13px; }
+.studio-ipad-kam-pick.head { font-weight: 600; color: #555; }
+.studio-ipad-kam-pick.btn { cursor: pointer; }
+.studio-ipad-kam-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 13px; color: #555; }
+.studio-ipad-kam-field select { height: 32px; font-size: 15px; }
+.studio-ipad-kam-alert { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.25); }
+.studio-ipad-kam-alert-box { width: 320px; padding: 18px; border-radius: 14px; background: #fff; font-size: 15px; text-align: center; }
+.studio-ipad-kam-alert-box .t { font-weight: 600; margin-bottom: 6px; }
+.studio-ipad-kam-alert-box .b { display: flex; justify-content: space-around; margin-top: 14px; }

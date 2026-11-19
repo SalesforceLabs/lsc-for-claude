@@ -3,6 +3,7 @@ import { useVisit } from "../draft";
 import { Alert } from "../structure/parts";
 import {
   REMOVE_ATTENDEE_TITLE,
+  clickStreamRows,
   detailBadges,
   detailSubtitle,
   lotOptions,
@@ -96,7 +97,7 @@ function SectionBody({
 }) {
   switch (section.id) {
     case "clm":
-      return <Clm />;
+      return <Clm data={data} />;
     case "details":
       return <Details data={data} />;
     case "samples":
@@ -141,21 +142,42 @@ function RemoveButton({ onClick, label }: { onClick: () => void; label: string }
 
 // ── CLM ──
 
-function Clm() {
+function Clm({ data }: { data: VisitSections }) {
   const { draft, update } = useVisit();
   return (
     <>
-      {(draft.rows.PresentationForum ?? []).map((r) => (
-        <div key={r.id} className="studio-ipad-vs-row">
-          <span className="studio-ipad-vs-title">
-            <b>{r.values.Name || r.values.ForumReferenceId}</b>
-          </span>
-          <RemoveButton
-            label="Remove content"
-            onClick={() => update((d) => ({ rows: removeRow(d.rows, "PresentationForum", r.id) }))}
-          />
-        </div>
-      ))}
+      {(draft.rows.PresentationForum ?? []).map((r) => {
+        const slides = clickStreamRows(data.clickStreams?.[r.id] ?? []);
+        return (
+          <div key={r.id}>
+            <div className="studio-ipad-vs-row">
+              <span className="studio-ipad-vs-title">
+                <b>{r.values.Name || r.values.ForumReferenceId}</b>
+              </span>
+              <RemoveButton
+                label="Remove content"
+                onClick={() =>
+                  update((d) => ({ rows: removeRow(d.rows, "PresentationForum", r.id) }))
+                }
+              />
+            </div>
+            {slides.length > 0 && (
+              <div className="studio-ipad-vs-slides">
+                {slides.map((e) => (
+                  <span key={e.id} className="studio-ipad-vs-slide">
+                    {e.name || e.slideId || e.pageId}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {Object.keys(data.clickStreams ?? {}).length > 0 && (
+        <p className="studio-ipad-vs-sub">
+          Not in the preview: slides removed from the presentation since the visit aren't hidden.
+        </p>
+      )}
     </>
   );
 }

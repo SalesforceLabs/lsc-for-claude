@@ -1,0 +1,187 @@
+.studio-ipad-sv-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px 14px;
+}
+.studio-ipad-sv-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid #ddd;
+}
+.studio-ipad-sv-card-main {
+  flex: 1;
+  min-width: 0;
+}
+.studio-ipad-sv-name {
+  font-size: 17px;
+  font-weight: 600;
+}
+.studio-ipad-sv-sub {
+  margin-top: 2px;
+  color: #777;
+  font-size: 13px;
+}
+.studio-ipad-sv-bar {
+  width: 220px;
+  height: 6px;
+  margin: 8px 0 4px;
+  border-radius: 3px;
+  background: #e3e3e8;
+  overflow: hidden;
+}
+.studio-ipad-sv-bar > i {
+  display: block;
+  height: 100%;
+  background: #1b96ff;
+}
+.studio-ipad-sv-btn {
+  padding: 6px 18px;
+  border: 1px solid #1b6ac9;
+  border-radius: 6px;
+  background: #fff;
+  color: #1b6ac9;
+  font-size: 15px;
+  cursor: pointer;
+}
+.studio-ipad-sv-btn.on {
+  background: #1b6ac9;
+  color: #fff;
+}
+.studio-ipad-sv-btn[disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+.studio-ipad-sv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.studio-ipad-sv-table th {
+  padding: 8px 6px;
+  border-bottom: 1px solid #ccc;
+  color: #666;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+.studio-ipad-sv-table td {
+  padding: 12px 6px;
+  border-bottom: 1px solid #eee;
+}
+.studio-ipad-sv-empty {
+  padding: 48px 0;
+  color: #777;
+  text-align: center;
+  font-size: 17px;
+}
+.studio-ipad-sv-page {
+  margin: 18px 0 6px;
+  color: #444;
+  font-size: 15px;
+  font-weight: 600;
+}
+.studio-ipad-sv-q {
+  padding: 16px 0;
+  border-bottom: 1px solid #eee;
+}
+.studio-ipad-sv-qt {
+  font-size: 16px;
+  font-weight: 600;
+  white-space: pre-wrap;
+}
+.studio-ipad-sv-req {
+  color: #c23934;
+}
+.studio-ipad-sv-help {
+  margin: 3px 0 8px;
+  color: #777;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+.studio-ipad-sv-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+.studio-ipad-sv-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+}
+.studio-ipad-sv-choice.on {
+  border-color: #1b6ac9;
+  background: #eaf3ff;
+}
+.studio-ipad-sv-choice i {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #999;
+  border-radius: 50%;
+  box-sizing: border-box;
+  flex: none;
+}
+.studio-ipad-sv-choice.box i {
+  border-radius: 4px;
+}
+.studio-ipad-sv-choice.on i {
+  border-color: #1b6ac9;
+  background: #1b6ac9;
+}
+.studio-ipad-sv-scale {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.studio-ipad-sv-scale span {
+  min-width: 34px;
+  padding: 7px 8px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 14px;
+  cursor: pointer;
+}
+.studio-ipad-sv-scale span.on {
+  border-color: #1b6ac9;
+  background: #1b6ac9;
+  color: #fff;
+}
+.studio-ipad-sv-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 15px;
+}
+.studio-ipad-sv-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-top: 1px solid #ddd;
+  font-size: 14px;
+  color: #666;
+}
+.studio-ipad-sv-warn {
+  color: #c23934;
+}
+
+/* The record page's Surveys tab (surveyListView), drawn in place rather than as a sheet. */
+.studio-ipad-sv-inline {
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+  padding: 0 0 8px;
+}

@@ -17,6 +17,11 @@ import type {
   DeleteCustomScriptFix,
   SaveCustomScriptFix,
 } from "./scripts/types.js";
+import type {
+  CreatePresentationFix,
+  DeletePresentationFix,
+  EditPresentationFix,
+} from "./content/types.js";
 
 export type Severity = "error" | "warning" | "info";
 
@@ -113,7 +118,10 @@ export type StudioFix =
       add: boolean;
     }
   | EditMetadataFix
-  | CopyForProfileFix;
+  | CopyForProfileFix
+  | EditPresentationFix
+  | CreatePresentationFix
+  | DeletePresentationFix;
 
 /** A page layout field's behavior. */
 export type FieldBehavior = "Edit" | "Required" | "Readonly";

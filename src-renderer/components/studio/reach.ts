@@ -18,17 +18,25 @@ export interface ChangeReach {
   profiles?: string[];
 }
 
-const reach = (desktop: ChangeReach["desktop"], ipad: ChangeReach["ipad"], profiles?: string[]): ChangeReach =>
-  profiles ? { desktop, ipad, profiles } : { desktop, ipad };
+const reach = (
+  desktop: ChangeReach["desktop"],
+  ipad: ChangeReach["ipad"],
+  profiles?: string[]
+): ChangeReach => (profiles ? { desktop, ipad, profiles } : { desktop, ipad });
 
 /** Where a queued or applied change lands. The server's answer (`preview.reach`) wins when there is one. */
-export function reachOfChange(c: PendingChange, preview?: { reach?: ChangeReach } | null): ChangeReach {
+export function reachOfChange(
+  c: PendingChange,
+  preview?: { reach?: ChangeReach } | null
+): ChangeReach {
   if (preview?.reach) return preview.reach;
   const fix = c.fix;
   switch (fix.kind) {
     case "editMetadata":
       // The iPad lists views from the org when a rep opens them; everything else is read from the cache.
-      return fix.doc.type === "ListView" ? reach("now", "live") : reach("now", "publish", c.affects);
+      return fix.doc.type === "ListView"
+        ? reach("now", "live")
+        : reach("now", "publish", c.affects);
     case "copyForProfile":
     case "setLayoutRelatedList":
       return reach("now", "publish", c.affects);
@@ -37,15 +45,24 @@ export function reachOfChange(c: PendingChange, preview?: { reach?: ChangeReach 
     case "createConfigRecord":
     case "deleteConfigRecord":
       // Mobile Admin Console records only reach reps through the cache; the rest run in the org for everyone.
-      return MOBILE_CATEGORIES.has(fix.category) ? reach("none", "publish", c.affects) : reach("now", "none");
+      return MOBILE_CATEGORIES.has(fix.category)
+        ? reach("none", "publish", c.affects)
+        : reach("now", "none");
     case "setActive":
-      if (fix.record.type === "config") return MOBILE_CATEGORIES.has(fix.record.category) ? reach("none", "publish", c.affects) : reach("now", "none");
+      if (fix.record.type === "config")
+        return MOBILE_CATEGORIES.has(fix.record.category)
+          ? reach("none", "publish", c.affects)
+          : reach("now", "none");
       // Trigger handlers and validation rules run in the org, when a rep's offline edits sync.
       return reach("now", "nextSync");
     case "assignPsl":
     case "removePsl":
     case "assignAccess":
     case "removeAccess":
+    // Presentations, their pages and shares are records the iPad downloads when it syncs.
+    case "editPresentation":
+    case "createPresentation":
+    case "deletePresentation":
       return reach("now", "nextSync");
     default:
       // Custom script code, components and assignments: the iPad reads them from its metadata cache.

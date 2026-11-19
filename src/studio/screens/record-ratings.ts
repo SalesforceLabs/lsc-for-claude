@@ -3,7 +3,7 @@
  * (OCEDBRatingLayoutItemModel.fetch): the PrvdClassificationLayout whose DeveloperName is the
  * flexipage's `layoutName`, its active PrvdClsfnLayoutAttribute items, and each item's
  * PrvdClsfnAttrDefinition (label, sobject, field). These are setup entities: the Tooling API serves
- * them, standard SOQL answers "sObject type is not supported". Read-only; null when even Tooling can't.
+ * them, standard SOQL answers "sObject type is not supported". Read-only; null (with a note) when even Tooling can't.
  */
 
 import { inList, query, type Row } from "../helpers.js";
@@ -65,7 +65,9 @@ export async function readRatingLayout(
         column: Number(item.ColumnNumber) || 0,
       }))
       .sort((a, b) => a.row - b.row || a.column - b.column);
-  } catch {
+  } catch (err) {
+    // The layout is synced to the iPad, so a failed read is never "the org lacks it": note it, which also keeps the load out of the cache.
+    ctx.note(`Ratings layout "${layoutName}": ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }

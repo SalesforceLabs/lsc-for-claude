@@ -2,8 +2,27 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { MicIcon } from "../IpadChrome";
 import type { ScreenProps } from "./types";
 import type { PublishedAccountCard, PublishedAccountList } from "./accounts-types";
-import { SORT_OPTIONS, DEFAULT_SORT, addressMaxLines, addressTop, filterByChip, filterByList, nextSort, sortCards, sortPillLabel, ADDRESS_LINE, ADD_TO_MENU, BUILT_IN_FILTERS, cardMenu, LIST_KINDS, selectAllLabel, toggleId, type ListKind } from "./accounts-logic";
-import { MapPanel, NewAccountModal, SearchOnlineModal, SelectBar } from "./AccountsOverlays";
+import {
+  SORT_OPTIONS,
+  DEFAULT_SORT,
+  addressMaxLines,
+  addressTop,
+  filterByChip,
+  filterByList,
+  nextSort,
+  sortCards,
+  sortPillLabel,
+  ADDRESS_LINE,
+  ADD_TO_MENU,
+  BUILT_IN_FILTERS,
+  cardMenu,
+  LIST_KINDS,
+  selectAllLabel,
+  toggleId,
+  type ListKind,
+} from "./accounts-logic";
+import CreateSheet from "../actions/create/CreateSheet";
+import { MapPanel, SearchOnlineModal, SelectBar } from "./AccountsOverlays";
 import { Check, Popover, Sheet, TextMenu, pageBox } from "./interact-ui";
 import HcoIcon from "./assets/accounts-hco-icon";
 import "./accounts.css";
@@ -35,7 +54,11 @@ function PersonIcon() {
     <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="12" fill="#5867e8" />
       <rect x="5.5" y="6" width="6.5" height="10.500" rx="0.8" fill="#e4e7ff" />
-      <path d="M7.200 8h1.200M9.400 8h1.200M7.200 10h1.200M9.400 10h1.200M7.200 12h1.200M9.400 12h1.200M7.200 14h1.200M9.400 14h1.200" stroke="#5867e8" strokeWidth="0.800" />
+      <path
+        d="M7.200 8h1.200M9.400 8h1.200M7.200 10h1.200M9.400 10h1.200M7.200 12h1.200M9.400 12h1.200M7.200 14h1.200M9.400 14h1.200"
+        stroke="#5867e8"
+        strokeWidth="0.800"
+      />
       <circle cx="16" cy="9.300" r="2.400" fill="#fff" />
       <path d="M11 17.500c0-2.600 2.200-4.100 5-4.100s5 1.500 5 4.100v.5H11Z" fill="#fff" />
     </svg>
@@ -48,22 +71,52 @@ function LicensePill({ state }: { state: "valid" | "invalid" }) {
     <span className={`studio-ipad-accounts-license ${state}`} aria-hidden="true">
       {state === "valid" ? (
         <svg width="16" height="16" viewBox="0 0 16 16">
-          <path d="M8 1 3.500 2.500v5c0 3 1.900 5.500 4.500 6.800 2.600-1.300 4.500-3.800 4.500-6.800v-5Z" fill="currentColor" />
-          <path d="m5.400 8 1.800 1.800L10.700 6.200" fill="none" stroke="#acf3e4" strokeWidth="1.500" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M8 1 3.500 2.500v5c0 3 1.900 5.500 4.500 6.800 2.600-1.300 4.500-3.800 4.500-6.800v-5Z"
+            fill="currentColor"
+          />
+          <path
+            d="m5.400 8 1.800 1.800L10.700 6.200"
+            fill="none"
+            stroke="#acf3e4"
+            strokeWidth="1.500"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       ) : (
         <svg width="16" height="16" viewBox="0 0 16 16">
           <circle cx="8" cy="8" r="7" fill="currentColor" />
-          <path d="m5.500 5.500 5 5m0-5-5 5" stroke="#fddde3" strokeWidth="1.500" strokeLinecap="round" />
+          <path
+            d="m5.500 5.500 5 5m0-5-5 5"
+            stroke="#fddde3"
+            strokeWidth="1.500"
+            strokeLinecap="round"
+          />
         </svg>
       )}
     </span>
   );
 }
 
-function ListRow({ list, selected, hideMore, onClick, onMore }: { list?: PublishedAccountList; selected?: boolean; hideMore?: boolean; onClick: () => void; onMore?: (e: React.MouseEvent) => void }) {
+function ListRow({
+  list,
+  selected,
+  hideMore,
+  onClick,
+  onMore,
+}: {
+  list?: PublishedAccountList;
+  selected?: boolean;
+  hideMore?: boolean;
+  onClick: () => void;
+  onMore?: (e: React.MouseEvent) => void;
+}) {
   return (
-    <div className={`studio-ipad-accounts-row ${list ? "" : "all"} ${selected ? "selected" : ""}`} onClick={onClick}>
+    <div
+      className={`studio-ipad-accounts-row ${list ? "" : "all"} ${selected ? "selected" : ""}`}
+      onClick={onClick}
+    >
       <span className="studio-ipad-accounts-row-bar" />
       <div className="studio-ipad-accounts-row-text">
         <div className="studio-ipad-accounts-row-title">{list ? list.name : "All"}</div>
@@ -85,23 +138,49 @@ function ListRow({ list, selected, hideMore, onClick, onMore }: { list?: Publish
   );
 }
 
-function Card({ card, columns, onOpen, selecting, picked, onMore }: { card: PublishedAccountCard; columns: string[]; onOpen?: (id: string) => void; selecting?: boolean; picked?: boolean; onMore?: (e: React.MouseEvent, card: PublishedAccountCard) => void }) {
+function Card({
+  card,
+  columns,
+  onOpen,
+  selecting,
+  picked,
+  onMore,
+}: {
+  card: PublishedAccountCard;
+  columns: string[];
+  onOpen?: (id: string) => void;
+  selecting?: boolean;
+  picked?: boolean;
+  onMore?: (e: React.MouseEvent, card: PublishedAccountCard) => void;
+}) {
   const name = useRef<HTMLDivElement>(null);
   const [wrapped, setWrapped] = useState(false);
   useLayoutEffect(() => setWrapped((name.current?.offsetHeight ?? 0) > 22), [card.name]);
   return (
-    <div className={`studio-ipad-accounts-card${picked ? " picked" : ""}`} onClick={() => onOpen?.(card.id)}>
+    <div
+      className={`studio-ipad-accounts-card${picked ? " picked" : ""}`}
+      onClick={() => onOpen?.(card.id)}
+    >
       {selecting && <span className={`studio-ipad-accounts-box${picked ? " on" : ""}`} />}
       <div className={`studio-ipad-accounts-card-text ${wrapped ? "wrapped" : ""}`}>
         <div className="studio-ipad-accounts-card-row">
-          <span className="studio-ipad-accounts-card-icon">{card.hco ? <HcoIcon size={24} /> : <PersonIcon />}</span>
+          <span className="studio-ipad-accounts-card-icon">
+            {card.hco ? <HcoIcon size={24} /> : <PersonIcon />}
+          </span>
           <div ref={name} className="studio-ipad-accounts-card-name">
             {card.name}
           </div>
         </div>
         <div className="studio-ipad-accounts-card-row second">
-          {card.license ? <LicensePill state={card.license} /> : <span className="studio-ipad-accounts-card-icon" />}
-          <div className="studio-ipad-accounts-card-address" style={{ maxHeight: addressMaxLines(addressTop(wrapped)) * ADDRESS_LINE }}>
+          {card.license ? (
+            <LicensePill state={card.license} />
+          ) : (
+            <span className="studio-ipad-accounts-card-icon" />
+          )}
+          <div
+            className="studio-ipad-accounts-card-address"
+            style={{ maxHeight: addressMaxLines(addressTop(wrapped)) * ADDRESS_LINE }}
+          >
             {card.address}
           </div>
         </div>
@@ -131,7 +210,23 @@ function Card({ card, columns, onOpen, selecting, picked, onMore }: { card: Publ
 }
 
 /** Cards in their own scroll pane; iOS draws a thin indicator while scrolling that fades out afterwards. */
-function CardsPane({ cards, columns, resetKey, onOpen, selecting, selected, onMore }: { cards: PublishedAccountCard[]; columns: string[]; resetKey: string; onOpen?: (id: string) => void; selecting?: boolean; selected?: ReadonlySet<string>; onMore?: (e: React.MouseEvent, card: PublishedAccountCard) => void }) {
+function CardsPane({
+  cards,
+  columns,
+  resetKey,
+  onOpen,
+  selecting,
+  selected,
+  onMore,
+}: {
+  cards: PublishedAccountCard[];
+  columns: string[];
+  resetKey: string;
+  onOpen?: (id: string) => void;
+  selecting?: boolean;
+  selected?: ReadonlySet<string>;
+  onMore?: (e: React.MouseEvent, card: PublishedAccountCard) => void;
+}) {
   const scroller = useRef<HTMLDivElement>(null);
   const [thumb, setThumb] = useState<{ top: number; height: number } | null>(null);
   const [active, setActive] = useState(false);
@@ -141,7 +236,10 @@ function CardsPane({ cards, columns, resetKey, onOpen, selecting, selected, onMo
     if (!el || el.scrollHeight <= el.clientHeight + 1) return setThumb(null);
     const track = el.clientHeight - 8;
     const height = Math.max(36, (track * el.clientHeight) / el.scrollHeight);
-    setThumb({ top: 4 + ((track - height) * el.scrollTop) / (el.scrollHeight - el.clientHeight), height });
+    setThumb({
+      top: 4 + ((track - height) * el.scrollTop) / (el.scrollHeight - el.clientHeight),
+      height,
+    });
   };
   useEffect(() => {
     if (scroller.current) scroller.current.scrollTop = 0;
@@ -161,16 +259,33 @@ function CardsPane({ cards, columns, resetKey, onOpen, selecting, selected, onMo
         }}
       >
         {cards.map((c) => (
-          <Card key={c.id} card={c} columns={columns} onOpen={onOpen} selecting={selecting} picked={selected?.has(c.id)} onMore={onMore} />
+          <Card
+            key={c.id}
+            card={c}
+            columns={columns}
+            onOpen={onOpen}
+            selecting={selecting}
+            picked={selected?.has(c.id)}
+            onMore={onMore}
+          />
         ))}
       </div>
-      {thumb && <span className={`studio-ipad-accounts-thumb ${active ? "active" : ""}`} style={{ top: thumb.top, height: thumb.height }} />}
+      {thumb && (
+        <span
+          className={`studio-ipad-accounts-thumb ${active ? "active" : ""}`}
+          style={{ top: thumb.top, height: thumb.height }}
+        />
+      )}
     </div>
   );
 }
 
 /** Accounts tab (SearchFilterCustomersViewController), drawn like LSC Mobile at 1210×834pt. Null until there is data, so the preview keeps its placeholder. */
-export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenProps): React.ReactElement | null {
+export default function AccountsScreen({
+  tab,
+  snapshot,
+  onOpenRecord,
+}: ScreenProps): React.ReactElement | null {
   const data = snapshot.screens?.accounts;
   const [broken, setBroken] = useState(false);
   const [chip, setChip] = useState("All");
@@ -183,13 +298,35 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
   const [mapView, setMapView] = useState(false);
   const [kind, setKind] = useState<ListKind>("Lists");
   const [kindOpen, setKindOpen] = useState(false);
-  const [menu, setMenu] = useState<{ type: "list" | "card" | "addto"; x: number; y: number; w: number; h: number; recordType?: string } | null>(null);
+  const [menu, setMenu] = useState<{
+    type: "list" | "card" | "addto";
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    recordType?: string;
+  } | null>(null);
   const [note, setNote] = useState<{ title: string; text: string } | null>(null);
   const root = useRef<HTMLDivElement>(null);
   void tab;
-  const list = useMemo(() => (data ? [...data.lists.own, ...data.lists.shared, ...(data.builtInFilters ?? [])].find((l) => l.id === listId) : undefined), [data, listId]);
+  const list = useMemo(
+    () =>
+      data
+        ? [...data.lists.own, ...data.lists.shared, ...(data.builtInFilters ?? [])].find(
+            (l) => l.id === listId
+          )
+        : undefined,
+    [data, listId]
+  );
   const cards = useMemo(
-    () => (data ? sortCards(filterByChip(filterByList(data.cards, list?.memberIds), chip), sort.label, sort.ascending) : []),
+    () =>
+      data
+        ? sortCards(
+            filterByChip(filterByList(data.cards, list?.memberIds), chip),
+            sort.label,
+            sort.ascending
+          )
+        : [],
     [data, list, chip, sort]
   );
   if (!data) return null;
@@ -208,8 +345,16 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
     <div ref={root} className={`studio-ipad-accounts${selecting ? " selecting" : ""}`}>
       <div className="studio-ipad-accounts-head">
         {/* MetadataThemeInfo.icon(style: .circular) */}
-        <span className="studio-ipad-accounts-obj" style={theme ? { background: theme.color } : undefined} aria-hidden="true">
-          {theme && !broken ? <img src={theme.iconUrl} alt="" onError={() => setBroken(true)} /> : "A"}
+        <span
+          className="studio-ipad-accounts-obj"
+          style={theme ? { background: theme.color } : undefined}
+          aria-hidden="true"
+        >
+          {theme && !broken ? (
+            <img src={theme.iconUrl} alt="" onError={() => setBroken(true)} />
+          ) : (
+            "A"
+          )}
         </span>
         <div className="studio-ipad-accounts-head-text">
           <div className="studio-ipad-accounts-eyebrow">Accounts</div>
@@ -223,47 +368,68 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
       </div>
 
       {!selecting && (
-      <div className="studio-ipad-accounts-search">
-        <div className="studio-ipad-accounts-field">
-          <Magnifier />
-          <span>Search...</span>
-          <MicIcon />
-        </div>
-        {data.searchOnline && (
-          <span className="studio-ipad-accounts-online" role="button" onClick={() => setModal("online")}>
-            <Magnifier size={20} />
-            Search Online
-          </span>
-        )}
-        <div className="studio-ipad-accounts-actions">
-          {data.select && (
-            <span className={`studio-ipad-accounts-pill select${mapView ? " off" : ""}`} role="button" onClick={() => !mapView && setSelecting(true)}>
-              Select
+        <div className="studio-ipad-accounts-search">
+          <div className="studio-ipad-accounts-field">
+            <Magnifier />
+            <span>Search...</span>
+            <MicIcon />
+          </div>
+          {data.searchOnline && (
+            <span
+              className="studio-ipad-accounts-online"
+              role="button"
+              onClick={() => setModal("online")}
+            >
+              <Magnifier size={20} />
+              Search Online
             </span>
           )}
-          <span className={`studio-ipad-accounts-pill sort clickable${mapView ? " off" : ""}`} onClick={() => !mapView && setPopover((o) => !o)}>
-            {sortPillLabel(sort.label, sort.ascending)}
-          </span>
-          {data.maps && (
-            <span className="studio-ipad-accounts-map" role="button" aria-label={mapView ? "List" : "Map"} onClick={() => setMapView((m) => !m)}>
-              {mapView ? (
-                <svg width="20" height="20" viewBox="0 0 20 20">
-                  <path d="M6 5h12M6 10h12M6 15h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  <circle cx="2.500" cy="5" r="1.300" fill="currentColor" />
-                  <circle cx="2.500" cy="10" r="1.300" fill="currentColor" />
-                  <circle cx="2.500" cy="15" r="1.300" fill="currentColor" />
-                </svg>
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 20 20">
-                  <path d="M2 4.500 7 2.500l6 2 5-2v13l-5 2-6-2-5 2Z" fill="currentColor" />
-                  <path d="M7 2.500v13M13 4.500v13" stroke="#fff" strokeWidth="1.200" />
-                  <circle cx="10" cy="9" r="2.200" fill="#fff" />
-                </svg>
-              )}
+          <div className="studio-ipad-accounts-actions">
+            {data.select && (
+              <span
+                className={`studio-ipad-accounts-pill select${mapView ? " off" : ""}`}
+                role="button"
+                onClick={() => !mapView && setSelecting(true)}
+              >
+                Select
+              </span>
+            )}
+            <span
+              className={`studio-ipad-accounts-pill sort clickable${mapView ? " off" : ""}`}
+              onClick={() => !mapView && setPopover((o) => !o)}
+            >
+              {sortPillLabel(sort.label, sort.ascending)}
             </span>
-          )}
+            {data.maps && (
+              <span
+                className="studio-ipad-accounts-map"
+                role="button"
+                aria-label={mapView ? "List" : "Map"}
+                onClick={() => setMapView((m) => !m)}
+              >
+                {mapView ? (
+                  <svg width="20" height="20" viewBox="0 0 20 20">
+                    <path
+                      d="M6 5h12M6 10h12M6 15h12"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                    <circle cx="2.500" cy="5" r="1.300" fill="currentColor" />
+                    <circle cx="2.500" cy="10" r="1.300" fill="currentColor" />
+                    <circle cx="2.500" cy="15" r="1.300" fill="currentColor" />
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 20 20">
+                    <path d="M2 4.500 7 2.500l6 2 5-2v13l-5 2-6-2-5 2Z" fill="currentColor" />
+                    <path d="M7 2.500v13M13 4.500v13" stroke="#fff" strokeWidth="1.200" />
+                    <circle cx="10" cy="9" r="2.200" fill="#fff" />
+                  </svg>
+                )}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
       )}
 
       <div className="studio-ipad-accounts-sidebar">
@@ -271,7 +437,16 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
           <b className="studio-ipad-accounts-lists-truncate">{kind}</b> <span />
         </div>
         {kind !== "Lists" && (
-          <span className="studio-ipad-accounts-new-small" role="button" onClick={() => setNote({ title: kind === "Filters" ? "New Filter" : "New Advanced Filter", text: "On the iPad this opens the filter builder. Studio doesn't create filters." })}>
+          <span
+            className="studio-ipad-accounts-new-small"
+            role="button"
+            onClick={() =>
+              setNote({
+                title: kind === "Filters" ? "New Filter" : "New Advanced Filter",
+                text: "On the iPad this opens the filter builder. Studio doesn't create filters.",
+              })
+            }
+          >
             New
           </span>
         )}
@@ -281,7 +456,16 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
         </div>
         <div className="studio-ipad-accounts-divider" />
         {selecting && kind === "Lists" ? (
-          <div className="studio-ipad-accounts-newlist" role="button" onClick={() => setNote({ title: "New List", text: "On the iPad this creates a list from the selected accounts. Studio doesn't create lists." })}>
+          <div
+            className="studio-ipad-accounts-newlist"
+            role="button"
+            onClick={() =>
+              setNote({
+                title: "New List",
+                text: "On the iPad this creates a list from the selected accounts. Studio doesn't create lists.",
+              })
+            }
+          >
             Create New List
           </div>
         ) : (
@@ -290,17 +474,47 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
         {kind === "Lists" && (
           <>
             {data.lists.own.map((l) => (
-              <ListRow key={l.id} list={l} selected={l.id === listId} onClick={() => setListId(l.id)} onMore={(e) => openMenu("list", e)} />
+              <ListRow
+                key={l.id}
+                list={l}
+                selected={l.id === listId}
+                onClick={() => setListId(l.id)}
+                onMore={(e) => openMenu("list", e)}
+              />
             ))}
-            {data.lists.shared.length > 0 && <div className="studio-ipad-accounts-section">Shared with you</div>}
+            {data.lists.shared.length > 0 && (
+              <div className="studio-ipad-accounts-section">Shared with you</div>
+            )}
             {data.lists.shared.map((l) => (
-              <ListRow key={l.id} list={l} selected={l.id === listId} onClick={() => setListId(l.id)} onMore={(e) => openMenu("list", e)} />
+              <ListRow
+                key={l.id}
+                list={l}
+                selected={l.id === listId}
+                onClick={() => setListId(l.id)}
+                onMore={(e) => openMenu("list", e)}
+              />
             ))}
           </>
         )}
         {kind === "Filters" &&
-          (data.builtInFilters ?? BUILT_IN_FILTERS.map((name): PublishedAccountList => ({ id: `filter:${name}`, name, detail: "-- Accounts" }))).map((f, i) => (
-            <ListRow key={f.id} list={f} selected={f.id === listId} hideMore={i > 0} onClick={() => setListId(f.memberIds ? f.id : null)} onMore={(e) => openMenu("list", e)} />
+          (
+            data.builtInFilters ??
+            BUILT_IN_FILTERS.map(
+              (name): PublishedAccountList => ({
+                id: `filter:${name}`,
+                name,
+                detail: "-- Accounts",
+              })
+            )
+          ).map((f, i) => (
+            <ListRow
+              key={f.id}
+              list={f}
+              selected={f.id === listId}
+              hideMore={i > 0}
+              onClick={() => setListId(f.memberIds ? f.id : null)}
+              onMore={(e) => openMenu("list", e)}
+            />
           ))}
         {kind === "Advanced Filters" &&
           (data.advancedFilters ?? []).map((f) => (
@@ -309,7 +523,11 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
               <div className="studio-ipad-accounts-row-text">
                 <div className="studio-ipad-accounts-row-title">{f.name}</div>
               </div>
-              <span className="studio-ipad-accounts-row-more" role="button" onClick={(e) => openMenu("list", e)}>
+              <span
+                className="studio-ipad-accounts-row-more"
+                role="button"
+                onClick={(e) => openMenu("list", e)}
+              >
                 <Dots />
               </span>
             </div>
@@ -317,19 +535,30 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
       </div>
 
       {!selecting && (
-      <div className="studio-ipad-accounts-chips">
-        {data.chips.map((c) => (
-          <span key={c.label} className={`studio-ipad-accounts-chip ${c.label === chip ? "selected" : ""}`} onClick={() => setChip(c.label)}>
-            {c.label}
-            <span className="studio-ipad-accounts-chip-count">{c.count}</span>
-          </span>
-        ))}
-      </div>
-
+        <div className="studio-ipad-accounts-chips">
+          {data.chips.map((c) => (
+            <span
+              key={c.label}
+              className={`studio-ipad-accounts-chip ${c.label === chip ? "selected" : ""}`}
+              onClick={() => setChip(c.label)}
+            >
+              {c.label}
+              <span className="studio-ipad-accounts-chip-count">{c.count}</span>
+            </span>
+          ))}
+        </div>
       )}
 
       {mapView && !selecting ? (
-        <MapPanel pins={cards.flatMap((c) => (c.geo ? [{ id: c.id, lat: c.geo[0], lon: c.geo[1] }] : []))} onOptimize={() => setNote({ title: "Optimize View", text: "On the iPad this reorders the visible accounts into a route. Studio doesn't plan routes." })} />
+        <MapPanel
+          pins={cards.flatMap((c) => (c.geo ? [{ id: c.id, lat: c.geo[0], lon: c.geo[1] }] : []))}
+          onOptimize={() =>
+            setNote({
+              title: "Optimize View",
+              text: "On the iPad this reorders the visible accounts into a route. Studio doesn't plan routes.",
+            })
+          }
+        />
       ) : (
         <CardsPane
           onOpen={selecting ? (id) => setSelected((s) => toggleId(s, id)) : onOpenRecord}
@@ -346,14 +575,30 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
           selected={selected.size}
           allLabel={selectAllLabel(selected.size, cards.length)}
           onCancel={exitSelect}
-          onAll={() => setSelected(selected.size >= cards.length ? new Set() : new Set(cards.map((c) => c.id)))}
-          onUpdate={() => setNote({ title: "Update Selected", text: "On the iPad this opens the mass-update form for the selected accounts. Studio doesn't change records." })}
+          onAll={() =>
+            setSelected(selected.size >= cards.length ? new Set() : new Set(cards.map((c) => c.id)))
+          }
+          onUpdate={() =>
+            setNote({
+              title: "Update Selected",
+              text: "On the iPad this opens the mass-update form for the selected accounts. Studio doesn't change records.",
+            })
+          }
           onAddTo={(e) => openMenu("addto", e)}
         />
       )}
 
       {kindOpen && (
-        <Popover left={19} top={68} width={310} height={203} arrowX={90} arrowDir="down" portalTo={root.current?.closest(".studio-ipad-screen")} onClose={() => setKindOpen(false)}>
+        <Popover
+          left={19}
+          top={68}
+          width={310}
+          height={203}
+          arrowX={90}
+          arrowDir="down"
+          portalTo={root.current?.closest(".studio-ipad-screen")}
+          onClose={() => setKindOpen(false)}
+        >
           <div className="studio-ipad-accounts-kinds">
             {LIST_KINDS.map((k) => (
               <button
@@ -372,43 +617,98 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
         </Popover>
       )}
       {menu && menu.type === "list" && (
-        <Popover left={menu.x + menu.w + 13} top={menu.y + menu.h / 2 - 58} width={304} height={114} arrowDir="left" arrowY={menu.y + menu.h / 2} onClose={() => setMenu(null)}>
+        <Popover
+          left={menu.x + menu.w + 13}
+          top={menu.y + menu.h / 2 - 58}
+          width={304}
+          height={114}
+          arrowDir="left"
+          arrowY={menu.y + menu.h / 2}
+          onClose={() => setMenu(null)}
+        >
           <TextMenu
             items={[{ label: "Edit" }, { label: "Delete", danger: true }]}
             onPick={(label) => {
               setMenu(null);
-              setNote({ title: label === "Edit" ? "Edit List" : "Delete List", text: label === "Edit" ? "On the iPad this opens the list editor. Studio doesn't change lists." : "On the iPad this asks to confirm and deletes the list. Studio never deletes records." });
+              setNote({
+                title: label === "Edit" ? "Edit List" : "Delete List",
+                text:
+                  label === "Edit"
+                    ? "On the iPad this opens the list editor. Studio doesn't change lists."
+                    : "On the iPad this asks to confirm and deletes the list. Studio never deletes records.",
+              });
             }}
           />
         </Popover>
       )}
       {menu && menu.type === "card" && cardItems.length > 0 && (
-        <Popover left={menu.x + menu.w / 2 - 334} top={menu.y + menu.h / 2 - (cardItems.length * 57.25) / 2 + 7} width={304} height={cardItems.length * 57.25} arrowDir="right" arrowY={menu.y + menu.h / 2} onClose={() => setMenu(null)}>
+        <Popover
+          left={menu.x + menu.w / 2 - 334}
+          top={menu.y + menu.h / 2 - (cardItems.length * 57.25) / 2 + 7}
+          width={304}
+          height={cardItems.length * 57.25}
+          arrowDir="right"
+          arrowY={menu.y + menu.h / 2}
+          onClose={() => setMenu(null)}
+        >
           <TextMenu
             items={cardItems.map((label) => ({ label }))}
             onPick={(label) => {
               setMenu(null);
-              setNote({ title: label, text: `On the iPad this opens the ${label} form for the account. Studio doesn't create records.` });
+              setNote({
+                title: label,
+                text: `On the iPad this opens the ${label} form for the account. Studio doesn't create records.`,
+              });
             }}
           />
         </Popover>
       )}
       {menu && menu.type === "addto" && (
-        <Popover left={menu.x + menu.w / 2 - 176} top={menu.y - 104} width={350} height={100} arrowX={menu.x + menu.w / 2} arrowDir="down" onClose={() => setMenu(null)}>
+        <Popover
+          left={menu.x + menu.w / 2 - 176}
+          top={menu.y - 104}
+          width={350}
+          height={100}
+          arrowX={menu.x + menu.w / 2}
+          arrowDir="down"
+          onClose={() => setMenu(null)}
+        >
           <TextMenu
             rowHeight={50}
             fontSize={17}
             items={ADD_TO_MENU.map((label) => ({ label }))}
             onPick={(label) => {
               setMenu(null);
-              setNote({ title: label, text: `On the iPad this starts ${label === "Email" ? "an email" : "a visit"} for the selected accounts. Studio doesn't create records.` });
+              setNote({
+                title: label,
+                text: `On the iPad this starts ${label === "Email" ? "an email" : "a visit"} for the selected accounts. Studio doesn't create records.`,
+              });
             }}
           />
         </Popover>
       )}
-      {modal === "new" && <NewAccountModal portalTo={root.current?.closest(".studio-ipad-screen")} onClose={() => setModal(null)} />}
-      {modal === "online" && <SearchOnlineModal portalTo={root.current?.closest(".studio-ipad-screen")} onClose={() => setModal(null)} />}
-      {note && <Sheet title={note.title} note={note.text} closeLabel="Close" onClose={() => setNote(null)} />}
+      {modal === "new" && (
+        <CreateSheet
+          ctx={{ snapshot, record: null }}
+          object="Account"
+          label="New Account"
+          onClose={() => setModal(null)}
+        />
+      )}
+      {modal === "online" && (
+        <SearchOnlineModal
+          portalTo={root.current?.closest(".studio-ipad-screen")}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {note && (
+        <Sheet
+          title={note.title}
+          note={note.text}
+          closeLabel="Close"
+          onClose={() => setNote(null)}
+        />
+      )}
 
       {popover && (
         <>
@@ -429,7 +729,11 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
                   >
                     <span className="studio-ipad-accounts-popover-check">{on ? "✓" : ""}</span>
                     {o.label}
-                    {on && <span className="studio-ipad-accounts-popover-dir">{sort.ascending ? "↑" : "↓"}</span>}
+                    {on && (
+                      <span className="studio-ipad-accounts-popover-dir">
+                        {sort.ascending ? "↑" : "↓"}
+                      </span>
+                    )}
                   </div>
                 );
               })}
