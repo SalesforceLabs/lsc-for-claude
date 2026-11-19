@@ -1987,7 +1987,10 @@ causes:
     cause: |
       The iPad engine skips price adjustment schedules and tiers with no
       EffectiveFrom. The server simulation doesn't, so tiers work on web and the
-      iPad charges list price. An empty EffectiveTo is normal (no end date).
+      iPad charges list price. An empty EffectiveFrom is the confirmed cause. The
+      shipped Standard schedules have an empty EffectiveTo; whether that alone
+      breaks iPad pricing isn't confirmed, so set both dates on schedules you
+      create and don't patch the Standard ones.
     fix:
       - "Set EffectiveFrom on the schedule, then on its tiers."
       - "Refresh the decision tables, regenerate the metadata cache and sync."
@@ -2085,6 +2088,40 @@ causes:
       query: "SELECT COUNT() FROM LifeScienceTriggerHandler WHERE DeveloperName = 'StagePathPermissionsHandler' AND IsActive = true"
       expect: "count > 0"
 
+  - id: om-submitted-stage-not-locked
+    title: Submitted quotes aren't locked because the Submitted stage allows edits
+    module: order-management
+    symptoms:
+      - "Submitted quotes stay editable"
+      - "Quote isn't locked after Submit"
+      - "Rep deleted a quote after it was submitted"
+    keywords: [LifeSciStageOperation, CanEdit, CanDelete, CanCreate]
+    cause: |
+      What a rep can do to a quote at each stage is set by that stage's
+      LifeSciStageOperation (CanCreate, CanEdit, CanDelete), and
+      StagePathPermissionsHandler enforces those flags. A quote is locked at
+      Submitted only when the Submitted operation on the active Quote path has all
+      three false. When they are true the quote stays editable after Submit, even
+      with the handler active and an operation name that says "Lock".
+    fix:
+      - "In Admin Console > Workflow Paths, open the active Quote path for the quote's record type."
+      - "On the Submitted stage, clear Create, Edit and Delete. Do the same on Request for Unlock and Rejected if they should stay locked."
+      - "Confirm StagePathPermissionsHandler is active (Admin Console > Trigger Handlers)."
+      - "Regenerate the metadata cache and have reps sync, so the iPad gets the new stage permissions."
+    ui_path: "Admin Console > Workflow Paths"
+    check:
+      type: soql
+      query: >
+        SELECT Id, Name, LifeSciStageValue.LifeSciStagePath.Name, CanCreate, CanEdit, CanDelete
+        FROM LifeSciStageOperation
+        WHERE LifeSciStageObject.ObjectName = 'Quote'
+        AND LifeSciStageValue.Name = 'Submitted'
+        AND LifeSciStageValue.LifeSciStagePath.Status = 'Active'
+        AND (CanCreate = true OR CanEdit = true OR CanDelete = true)
+        LIMIT 50
+      expect: "records.length == 0"
+    check_scope: "Checks the Submitted stage on every active Quote path. It doesn't check other stages, and an org that means Submitted to stay editable will show here too."
+
   - id: om-quote-status-values-missing
     title: Quote.Status value set lacks Submitted and Request for Unlock
     module: order-management
@@ -2111,6 +2148,40 @@ causes:
     fix:
       - "Assign Pricebook2-Price Book Layout to the rep profile."
       - "Reopen Add Products; the price book is preselected."
+
+  - id: om-product-not-available-for-quote
+    title: Product isn't aligned to the rep's territory for quotes (no published Quote availability)
+    module: order-management
+    symptoms:
+      - "Product doesn't show on Add Products for the rep's territory"
+      - "Product is priced but missing from Add Products in one territory"
+      - "New product never appears on Add Products after sync"
+      - "Products created as Active by API don't show on Add Products"
+    keywords: [ProductTerritoryAvailability, ProductTerrDtlAvailability, PTA, PTDA, Purpose Quote, Publish Draft Product Territory Alignments, quotable]
+    cause: |
+      Add Products on the iPad lists only products with a ProductTerrDtlAvailability
+      row (Purpose Quote) for the rep's territory. The platform makes those rows from
+      a ProductTerritoryAvailability row: a Draft one when the Admin Console batch job
+      publishes it, or one inserted by API as Queued. A product
+      that is active and priced still doesn't show when it has no Quote alignment for
+      the rep's territory, when its alignment is Purpose Visit, or when the alignment
+      was inserted or set Active by API so it was never published.
+    fix:
+      - "Check the product's ProductTerritoryAvailability rows: Purpose Quote, Alignment Type Territory Inclusion, Usage Type LifeSciences, on the rep's territory or one above it."
+      - "If Quote rows for the territory were set Active by API and have no ProductTerrDtlAvailability, delete them (Status can't go back to Draft)."
+      - "Insert one row per product with Status Draft (not Active), then run Publish Draft Product Territory Alignments Batch Job from the Admin Console. Or insert it by API with Status Queued and let the platform process it."
+      - "Confirm ProductTerrDtlAvailability rows with Purpose Quote now exist for the rep's territory."
+      - "Have the rep sync. No metadata cache regeneration is needed."
+    ui_path: "Admin Console > Product > Product Alignment Jobs > Publish Draft Product Territory Alignments Batch Job"
+    check:
+      type: soql
+      query: >
+        SELECT Id, Name, Product.Name, Territory.Name, Status FROM ProductTerritoryAvailability
+        WHERE Purpose = 'Quote' AND Status IN ('Active', 'Draft')
+        AND Id NOT IN (SELECT ProdtTerritoryAvailabilityId FROM ProductTerrDtlAvailability WHERE Purpose = 'Quote')
+        LIMIT 200
+      expect: "records.length == 0"
+    check_scope: "Finds Quote alignments that were never published. It doesn't know which rep you mean, so a product with no Quote alignment for their territory at all isn't caught; check that rep's territories by hand."
 
   - id: om-quote-pdf-in-progress
     title: Quote PDF stays In Progress because the rep can't create QuoteDocumentCreationEvent

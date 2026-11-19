@@ -36,6 +36,7 @@ Controls what a rep can do to a Quoted Order at each stage; admins define allowe
 - **Draft**: rep can create, edit, add lines, delete.
 - **Submit**: quoted order is locked.
 - **Request for Unlock**: rep requests unlock; once the manager approves, the rep can edit.
+- **Quote approval and locking — what "locked" means:** each stage's `LifeSciStageOperation` has `CanCreate`, `CanEdit` and `CanDelete`; a stage is locked when all three are false. `StagePathPermissionsHandler` (inactive by default) enforces them on save, so a lock needs both: the flags off on the stage and the handler active. An operation's name doesn't lock anything; check the flags.
 
 ## 5. Flows
 - **Select Discover Products Flow** (Salesforce Go -> Order Management): choose the flow that launches the product catalog so reps can browse and add products to a quote.

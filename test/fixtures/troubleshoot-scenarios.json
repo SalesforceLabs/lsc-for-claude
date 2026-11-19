@@ -22,6 +22,18 @@
       "expect": ["om-pricebook-layout-assignment"]
     },
     {
+      "says": "Submitted quotes stay editable for reps",
+      "expect": ["om-submitted-stage-not-locked"]
+    },
+    {
+      "says": "Products are missing on Add Products though I created availability for the territory",
+      "expect": ["om-product-not-available-for-quote"]
+    },
+    {
+      "says": "Product is in the price book but reps in one territory can't find it on Add Products",
+      "expect": ["om-product-not-available-for-quote"]
+    },
+    {
       "says": "No price books or products show, and the quote is in the wrong currency",
       "expect": ["om-quote-currency-from-rep"]
     },
@@ -391,7 +403,6 @@
     "Is there a faster way to set up Store Check and Order Management?",
     "Is Billing included?",
     "Rep says Add Products is empty on the iPad",
-    "Products are missing on Add Products though I created availability for the territory",
     "Product shows in setup but never in the catalog",
     "Rep can't see the catalog or products although they're set up",
     "Reps can't open the catalog at all",
