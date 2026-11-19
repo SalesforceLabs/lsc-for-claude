@@ -163,7 +163,7 @@ describe("rules-executor.ts", () => {
       expect(audit.summary.errors).toBe(1); // severity is "error"
     });
 
-    it("fails with detail when sObject not supported", async () => {
+    it("reports an object missing from the org as couldn't check, with why", async () => {
       const rule = {
         ...MOCK_VALIDATION_RULE,
         check: {
@@ -180,7 +180,8 @@ describe("rules-executor.ts", () => {
       });
 
       const audit = await runAudit("my-org");
-      expect(audit.summary.failed).toBe(1);
+      expect(audit.summary.failed).toBe(0);
+      expect(audit.summary.unchecked).toBe(1);
       expect(audit.results[0].message).toContain("not found in org");
     });
   });
@@ -483,6 +484,70 @@ describe("rules-executor.ts", () => {
 
       const output = formatAuditResults(audit);
       expect(output).toContain("mobile-check");
+    });
+  });
+
+  // ==========================================================================
+  // Checks that can't run: never a pass
+  // ==========================================================================
+  describe("checks that can't run", () => {
+    it.each(["metadata", "api", "cli"] as const)(
+      "reports the unimplemented '%s' type as unavailable, not passed",
+      async (type) => {
+        const outcome = await executeCheck({ type, expect: "result != null" } as never, "my-org");
+        expect(outcome.passed).toBe(false);
+        expect(outcome.unavailable).toBe(true);
+        expect(outcome.message).toContain("not yet implemented");
+      }
+    );
+
+    it("counts an unrunnable rule as couldn't check, neither passed nor failed", async () => {
+      vi.mocked(getAllRules).mockReturnValue([
+        { ...MOCK_VALIDATION_RULE, id: "api-001", check: { type: "api" as const, endpoint: "/x", expect: "result != null" } },
+      ]);
+      const audit = await runAudit("my-org");
+      expect(audit.summary).toMatchObject({ passed: 0, failed: 0, errors: 0, unchecked: 1 });
+      expect(audit.results[0].unavailable).toBe(true);
+
+      const output = formatAuditResults(audit);
+      expect(output).toContain("Status: INCOMPLETE");
+      expect(output).toContain("Couldn't Check (1)");
+      expect(output).not.toContain("Passed Checks");
+      expect(output).not.toContain("Issues Found");
+    });
+
+    it("counts a timed-out query as couldn't check, not as a failure", async () => {
+      vi.mocked(getAllRules).mockReturnValue([MOCK_VALIDATION_RULE]);
+      vi.mocked(runSoqlQuery).mockResolvedValue({ success: false, error: "Query timed out after 120s" });
+      const audit = await runAudit("my-org");
+      expect(audit.summary).toMatchObject({ passed: 0, failed: 0, errors: 0, unchecked: 1 });
+    });
+
+    it("leaves a rule unchecked, not skipped or run, when its prerequisite couldn't be run", async () => {
+      const prereq = { ...MOCK_VALIDATION_RULE, id: "prereq-001", check: { type: "cli" as const, command: "sf x", expect: "result != null" } };
+      const dependent = { ...MOCK_VALIDATION_RULE, id: "dep-001", prerequisites: ["prereq-001"] };
+      vi.mocked(getAllRules).mockReturnValue([prereq, dependent]);
+      const audit = await runAudit("my-org");
+      expect(vi.mocked(runSoqlQuery)).not.toHaveBeenCalled();
+      expect(audit.summary).toMatchObject({ passed: 0, failed: 0, skipped: 0, unchecked: 2 });
+      expect(audit.results[1].message).toContain("prerequisite");
+    });
+
+    it("makes a composite unknown when a sub-check can't run and none failed", async () => {
+      vi.mocked(runSoqlQuery).mockResolvedValue({ success: true, data: { totalSize: 3, done: true, records: [] } });
+      const outcome = await executeCheck(
+        {
+          type: "composite",
+          expect: "all",
+          checks: [
+            { type: "soql_count", query: "SELECT COUNT() FROM Account", expect: "count > 0" },
+            { type: "metadata", object: "Account", expect: "result != null" },
+          ],
+        } as never,
+        "my-org"
+      );
+      expect(outcome.passed).toBe(false);
+      expect(outcome.unavailable).toBe(true);
     });
   });
 });

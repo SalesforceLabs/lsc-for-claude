@@ -58,9 +58,9 @@ export async function executeCheck(
       case "metadata":
       case "api":
       case "cli":
-        // These types are not yet implemented
+        // Not implemented: say so rather than report a pass.
         return {
-          passed: true,
+          passed: false,
           message: `Check type '${check.type}' not yet implemented - skipped`,
           unavailable: true,
         };
@@ -257,8 +257,7 @@ async function executeCompositeCheck(
 
   // All sub-checks must pass for composite to pass
   const allPassed = subResults.every((r) => r.passed);
-  // A sub-check that couldn't run (including the not-implemented types, which report passed) leaves the whole
-  // unknown — unless another sub-check definitely failed.
+  // A sub-check that couldn't run leaves the whole unknown — unless another sub-check definitely failed.
   const definitelyFailed = subResults.some((r) => !r.passed && !r.unavailable);
 
   return {
@@ -437,13 +436,15 @@ export async function runAudit(
     errors: 0,
     warnings: 0,
     skipped: 0,
+    unchecked: 0,
   };
 
   for (const rule of rulesToRun) {
     // Check prerequisites
     if (rule.prerequisites && rule.prerequisites.length > 0) {
       const prereqResults = results.filter((r) => rule.prerequisites!.includes(r.rule.id));
-      const prereqsFailed = prereqResults.some((r) => !r.passed);
+      const prereqsFailed = prereqResults.some((r) => !r.passed && !r.unavailable);
+      const prereqsUnchecked = prereqResults.some((r) => r.unavailable);
 
       if (prereqsFailed) {
         results.push({
@@ -452,6 +453,16 @@ export async function runAudit(
           message: `Skipped: prerequisite check(s) failed`,
         });
         summary.skipped++;
+        continue;
+      }
+      if (prereqsUnchecked) {
+        results.push({
+          rule,
+          passed: false,
+          unavailable: true,
+          message: `Couldn't check: a prerequisite check couldn't be run`,
+        });
+        summary.unchecked++;
         continue;
       }
     }
@@ -464,12 +475,15 @@ export async function runAudit(
       passed: checkResult.passed,
       message: checkResult.message,
       details: checkResult.details,
+      ...(checkResult.unavailable ? { unavailable: true } : {}),
     };
 
     results.push(result);
 
-    // Update summary
-    if (checkResult.passed) {
+    // Update summary. A check that couldn't run is neither a pass nor a failure.
+    if (checkResult.unavailable) {
+      summary.unchecked++;
+    } else if (checkResult.passed) {
       summary.passed++;
     } else {
       summary.failed++;
@@ -514,6 +528,9 @@ export function formatAuditResults(audit: AuditResult): string {
   if (audit.summary.skipped > 0) {
     output += `| Skipped | ${audit.summary.skipped} |\n`;
   }
+  if (audit.summary.unchecked > 0) {
+    output += `| Couldn't check | ${audit.summary.unchecked} |\n`;
+  }
   output += `\n`;
 
   // Overall status
@@ -523,13 +540,16 @@ export function formatAuditResults(audit: AuditResult): string {
   } else if (audit.summary.warnings > 0) {
     output += `### Status: PASSED WITH WARNINGS\n\n`;
     output += `Found ${audit.summary.warnings} warning(s) that should be reviewed.\n\n`;
+  } else if (audit.summary.unchecked > 0) {
+    output += `### Status: INCOMPLETE\n\n`;
+    output += `No problems found, but ${audit.summary.unchecked} check(s) couldn't be run (see below).\n\n`;
   } else {
     output += `### Status: PASSED\n\n`;
     output += `All checks passed successfully.\n\n`;
   }
 
   // Failed checks (errors first, then warnings)
-  const failedResults = audit.results.filter((r) => !r.passed);
+  const failedResults = audit.results.filter((r) => !r.passed && !r.unavailable);
 
   if (failedResults.length > 0) {
     output += `## Issues Found\n\n`;
@@ -559,6 +579,16 @@ export function formatAuditResults(audit: AuditResult): string {
         output += formatFailedCheck(result);
       }
     }
+  }
+
+  // Checks that couldn't run: say why, never count them as passed or failed
+  const uncheckedResults = audit.results.filter((r) => r.unavailable);
+  if (uncheckedResults.length > 0) {
+    output += `## Couldn't Check (${uncheckedResults.length})\n\n`;
+    for (const result of uncheckedResults) {
+      output += `- **${result.rule.id}**: ${result.rule.name} — ${result.message}\n`;
+    }
+    output += `\n`;
   }
 
   // Passed checks summary
