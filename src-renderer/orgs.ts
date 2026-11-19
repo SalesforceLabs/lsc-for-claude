@@ -62,7 +62,7 @@ export function hostOf(url: string): string {
   }
 }
 
-/** Up to two letters for an org's avatar: "chiesi-794" → "C7", "Pfizer FDE" → "PF". */
+/** Up to two letters for an org's avatar: "acme-123" → "A1", "Globex FDE" → "GF". */
 export function orgMonogram(label: string): string {
   const name = label.split("@")[0];
   const words = name.split(/[\s._-]+/).filter(Boolean);

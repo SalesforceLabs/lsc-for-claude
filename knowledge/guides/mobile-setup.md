@@ -803,7 +803,7 @@ Inquiries
 Workflow Error on Inquiry Error Loading Data
 
 Issue: In the SDB619 demo orgs there is a formula field on Case = Inq_IsCreatorOrResponde used to drive
-the workflow values. This is setup to accommodate Pfizer’s Customer Facing Colleague profile and
+the workflow values. This is setup to accommodate a customer's Customer Facing Colleague profile and
 company nomenclature = e.g Respondor instead of Creator
 
 Original Formula:
@@ -1067,7 +1067,7 @@ Territories
 (Old) Key Resources
 
 Release notes, instructions for setup - LSC Learning Org April 2025
- – Don’t make any changes to this doc it is shared with customers Pfizer & LOreall
+ – Don’t make any changes to this doc it is shared with customers
 
 Guidance for configuration can be found in previous OCE Personal documentation
 
