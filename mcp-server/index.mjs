@@ -93587,7 +93587,7 @@ Presentations (Intelligent Content):
 
 OmniStudio (FlexCards, OmniScripts, DataRaptors) runs only on the web app. Never suggest it for the LSC Mobile (iPad) app.
 
-Quotes, quoted orders, price books, pricing, product availability for quotes (ProductTerritoryAvailability), quote approval and the quote lifecycle are LSC Order Management, which runs on the iPad and works differently from Sales Cloud quoting. For these, call search_lsc_knowledge before answering and don't fall back on general Sales Cloud or Revenue Cloud behavior without saying so.
+Quotes, quoted orders, price books, pricing, product availability for quotes (ProductTerritoryAvailability), quote approval and the quote lifecycle are LSC Order Management, which runs on the iPad and works differently from Sales Cloud quoting. For these, call search_lsc_knowledge before answering, run check_om_config to see what the org actually has, and don't fall back on general Sales Cloud or Revenue Cloud behavior without saying so.
 
 After changing mobile configuration (DB Schema, actions, tabs, mobile settings), remind the user to regenerate the mobile metadata cache so iPads get it.
 
@@ -124972,11 +124972,161 @@ ${error2 instanceof Error ? error2.message : String(error2)}`
 
 // src/tools/health-check.ts
 init_cli();
-var MOBILE_CACHE_QUERY = `SELECT Id, LastModifiedDate FROM LifeSciMobileMetadataRecord WHERE Status = 'Active' ORDER BY LastModifiedDate DESC LIMIT 1`;
+
+// src/tools/om-config.ts
+var OM_MODULE = "order-management";
+var OM_WARN_ONLY = /* @__PURE__ */ new Set([
+  "om-submitted-stage-not-locked",
+  "om-unlock-no-manager",
+  "om-locked-quote-no-view-line-items"
+]);
+var OM_IN_USE_QUERY = "SELECT Id FROM ProductTerritoryAvailability WHERE Purpose = 'Quote' LIMIT 1";
+function omCheckableCauses(causes = getKnownCauses()) {
+  return causes.filter((c) => c.module === OM_MODULE && c.check && !c.by_design);
+}
+function omUncheckedCauses(causes = getKnownCauses()) {
+  return causes.filter((c) => c.module === OM_MODULE && !c.check && !c.by_design);
+}
+var oneLine2 = (s11) => s11.trim().replace(/\s*\n\s*/g, " ");
+function toOmCheck(cause, outcome, applies) {
+  const base2 = {
+    id: cause.id,
+    title: cause.title,
+    scope: cause.check_scope ? oneLine2(cause.check_scope) : void 0
+  };
+  if (applies && !applies.unavailable && !applies.passed)
+    return {
+      ...base2,
+      status: "pass",
+      detail: "Doesn't apply: the feature it concerns isn't in use."
+    };
+  if (outcome.unavailable || applies?.unavailable)
+    return {
+      ...base2,
+      status: "skip",
+      detail: `Couldn't check: ${oneLine2((applies?.unavailable ? applies : outcome).message)}`
+    };
+  if (outcome.passed) return { ...base2, status: "pass", detail: "Not found in the org." };
+  const names5 = recordNames(outcome);
+  const shown2 = names5.slice(0, 5).join(", ");
+  const more = names5.length > 5 ? ` and ${names5.length - 5} more` : "";
+  return {
+    ...base2,
+    status: OM_WARN_ONLY.has(cause.id) ? "warn" : "fail",
+    detail: names5.length ? `Found: ${shown2}${more}` : oneLine2(outcome.message),
+    fix: cause.fix.join(" ")
+  };
+}
+async function collectOmChecks(org) {
+  const causes = omCheckableCauses();
+  const out = new Array(causes.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(4, causes.length) }, async () => {
+      while (next < causes.length) {
+        const i = next++;
+        const cause = causes[i];
+        const applies = cause.applies_if ? await executeCheck(cause.applies_if, org) : void 0;
+        const outcome = applies && !applies.unavailable && !applies.passed ? { passed: true, message: "" } : await executeCheck(cause.check, org);
+        out[i] = toOmCheck(cause, outcome, applies);
+      }
+    })
+  );
+  return out;
+}
+async function omInUse(org) {
+  const r = await executeCheck(
+    { type: "soql", query: OM_IN_USE_QUERY, expect: "records.length > 0" },
+    org
+  );
+  return r.unavailable ? null : r.passed;
+}
+function renderOmReport(org, checks, inUse) {
+  let out = `# Order Management Configuration Report
+
+**Org:** ${org}
+
+`;
+  if (inUse === false)
+    out += "No product is aligned to a territory for quotes (`ProductTerritoryAvailability` with Purpose Quote), so Order Management doesn't look set up here. The checks still ran.\n\n";
+  out += "| Check | Result | Detail |\n|---|---|---|\n";
+  for (const c of checks)
+    out += `| ${c.title} | ${c.status.toUpperCase()} | ${c.detail.replace(/\|/g, "\\|")} |
+`;
+  const bad = checks.filter((c) => c.status === "fail" || c.status === "warn");
+  out += `
+## Overall: ${checks.some((c) => c.status === "fail") ? "NEEDS ATTENTION" : bad.length ? "READY WITH WARNINGS" : "READY"}
+
+`;
+  const fixes = bad.filter((c) => c.fix);
+  if (fixes.length) {
+    out += "### Fixes\n\n";
+    fixes.forEach((c, i) => out += `${i + 1}. **${c.title}:** ${c.fix}
+`);
+    out += "\n";
+  }
+  if (checks.some((c) => c.status === "skip"))
+    out += "Checks marked SKIP couldn't run; they are not passes.\n\n";
+  const scoped2 = checks.filter((c) => c.scope);
+  if (scoped2.length) {
+    out += "### What a pass doesn't cover\n\n";
+    for (const c of scoped2) out += `- **${c.title}:** ${c.scope}
+`;
+    out += "\n";
+  }
+  const unchecked = omUncheckedCauses();
+  if (unchecked.length)
+    out += `Not checked here (${unchecked.length} known causes need a look by hand or an error message; \`diagnose_lsc_issue\` matches them): ${unchecked.map((c) => c.title).join("; ")}.
+`;
+  return out;
+}
 function register14(server2) {
   server2.tool(
+    "check_om_config",
+    "Check Order Management (quoted orders, Store Check) configuration against the known setup mistakes: DB Schema pairs (Quote/QuoteLineItem, Pricebook2/PricebookEntry) half assigned to a profile, price adjustment schedules with no EffectiveFrom, the Life Sciences Commercial pricing recipe mappings, StagePathPermissionsHandler, the Submitted quote stage lock, unpublished Quote product alignments (ProductTerritoryAvailability with no ProductTerrDtlAvailability), quote owners with no manager for Request for Unlock, locked stages with no View Line Items, and Store Check visit routing. Read-only. CORRECT object names: Quote, QuoteLineItem, Pricebook2, PricebookEntry, ProductTerritoryAvailability, ProductTerrDtlAvailability, PriceAdjustmentSchedule, LifeSciStagePath, LifeSciStageOperation. WRONG names (DO NOT USE): Order__c, QuotedOrder__c, ProductAvailability__c.",
+    {
+      targetOrg: external_exports.string().optional().describe("Optional: specific org to check. Uses current target org if not specified.")
+    },
+    async ({ targetOrg }) => {
+      const validation = await validateOrgConnection();
+      const effectiveOrg = targetOrg || validation.targetOrg;
+      if (!effectiveOrg) {
+        return {
+          content: [
+            { type: "text", text: `# Cannot Check Order Management
+
+${validation.error}` }
+          ]
+        };
+      }
+      try {
+        const [checks, inUse] = await Promise.all([
+          collectOmChecks(effectiveOrg),
+          omInUse(effectiveOrg)
+        ]);
+        return { content: [{ type: "text", text: renderOmReport(effectiveOrg, checks, inUse) }] };
+      } catch (error2) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `# Failed to Check Order Management
+
+${error2 instanceof Error ? error2.message : String(error2)}`
+            }
+          ]
+        };
+      }
+    }
+  );
+}
+
+// src/tools/health-check.ts
+var MOBILE_CACHE_QUERY = `SELECT Id, LastModifiedDate FROM LifeSciMobileMetadataRecord WHERE Status = 'Active' ORDER BY LastModifiedDate DESC LIMIT 1`;
+function register15(server2) {
+  server2.tool(
     "health_check",
-    "Run a comprehensive LSC org health check. Checks trigger handler status, permission set assignments, Admin Console settings, orphaned territory assignments, DB Schema completeness, and mobile cache freshness. Returns a summary with issues found and recommendations.",
+    "Run a comprehensive LSC org health check. Checks trigger handler status, permission set assignments, Admin Console settings, orphaned territory assignments, DB Schema completeness, mobile cache freshness, and Order Management setup when the org uses it. Returns a summary with issues found and recommendations.",
     {
       targetOrg: external_exports.string().optional().describe("Optional: specific org to check. Uses current target org if not specified.")
     },
@@ -125123,6 +125273,25 @@ ${tmInfo}`);
       }
       sections2.push(`## Mobile Metadata Cache
 ${cacheInfo}`);
+      const omUsed = await omInUse(effectiveOrg);
+      if (omUsed) {
+        const omChecks = await collectOmChecks(effectiveOrg);
+        const bad = omChecks.filter((c) => c.status === "fail" || c.status === "warn");
+        const skipped = omChecks.filter((c) => c.status === "skip").length;
+        for (const c of bad)
+          issues.push({
+            severity: c.status === "fail" ? "error" : "warning",
+            area: "Order Management",
+            message: `${c.title}. ${c.detail}`,
+            fix: c.fix
+          });
+        sections2.push(
+          `## Order Management
+${omChecks.length - bad.length - skipped} of ${omChecks.length} checks passed${skipped ? `, ${skipped} couldn't run` : ""}. Run \`check_om_config\` for the full report.`
+        );
+      } else if (omUsed === null) {
+        sections2.push("## Order Management\nCouldn't tell whether Order Management is in use.");
+      }
       const errors = issues.filter((i) => i.severity === "error");
       const warnings = issues.filter((i) => i.severity === "warning");
       const infos = issues.filter((i) => i.severity === "info");
@@ -126198,7 +126367,7 @@ function groupOf(r) {
   if (r.category === "QuickAction" || r.category === "CustomAction") return "Actions";
   return "Admin Settings";
 }
-function register15(server2) {
+function register16(server2) {
   server2.tool(
     "export_config",
     "Export LSC configuration (Admin Console settings, DB Schema, trigger handlers, actions) as JSON. Captures per-field DataType and profile assignments (format v1.1) so the snapshot can be faithfully re-applied with import_config. Use this to snapshot org configuration for comparison, migration, or backup.",
@@ -126503,7 +126672,7 @@ function applyMessage(result2, backupPath, resultPath) {
 // src/tools/release-notes.ts
 import * as fs11 from "fs";
 import * as path11 from "path";
-function register16(server2) {
+function register17(server2) {
   const releaseNotesDir = path11.join(
     path11.dirname(new URL(import.meta.url).pathname),
     "../../knowledge/release-notes"
@@ -126585,7 +126754,7 @@ Available releases: ${available || "none"}`
 
 // src/tools/apex.ts
 init_cli();
-function register17(server2) {
+function register18(server2) {
   server2.tool(
     "run_apex",
     "Execute anonymous Apex code against the target Salesforce org. Use for one-off tasks like running batch jobs, fixing data issues, or testing logic. Returns compilation status, execution result, and debug logs.",
@@ -126666,7 +126835,7 @@ ${result2.rawOutput}
 
 // src/tools/bulk-operations.ts
 init_cli();
-function register18(server2) {
+function register19(server2) {
   server2.tool(
     "bulk_create_records",
     "Create multiple records from a JSON array. Processes records sequentially and reports results. Useful for loading seed data (products, time periods, territory assignments) without Data Loader.",
@@ -126848,7 +127017,7 @@ Failed to parse records JSON: ${e instanceof Error ? e.message : "Unknown error"
 
 // src/tools/metadata.ts
 init_cli();
-function register19(server2) {
+function register20(server2) {
   server2.tool(
     "deploy_metadata",
     "Deploy metadata to the target Salesforce org from a local source directory. Wraps `sf project deploy start`. Use for pushing permission sets, page layouts, flows, and other metadata from a local project.",
@@ -126982,7 +127151,7 @@ ${result2.rawOutput.substring(0, 2e3)}
 
 // src/tools/briefings.ts
 init_cli();
-function register20(server2) {
+function register21(server2) {
   server2.tool(
     "check_briefings_config",
     "Check Briefings (Daily Podcasts) configuration. Validates toggle, licenses, permissions (StoriesUser/StoriesAdmin), account summarization, content definitions, scheduled flows, DB Schema records, and mobile cache. CORRECT object names: PrstContentDefinition, PrstCntntDefAssignment, PrstCntntUsageSummary, PrvdAccountTerritorySummary. WRONG names: PresentationContentDefinition, PresentationContentDefinitionAssignment, PresentationContentUsageSummary.",
@@ -128022,7 +128191,7 @@ function renderEppvReport(org, checks) {
   out += "\nNot checked here: Action Plan State picklist and Admin Console status mappings, Action Plan page layout actions list, Action Plan Status field-level security, template and care program page layouts, sharing rules. See the module doc `support-engineering-eppv-setup-and-troubleshooting`.\n";
   return out;
 }
-function register21(server2) {
+function register22(server2) {
   server2.tool(
     "check_eppv_config",
     "Check Account Compliance (Japan EPPV/MID, Provider Engagement Compliance) configuration: Care Programs and products, compliance Action Plans (target HCO, cycles generated), the four cloned flows, the 11 DB Schema records, the Account Compliance tab, the Capture Compliance Activity quick action and the mobile cache. CORRECT object names: CareProgram, CareProgramProduct, ActionPlan, ActionPlanTemplate, ActionPlanTemplateVersion, ActionPlanTemplateAssignment, PrvdEngmtComplianceCycle, AssessmentTask. WRONG names (DO NOT USE): EPPV__c, ComplianceCycle__c, AccountCompliance__c.",
@@ -145133,7 +145302,7 @@ ${r.notes.map((n2) => `- ${n2}`).join("\n")}
 `;
   return out;
 }
-function register22(server2) {
+function register23(server2) {
   server2.tool(
     "simulate_initial_sync",
     "Simulate the network part of an LSC iOS app INITIAL sync for one end user, from Node. Authenticates as that user through the sf CLI, calls user-info, downloads and verifies the metadata archive (MD5), builds the table list and WHERE tags exactly as the app does, then downloads every table in the app's order (enhanced Connect flow or legacy REST flow, chosen from the org's settings). Reports per-table records, requests, bytes and seconds, plus metadata download time, so it can be compared with DeviceSyncSummary rows. Network time only (no SQLCipher writes, indexes or file binaries). Read-only against the org: it creates no records and registers no device. The username must already be authenticated in the sf CLI as the end user (not an admin) for device-accurate numbers.",
@@ -150977,7 +151146,7 @@ function json(data2) {
 function jsonError(error2) {
   return { content: [{ type: "text", text: JSON.stringify({ error: error2 }) }], isError: true };
 }
-function register23(server2) {
+function register24(server2) {
   server2.tool(
     "studio_list_features",
     "LSC Studio (GUI data): list the features Studio can map. Returns JSON.",
@@ -152725,7 +152894,7 @@ var targetOrgParam = external_exports.string().optional().describe(
 var countAsOrgParam = external_exports.string().optional().describe(
   "Optional: org alias authenticated AS the persona user, used for the COUNT() queries so record sharing matches the device exactly. Defaults to the target org (the connected user's visibility, typically an admin)."
 );
-function register24(server2) {
+function register25(server2) {
   server2.tool(
     "profile_sync_volume",
     "Predict how much data the LSC mobile app will sync for specific users, before any device is involved. Resolves each user's DB Schema records (profile/permission set), substitutes WhereSoql tags ({USER.ID}, {USER.TERRITORY}, {ACCOUNT.IDS}, {OT2A.OBJ.IDS}, ...) per territory exactly as the app does, and runs COUNT() queries. Returns predicted records per table, estimated device SOQL request counts, and filters that fail to execute. Read-only; safe in production.",
@@ -152890,7 +153059,6 @@ register10(server);
 register11(server);
 register12(server);
 register13(server);
-register14(server);
 register15(server);
 register16(server);
 register17(server);
@@ -152898,9 +153066,11 @@ register18(server);
 register19(server);
 register20(server);
 register21(server);
-register23(server);
-register24(server);
 register22(server);
+register14(server);
+register24(server);
+register25(server);
+register23(server);
 async function main() {
   const modules = getModuleList();
   const helpDocs = getHelpDocList();

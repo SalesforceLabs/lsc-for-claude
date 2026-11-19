@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `156`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `157`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -18,6 +18,7 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "check_eppv_config",
   "check_lsc_setup",
   "check_mobile_cache_status",
+  "check_om_config",
   "check_sample_config",
   "check_territory_config",
   "check_user_access",
@@ -1300,6 +1301,15 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "optional": true,
         "type": "ZodString",
       },
+      "targetOrg": {
+        "optional": true,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "check_om_config",
+    "params": {
       "targetOrg": {
         "optional": true,
         "type": "ZodString",
