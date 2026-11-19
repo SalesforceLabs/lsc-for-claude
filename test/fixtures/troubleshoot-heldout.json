@@ -1,0 +1,1053 @@
+{
+  "_about": "Held-out phrasings of the same problems, in words that appear nowhere in known-causes.yaml. Never copy these into symptoms or keywords: they measure how the matcher handles wording it has not seen. 'expect' empty means no cause covers it yet.",
+  "cases": [
+    {
+      "says": "Go tile for Order Management won't let me proceed, wants me to buy something",
+      "expect": ["om-feature-card-purchase-required"]
+    },
+    {
+      "says": "deploy of Store Check metadata blows up, object not found",
+      "expect": ["om-install-missing-org-preferences"]
+    },
+    {
+      "says": "package deploy errors on account plan stuff",
+      "expect": ["om-install-missing-org-preferences"]
+    },
+    {
+      "says": "Store Check toggle flips but feature stays disabled",
+      "expect": ["sc-store-check-turn-on-modal"]
+    },
+    {
+      "says": "Enable button for territories does nothing",
+      "expect": []
+    },
+    {
+      "says": "Rep's stage buttons on quotes don't respond",
+      "expect": ["om-quote-status-fls-not-edit", "perm-fls-missing"]
+    },
+    {
+      "says": "Admin blocked from Store Check settings pages",
+      "expect": []
+    },
+    {
+      "says": "Add Products screen has empty price list picker",
+      "expect": ["om-pricebook-layout-assignment"]
+    },
+    {
+      "says": "quote shows odd currency and few products",
+      "expect": ["om-quote-currency-from-rep"]
+    },
+    {
+      "says": "can't add price for product, wants base price first",
+      "expect": ["om-standard-price-first"]
+    },
+    {
+      "says": "Catalog access for rep refuses: trivial sharing message",
+      "expect": ["om-manual-share-trivial-level"]
+    },
+    {
+      "says": "iPad tapping Add Products, nothing happens",
+      "expect": ["om-pricebook-layout-assignment"]
+    },
+    {
+      "says": "my expected price list is missing from the choices",
+      "expect": ["om-quote-currency-from-rep"]
+    },
+    {
+      "says": "Error says lookup table in ListPrice step needs fixing",
+      "expect": ["om-recipe-mapping-missing"]
+    },
+    {
+      "says": "can't turn on pricing procedure, rank complaint",
+      "expect": ["om-procedure-version-rank"]
+    },
+    {
+      "says": "prices work in browser but not on tablet",
+      "expect": ["om-pricing-rounding-step-mobile", "om-pricing-selectors-disagree"]
+    },
+    {
+      "says": "iPad shows Unhandled pricing procedure steps: RoundingValues",
+      "expect": ["om-pricing-rounding-step-mobile"]
+    },
+    {
+      "says": "Ordering ten units, iPad uses full price not tiered",
+      "expect": ["om-tier-effective-dates-empty"]
+    },
+    {
+      "says": "edited price but reps still see the old one",
+      "expect": ["cache-stale"]
+    },
+    {
+      "says": "no overall order discount on tablet cart",
+      "expect": ["om-header-adjustments-off"]
+    },
+    {
+      "says": "matrix discounts missing when tablet offline",
+      "expect": ["om-tier-effective-dates-empty"]
+    },
+    {
+      "says": "order-level discount silently doesn't apply",
+      "expect": ["om-header-adjustments-off"]
+    },
+    {
+      "says": "Quote has no way to submit",
+      "expect": ["om-quote-status-fls-not-edit"]
+    },
+    {
+      "says": "Submitting doesn't advance quote",
+      "expect": ["om-stage-path-handler-inactive"]
+    },
+    {
+      "says": "path component shows too few steps",
+      "expect": ["om-quote-status-values-missing"]
+    },
+    {
+      "says": "Can't save my copy of browse catalog flow",
+      "expect": ["om-browse-catalog-save-as-apexclass-invalid"]
+    },
+    {
+      "says": "admin console workflow paths show wrong steps",
+      "expect": ["om-workflow-path-editor-wrong-stages"]
+    },
+    {
+      "says": "category not found error in admin console",
+      "expect": ["om-admin-console-category-missing"]
+    },
+    {
+      "says": "Product Views lacks Last Order choice",
+      "expect": ["om-last-order-org-permission"]
+    },
+    {
+      "says": "PDF template deploy rejected, unsupported action",
+      "expect": ["om-admin-no-document-builder"]
+    },
+    {
+      "says": "quote missing Submit and unlock request buttons",
+      "expect": ["om-quote-status-values-missing"]
+    },
+    {
+      "says": "didn't get any alert when a quote was locked",
+      "expect": ["om-approve-automated-process-user"]
+    },
+    {
+      "says": "PDF that's used isn't the one I picked",
+      "expect": []
+    },
+    {
+      "says": "Begin Store Check throws an error",
+      "expect": ["sc-action-plan-template-multiple-versions"]
+    },
+    {
+      "says": "template change broke visits and sync",
+      "expect": ["sc-action-plan-template-multiple-versions"]
+    },
+    {
+      "says": "indicator type switch from number to picklist not allowed",
+      "expect": ["sc-indicator-datatype-create-only"]
+    },
+    {
+      "says": "New visit opens regular form instead of store check",
+      "expect": ["sc-visit-routing-standard-form"]
+    },
+    {
+      "says": "Web Log a Visit complains about translation languages",
+      "expect": ["om-log-a-visit-no-translation-language", "translations-not-applied"]
+    },
+    {
+      "says": "web Log a Visit says data is outdated",
+      "expect": ["dbschema-no-providervisit"]
+    },
+    {
+      "says": "Store check list is cutting off columns",
+      "expect": ["field-set-not-mapped"]
+    },
+    {
+      "says": "No survey section on the visit page",
+      "expect": ["surveys-offline-type"]
+    },
+    {
+      "says": "Translations on the tablet are stale",
+      "expect": ["translations-not-applied"]
+    },
+    {
+      "says": "changed the layout, tablet looks the same as before",
+      "expect": ["cache-stale"]
+    },
+    {
+      "says": "regenerate cache returns 400 error",
+      "expect": ["om-cache-parent-not-validation-completed"]
+    },
+    {
+      "says": "blank price list selector on iPad, no message",
+      "expect": ["om-dbschema-pair-half-scoped"]
+    },
+    {
+      "says": "first sync fails with Salesforce access error",
+      "expect": ["sc-action-plan-template-multiple-versions"]
+    },
+    {
+      "says": "cache for one profile marked Inactive",
+      "expect": []
+    },
+    {
+      "says": "cache build fails can't read object over REST",
+      "expect": ["dbschema-missing-object"]
+    },
+    {
+      "says": "sync 400 no such column LastModifiedDate",
+      "expect": ["dbschema-delta-field-no-column"]
+    },
+    {
+      "says": "tablet works oddly with my admin account",
+      "expect": ["perm-admin-on-ipad"]
+    },
+    {
+      "says": "App tells me org is under maintenance",
+      "expect": ["admin-org-in-maintenance"]
+    },
+    {
+      "says": "password prompt at each login on iPad",
+      "expect": ["perm-password-alphanumeric", "perm-lock-session-ip"]
+    },
+    {
+      "says": "Begin Visit on browser just spins",
+      "expect": ["sc-begin-visit-web"]
+    },
+    {
+      "says": "photo save fails, no Image table column",
+      "expect": ["sc-photo-dbschemas-missing"]
+    },
+    {
+      "says": "Begin Store Check button is disabled",
+      "expect": ["sc-action-plan-template-multiple-versions"]
+    },
+    {
+      "says": "photo uploaded but won't display",
+      "expect": ["sc-photo-dbschemas-missing"]
+    },
+    {
+      "says": "Missing capture insights action on store check screen",
+      "expect": ["actions-ipad-supported", "sc-quoted-order-tab-missing"]
+    },
+    {
+      "says": "New quote won't save, says Workflow is locked",
+      "expect": []
+    },
+    {
+      "says": "new quote saved without a status value",
+      "expect": ["om-quote-status-fls-not-edit"]
+    },
+    {
+      "says": "Quoted Order tab on visit has nothing in it",
+      "expect": ["sc-quoted-order-tab-missing"]
+    },
+    {
+      "says": "Reprice All gives context not established",
+      "expect": ["om-reprice-context-not-established"]
+    },
+    {
+      "says": "discount off by a hundredth between iPad and web",
+      "expect": ["om-pricing-rounding-step-mobile"]
+    },
+    {
+      "says": "tapped submit two times, review failed message",
+      "expect": ["om-submit-tapped-twice"]
+    },
+    {
+      "says": "PDF shows In Progress after submission",
+      "expect": ["om-quote-pdf-in-progress"]
+    },
+    {
+      "says": "document stays In Progress forever",
+      "expect": ["om-quote-pdf-in-progress"]
+    },
+    {
+      "says": "Duplicate signatures and documents on a quote",
+      "expect": []
+    },
+    {
+      "says": "Downloading quote PDF fails",
+      "expect": [
+        "perm-lock-session-ip",
+        "perm-query-non-vetoed-files",
+        "perm-password-alphanumeric"
+      ]
+    },
+    {
+      "says": "unlock request goes nowhere",
+      "expect": ["om-unlock-no-manager"]
+    },
+    {
+      "says": "Request for Unlock REQUIRED_FIELD_MISSING TerritoryId",
+      "expect": ["om-unlock-approver-no-territory"]
+    },
+    {
+      "says": "Approving doesn't work, quote remains In Review",
+      "expect": ["om-approve-automated-process-user"]
+    },
+    {
+      "says": "Supervisor doesn't have an Approval tab",
+      "expect": []
+    },
+    {
+      "says": "Locked quote missing link to line items",
+      "expect": ["om-locked-quote-no-view-line-items"]
+    },
+    {
+      "says": "Last Order card isn't showing",
+      "expect": ["om-last-order-org-permission"]
+    },
+    {
+      "says": "Products From Previous Order choice not offered",
+      "expect": ["om-last-order-org-permission"]
+    },
+    {
+      "says": "price lists vanished after rep's currency was changed",
+      "expect": ["om-quote-currency-from-rep"]
+    },
+    {
+      "says": "price change not showing on iPad despite sync",
+      "expect": ["cache-stale"]
+    },
+    {
+      "says": "rep sees wrong accounts after realignment",
+      "expect": ["account-reach-chain", "user-no-territory"]
+    },
+    {
+      "says": "territory model won't go active",
+      "expect": ["user-no-territory"]
+    },
+    {
+      "says": "Reps seeing colleagues' visits and app is slow",
+      "expect": []
+    },
+    {
+      "says": "iPad sluggish, pulling down far too much",
+      "expect": ["dbschema-unbounded-volume"]
+    },
+    {
+      "says": "Order Management tile absent for us in Go, sandbox",
+      "expect": []
+    },
+    {
+      "says": "Which license does a field rep need? Got a no available seat message",
+      "expect": []
+    },
+    {
+      "says": "After changing a permission set my rep lost access elsewhere, profile deploy says invalid tab",
+      "expect": []
+    },
+    {
+      "says": "Is there a quick one-step way to configure Store Check and Order Management?",
+      "expect": []
+    },
+    {
+      "says": "Reps open Add Products on the iPad and see nothing, even though I set up availability for their territory",
+      "expect": []
+    },
+    {
+      "says": "Items appear in Store Check but not when creating a quoted order",
+      "expect": []
+    },
+    {
+      "says": "Context definition mapping errors with duplicate value",
+      "expect": []
+    },
+    {
+      "says": "Bundles and negotiated prices don't calculate on iPad",
+      "expect": []
+    },
+    {
+      "says": "Our own discount table works on desktop but the iPad ignores it for one profile",
+      "expect": []
+    },
+    {
+      "says": "Instant pricing option is missing or does nothing on the tablet",
+      "expect": []
+    },
+    {
+      "says": "Waterfall details from the tablet never show on web, sync says line item id required",
+      "expect": []
+    },
+    {
+      "says": "Promo price doesn't take effect on the tablet, and a category promo kept applying after it expired",
+      "expect": []
+    },
+    {
+      "says": "The quote looks empty, no fields or sections, on a newly created one",
+      "expect": []
+    },
+    {
+      "says": "Section titles on the quote page display as strange @@@SFDC text",
+      "expect": []
+    },
+    {
+      "says": "Rep can still change the quote after pressing Submit",
+      "expect": []
+    },
+    {
+      "says": "We never see lock or approval flows although docs said they're built in",
+      "expect": []
+    },
+    {
+      "says": "The signature area is gone from the PDF, or shows on every page after an upgrade",
+      "expect": []
+    },
+    {
+      "says": "Can't divide quote into deliveries, address list empty, review says delivery has no products",
+      "expect": []
+    },
+    {
+      "says": "Tablet quote saved but without a number, edits then stuck; one market's reps can't create quotes",
+      "expect": []
+    },
+    {
+      "says": "Go setup said done but reps have no quote page",
+      "expect": []
+    },
+    {
+      "says": "Opening a store routes to HCP page: no access to healthcareprovider",
+      "expect": []
+    },
+    {
+      "says": "Store check KPIs don't link to the pharmacy; can't locate the retail store record type",
+      "expect": []
+    },
+    {
+      "says": "All products in Store Check share one placeholder picture; images fail offline behind our proxy with 403",
+      "expect": []
+    },
+    {
+      "says": "Unable to bulk create store check visits",
+      "expect": []
+    },
+    {
+      "says": "Cache generating for twenty minutes; Add Line Item stays blocked on iPad",
+      "expect": []
+    },
+    {
+      "says": "Account page says Layout contains no sections!",
+      "expect": []
+    },
+    {
+      "says": "After regenerating the cache the iPad shows RestAPI.ErrorDomain error 400",
+      "expect": []
+    },
+    {
+      "says": "Checkmarks for verified vanish once saved",
+      "expect": []
+    },
+    {
+      "says": "After End Visit the visit is stuck not syncing, server has KPI rows but no indicator values",
+      "expect": []
+    },
+    {
+      "says": "Visit from the account quick action ignores my record type mapping",
+      "expect": []
+    },
+    {
+      "says": "After visit submit my quote got locked, completed visit can't be changed",
+      "expect": []
+    },
+    {
+      "says": "Adding a file and a photo together goes wrong",
+      "expect": []
+    },
+    {
+      "says": "Order discount spreads unevenly, negative unit price, or all lands on one line",
+      "expect": []
+    },
+    {
+      "says": "Net Unit Price tap opens nothing; waterfall button visible but switched off",
+      "expect": []
+    },
+    {
+      "says": "Price breakdown works connected but empty offline, also for older quotes",
+      "expect": []
+    },
+    {
+      "says": "Pricing won't calculate without connection and tells me to sync",
+      "expect": []
+    },
+    {
+      "says": "Quote details on tablet show @ labels in place of data",
+      "expect": []
+    },
+    {
+      "says": "Rep can't see line groups on tablet",
+      "expect": []
+    },
+    {
+      "says": "Free goods: I entered more than permitted and no error appeared",
+      "expect": []
+    },
+    {
+      "says": "Status says Submitted but no signature record exists",
+      "expect": []
+    },
+    {
+      "says": "Where can the generated PDF be found?",
+      "expect": []
+    },
+    {
+      "says": "Wasn't prompted for signature; forced to sign small order; can't submit Transfer order",
+      "expect": []
+    },
+    {
+      "says": "Approved quote reverted to Draft, can I resubmit?",
+      "expect": []
+    },
+    {
+      "says": "Manager or admin cannot see rep's quotes; colleague in same territory can't see it either",
+      "expect": []
+    },
+    {
+      "says": "Last Order prefilled fewer products than before",
+      "expect": []
+    },
+    {
+      "says": "Quote from last order offered for account without orders",
+      "expect": []
+    },
+    {
+      "says": "Rep switched territory and lost products and quotes",
+      "expect": []
+    },
+    {
+      "says": "Visits list view limited to eight columns",
+      "expect": []
+    },
+    {
+      "says": "Which pricing procedure plan does an offline quote follow?",
+      "expect": []
+    },
+    {
+      "says": "Scan Shelf button and vision results absent; photo rejected as too big",
+      "expect": []
+    },
+    {
+      "says": "Trying to start Order Management from the Salesforce Go page, but setup halts with a message about not being provisioned and asks if we need CPQ",
+      "expect": ["om-feature-card-purchase-required"]
+    },
+    {
+      "says": "While installing the package into our org, the deployment aborted complaining a custom object called InventoryCountAssessment could not be located",
+      "expect": ["om-install-missing-org-preferences"]
+    },
+    {
+      "says": "Deployment fails partway through on the Account Plan page layout and an Import Stakeholder button, not sure why those components are rejected",
+      "expect": ["om-install-missing-org-preferences"]
+    },
+    {
+      "says": "I clicked the switch to enable Store Check in setup, came back later and the feature still shows as not active",
+      "expect": ["sc-store-check-turn-on-modal"]
+    },
+    {
+      "says": "Pressed the enable button for Sales Territory in setup and the page just sits there, or it complains our territory names duplicate existing ones",
+      "expect": []
+    },
+    {
+      "says": "Our sales rep gets access denied messages on the quote record and the buttons that move the quote between stages do nothing for them",
+      "expect": ["om-quote-status-fls-not-edit", "perm-fls-missing"]
+    },
+    {
+      "says": "An administrator on our team opens the Store Check and quote configuration screens in setup and gets denied or sees pages that won't load",
+      "expect": []
+    },
+    {
+      "says": "On the quote, tapping Add Products brings up a price list dropdown reading None and the product search returns zero results for the rep",
+      "expect": ["om-pricebook-layout-assignment"]
+    },
+    {
+      "says": "The rep created a new quote and it's in a currency that doesn't match the customer's, and only a handful of products are visible when adding lines",
+      "expect": ["om-quote-currency-from-rep"]
+    },
+    {
+      "says": "Trying to put a price for an item in our custom price list and the save is rejected, telling me something has to exist before it",
+      "expect": ["om-standard-price-first"]
+    },
+    {
+      "says": "Tried granting the rep visibility to the catalog and the save errored saying the share level is trivial, Read",
+      "expect": ["om-manual-share-trivial-level"]
+    },
+    {
+      "says": "Created a brand new quote on the iPad and the Add Products action is dead, no screen and no error shown",
+      "expect": ["om-pricebook-layout-assignment"]
+    },
+    {
+      "says": "When choosing a price list for the quote I can't find the one I know exists and is active, only other lists show up",
+      "expect": ["om-quote-currency-from-rep"]
+    },
+    {
+      "says": "Pricing procedure save complains: Ensure that the lookup table in the ListPrice step is valid",
+      "expect": ["om-recipe-mapping-missing"]
+    },
+    {
+      "says": "Activating my pricing procedure fails and the system asks me to put in a valid rank",
+      "expect": ["om-procedure-version-rank"]
+    },
+    {
+      "says": "Everything prices correctly on the desktop quote, but on the iPad the same quote doesn't calculate right",
+      "expect": ["om-pricing-rounding-step-mobile", "om-pricing-selectors-disagree"]
+    },
+    {
+      "says": "Offline in the app, calculating a quote stops with an error about procedure steps it can't handle, naming a rounding step",
+      "expect": ["om-pricing-rounding-step-mobile"]
+    },
+    {
+      "says": "On the tablet a line of 10 comes out at the standard list price, whereas the same quantity on web gets the discounted tier rate",
+      "expect": ["om-tier-effective-dates-empty"]
+    },
+    {
+      "says": "I updated a product price yesterday, and sales reps on tablets still see the previous value even after syncing",
+      "expect": ["cache-stale"]
+    },
+    {
+      "says": "Reps don't get any whole-order discount option when building a cart on the iPad",
+      "expect": ["om-header-adjustments-off"]
+    },
+    {
+      "says": "Discounts from our adjustment matrix show on web quotes, but disappear when the rep has no connection on the iPad",
+      "expect": ["om-tier-effective-dates-empty"]
+    },
+    {
+      "says": "I enter a discount on the whole quote and the totals don't move, no warning at all; after a quantity edit it looks old too",
+      "expect": ["om-header-adjustments-off"]
+    },
+    {
+      "says": "Looking at a draft quote on desktop and I can't find any button to send it to the next step in the process",
+      "expect": ["om-quote-status-fls-not-edit"]
+    },
+    {
+      "says": "Tapped Submit and the status path stays where it was, and the quote can still be changed afterwards",
+      "expect": ["om-stage-path-handler-inactive"]
+    },
+    {
+      "says": "On the quote record the progress bar only shows two chevrons although we defined five",
+      "expect": ["om-quote-status-values-missing"]
+    },
+    {
+      "says": "Cloned the product browsing flow in Flow Builder and saving throws: apexClass is invalid",
+      "expect": ["om-browse-catalog-save-as-apexclass-invalid"]
+    },
+    {
+      "says": "In the admin console, opening workflow paths for quotes lists stages that aren't ours",
+      "expect": ["om-workflow-path-editor-wrong-stages"]
+    },
+    {
+      "says": "Saving settings in Admin Console tells me a product category can't be found, though I see it in my product list",
+      "expect": ["om-admin-console-category-missing"]
+    },
+    {
+      "says": "Opening Product Views in the admin console, the Last Order option I read about isn't offered; the settings are also greyed out",
+      "expect": ["om-last-order-org-permission"]
+    },
+    {
+      "says": "Pushing the quote PDF template fails with: Unsupported action type CREATE_SERVICE_DOCUMENT",
+      "expect": ["om-admin-no-document-builder"]
+    },
+    {
+      "says": "The buttons for sending a quote and asking to unlock are nowhere on the record page for reps",
+      "expect": ["om-quote-status-values-missing"]
+    },
+    {
+      "says": "Nobody received an email or bell notification when the quote got locked or when an unlock was decided; nothing pops up on the iPad",
+      "expect": ["om-approve-automated-process-user"]
+    },
+    {
+      "says": "Quotes generate using an old PDF layout and not the one I just made; the PDF quick action from Revenue Cloud produces nothing",
+      "expect": []
+    },
+    {
+      "says": "Rep taps to start the store check on a visit and it errors out straight away",
+      "expect": ["sc-action-plan-template-multiple-versions"]
+    },
+    {
+      "says": "After I modified our action plan template, starting checks stopped working and iPad syncs report problems; now edits are refused",
+      "expect": ["sc-action-plan-template-multiple-versions"]
+    },
+    {
+      "says": "The indicator's data type can't be altered from numeric to a list of choices, field is locked",
+      "expect": ["sc-indicator-datatype-create-only"]
+    },
+    {
+      "says": "Clicking New on Visits shows the plain default visit form instead of the store check screen, whichever record type I pick",
+      "expect": ["sc-visit-routing-standard-form"]
+    },
+    {
+      "says": "Opening Log a Visit in the browser says language settings are missing, add languages first, and no StoreCheckFeature developer names found",
+      "expect": ["om-log-a-visit-no-translation-language", "translations-not-applied"]
+    },
+    {
+      "says": "Admin opens Log a Visit in desktop browser and gets a banner that the metadata is not current",
+      "expect": ["dbschema-no-providervisit"]
+    },
+    {
+      "says": "Added extra fields to the store check list view but only some of them are visible",
+      "expect": ["field-set-not-mapped"]
+    },
+    {
+      "says": "During a store check the questionnaire never appears on the visit even though we built one",
+      "expect": ["surveys-offline-type"]
+    },
+    {
+      "says": "I edited the translated labels for store check, but the iPad still shows the earlier wording, and some screens are only partly translated",
+      "expect": ["translations-not-applied"]
+    },
+    {
+      "says": "I rearranged fields on the layout yesterday, but reps' iPads still display the previous arrangement; same for pricing and console edits",
+      "expect": ["cache-stale"]
+    },
+    {
+      "says": "Hitting regenerate on the offline cache gives an HTTP 400 mentioning ValidationCompleted",
+      "expect": ["om-cache-parent-not-validation-completed"]
+    },
+    {
+      "says": "On the tablet the Select Price Book screen is empty and gives no error to explain it",
+      "expect": ["om-dbschema-pair-half-scoped"]
+    },
+    {
+      "says": "I removed a surplus version of the action plan template, yet the very first sync from the tablet still errors with Error while trying to access Salesforce",
+      "expect": ["sc-action-plan-template-multiple-versions"]
+    },
+    {
+      "says": "In setup, the validated cache record for a given profile reads as Inactive and reps on it can't use the app properly",
+      "expect": []
+    },
+    {
+      "says": "Generating the cache aborts, saying the parent is Inactive and an object couldn't be read through the REST API",
+      "expect": ["dbschema-missing-object"]
+    },
+    {
+      "says": "Tablet sync fails on a content link or topic table with HTTP 400, saying a LastModifiedDate column doesn't exist",
+      "expect": ["dbschema-delta-field-no-column"]
+    },
+    {
+      "says": "I logged into the iPad app using my administrator login and screens and data look wrong",
+      "expect": ["perm-admin-on-ipad"]
+    },
+    {
+      "says": "Opening the iPad app shows the org is in maintenance, though everything works in the browser",
+      "expect": ["admin-org-in-maintenance"]
+    },
+    {
+      "says": "Each time a rep opens the tablet app they must enter a new password, and the in-app assistant fails",
+      "expect": ["perm-password-alphanumeric", "perm-lock-session-ip"]
+    },
+    {
+      "says": "Click Begin Visit on the desktop web page and the loading wheel never stops",
+      "expect": ["sc-begin-visit-web"]
+    },
+    {
+      "says": "Taking a photo during the check fails with a message about a missing column in the Image table",
+      "expect": ["sc-photo-dbschemas-missing"]
+    },
+    {
+      "says": "On the visit the button to start the store check is grey and can't be tapped",
+      "expect": ["sc-action-plan-template-multiple-versions"]
+    },
+    {
+      "says": "Rep took a picture in store check, it synced, but viewing it says no photo available",
+      "expect": ["sc-photo-dbschemas-missing"]
+    },
+    {
+      "says": "On the store check page the actions for capturing insights or presenting content aren't there, nor a Create Quoted Order action",
+      "expect": ["actions-ipad-supported", "sc-quoted-order-tab-missing"]
+    },
+    {
+      "says": "Rep on the iPad creates a quote and saving yields: Workflow is locked",
+      "expect": []
+    },
+    {
+      "says": "Quotes come out with a blank Status, and the Submit option isn't showing",
+      "expect": ["om-quote-status-fls-not-edit"]
+    },
+    {
+      "says": "Rep's lists of quotes and orders on the tablet display zero records though they exist on web, and the visit's quoted order section has no New",
+      "expect": ["sc-quoted-order-tab-missing"]
+    },
+    {
+      "says": "Pressing Reprice All shows an error that context hasn't been established",
+      "expect": ["om-reprice-context-not-established"]
+    },
+    {
+      "says": "The tablet shows 0.92 percent off while the browser says 0.93 for the same line, and the derived total won't refresh",
+      "expect": ["om-pricing-rounding-step-mobile"]
+    },
+    {
+      "says": "Rep hit Submit twice quickly and later saw Review submission failed. Please try again.",
+      "expect": ["om-submit-tapped-twice"]
+    },
+    {
+      "says": "After submitting on the tablet, the document is still listed as in progress and can't be found on web",
+      "expect": ["om-quote-pdf-in-progress"]
+    },
+    {
+      "says": "I tapped Generate PDF and the status never completes though reps can submit quotes fine",
+      "expect": ["om-quote-pdf-in-progress"]
+    },
+    {
+      "says": "A rep accidentally submitted twice and now one quote has a pair of signatures and two PDFs attached",
+      "expect": []
+    },
+    {
+      "says": "Reps are repeatedly asked for new credentials on login, and the quote PDF can't be downloaded in the app",
+      "expect": [
+        "perm-lock-session-ip",
+        "perm-query-non-vetoed-files",
+        "perm-password-alphanumeric"
+      ]
+    },
+    {
+      "says": "The rep asked to unlock the quote and no approval task arrived for the manager to act on",
+      "expect": ["om-unlock-no-manager"]
+    },
+    {
+      "says": "Asking for a locked quote to be unlocked errors because a required field called TerritoryId is missing",
+      "expect": ["om-unlock-approver-no-territory"]
+    },
+    {
+      "says": "Manager presses approve, the action fails, and the quote stays at In Review",
+      "expect": ["om-approve-automated-process-user"]
+    },
+    {
+      "says": "The manager opens the quote and there's no tab for approvals, or it is empty or errors",
+      "expect": []
+    },
+    {
+      "says": "A rejected or locked quote doesn't offer any way to look at its line items",
+      "expect": ["om-locked-quote-no-view-line-items"]
+    },
+    {
+      "says": "On the tablet there's no option to start a quote from the previous one for an account that does have past quotes",
+      "expect": ["om-last-order-org-permission"]
+    },
+    {
+      "says": "On the iPad the product view only offers two options, and the one for previous order products is missing on web too",
+      "expect": ["om-last-order-org-permission"]
+    },
+    {
+      "says": "After we updated a rep's currency, adding items to a quote shows no price lists or entries",
+      "expect": ["om-quote-currency-from-rep"]
+    },
+    {
+      "says": "I edited a tier, a price entry and a decision table; reps synced and still see the former price. Is a plain sync enough?",
+      "expect": ["cache-stale"]
+    },
+    {
+      "says": "After we moved territory assignments around, a rep's account list on the tablet is incorrect or empty",
+      "expect": ["account-reach-chain", "user-no-territory"]
+    },
+    {
+      "says": "I can't make our territory model live, it shows as not active even after I tried",
+      "expect": ["user-no-territory"]
+    },
+    {
+      "says": "Everybody now sees each other's upcoming visits in Up Next, and the app has gotten sluggish since we widened visibility",
+      "expect": []
+    },
+    {
+      "says": "Syncing is very slow and the offline data on the tablet is gigantic",
+      "expect": ["dbschema-unbounded-volume"]
+    },
+    {
+      "says": "The setup checklist for Order Management never reaches done",
+      "expect": []
+    },
+    {
+      "says": "Giving permission sets to users throws duplicate value error",
+      "expect": []
+    },
+    {
+      "says": "We bought the Max edition but the Order Management permission sets aren't listed and Company Information shows nothing new",
+      "expect": []
+    },
+    {
+      "says": "Does the Order Management purchase include billing?",
+      "expect": []
+    },
+    {
+      "says": "Browse Catalog on tablet shows items priced in every currency",
+      "expect": []
+    },
+    {
+      "says": "Archived products still show on the web side",
+      "expect": []
+    },
+    {
+      "says": "Simulation reports it couldn't find a resource",
+      "expect": []
+    },
+    {
+      "says": "Custom attribute can't be mapped, or a pricing step silently skips",
+      "expect": []
+    },
+    {
+      "says": "Offline package validation fails and Best-Price procedure is blocked",
+      "expect": []
+    },
+    {
+      "says": "Instant pricing lags when the quote has many lines",
+      "expect": []
+    },
+    {
+      "says": "Log warns no expression set found for the pricing procedure so metadata is skipped",
+      "expect": []
+    },
+    {
+      "says": "Synced quote kept the old promo price, and after disabling a promotion the open quote still has it",
+      "expect": []
+    },
+    {
+      "says": "Tablet record page lacks the highlights panel and the progress bar",
+      "expect": []
+    },
+    {
+      "says": "Review screen presents two disclaimers",
+      "expect": []
+    },
+    {
+      "says": "How can a rep tell what stage a quote is at?",
+      "expect": []
+    },
+    {
+      "says": "Disabled quote lock and now the mobile workflow component won't deploy",
+      "expect": []
+    },
+    {
+      "says": "Manage Delivery option missing from line menu on tablet",
+      "expect": []
+    },
+    {
+      "says": "Delivery date or address isn't kept or priced after splitting",
+      "expect": []
+    },
+    {
+      "says": "A quote got created without any opportunity; editing needs opportunity access; can't share to territory",
+      "expect": []
+    },
+    {
+      "says": "As admin, creating a new Visit says no permission at this stage",
+      "expect": []
+    },
+    {
+      "says": "Reps are able to change KPI definitions",
+      "expect": []
+    },
+    {
+      "says": "Admin can't configure Store Check; picklist entry refused on assortment",
+      "expect": []
+    },
+    {
+      "says": "A rep can't view teammates' earlier store checks, plan sharing is slow",
+      "expect": []
+    },
+    {
+      "says": "After switching on routing, HCP visits no longer open the standard Log a Visit",
+      "expect": []
+    },
+    {
+      "says": "First login says INVALID_FIELD no such column DeveloperName",
+      "expect": []
+    },
+    {
+      "says": "Rep seems to have two live cache children and a second profile got impacted",
+      "expect": []
+    },
+    {
+      "says": "Record counts in View Database on iPad are below what the org has",
+      "expect": []
+    },
+    {
+      "says": "My visit won't upload, AttemptToStartInOffline",
+      "expect": []
+    },
+    {
+      "says": "Creating a visit on tablet gives no record type chooser, or one I shouldn't have",
+      "expect": []
+    },
+    {
+      "says": "One visit has doubled store check tasks; opening an old visit turned it In Progress",
+      "expect": []
+    },
+    {
+      "says": "Saving a store check with lots of plans and photos takes several minutes",
+      "expect": []
+    },
+    {
+      "says": "Volume discount vanished once I lowered the quantity",
+      "expect": []
+    },
+    {
+      "says": "A rep gave half off and no limit stopped them",
+      "expect": []
+    },
+    {
+      "says": "Price breakdown popup opens blank although enabled",
+      "expect": []
+    },
+    {
+      "says": "Typing an enormous quantity leaves app on Calculating prices",
+      "expect": []
+    },
+    {
+      "says": "Typing a coupon code gets refused",
+      "expect": []
+    },
+    {
+      "says": "Can't make a quote: Invalid configuration for lists. Field database wasn't found",
+      "expect": []
+    },
+    {
+      "says": "Whole-quote discount outdated after quantity edit, or pushed a line below minimum price",
+      "expect": []
+    },
+    {
+      "says": "Quote total reads 0.00 on offline iPad; submitted quote prices show $0.00",
+      "expect": []
+    },
+    {
+      "says": "Web Generate PDF says Unknown component, or viewer says data not available",
+      "expect": []
+    },
+    {
+      "says": "Signature save errors for reps, sync fails with location off",
+      "expect": []
+    },
+    {
+      "says": "Signing and submit blocked by discount distribution mismatch",
+      "expect": []
+    },
+    {
+      "says": "Extra stages in path and a Mark Status as Complete option",
+      "expect": []
+    },
+    {
+      "says": "Last Order repeat lost the discounts",
+      "expect": []
+    },
+    {
+      "says": "Last-order view doesn't line up with the real last order",
+      "expect": []
+    },
+    {
+      "says": "New store: rep can't run Store Check, no assortment for it",
+      "expect": []
+    },
+    {
+      "says": "A departed user still has the permission set",
+      "expect": []
+    },
+    {
+      "says": "Re-running setup halts at territory step after currency change",
+      "expect": []
+    },
+    {
+      "says": "Product visible to some reps only; can default-hidden availability be enabled?",
+      "expect": []
+    },
+    {
+      "says": "Does the customer-facing PDF display margin or cost?",
+      "expect": []
+    }
+  ]
+}

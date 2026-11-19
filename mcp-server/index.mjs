@@ -31517,8 +31517,8 @@ function tabNameIn(symptom) {
 function nameStem(name) {
   return name.toLowerCase().replace(/s$/, "");
 }
-async function orgTabsNamed(stem, targetOrg) {
-  const like = stem.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/[%_]/g, (c) => `\\${c}`);
+async function orgTabsNamed(stem2, targetOrg) {
+  const like = stem2.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/[%_]/g, (c) => `\\${c}`);
   const [byLabel, byName] = await Promise.all(
     ["Label", "Name"].map(
       (field3) => runSoqlQuery(
@@ -31542,14 +31542,14 @@ async function namedTab(targetOrg, context) {
       message: 'Name the tab to check it, for example "the Samples tab".',
       unavailable: true
     };
-  const stem = nameStem(name);
+  const stem2 = nameStem(name);
   const [tabs, uiSchema] = await Promise.all([
-    orgTabsNamed(stem, targetOrg),
+    orgTabsNamed(stem2, targetOrg),
     fetchCategories(targetOrg, ["UISchema"]).catch(() => null)
   ]);
   if (!tabs) return { passed: false, message: "Couldn't read the org's tabs.", unavailable: true };
   const settings = (uiSchema ?? []).filter(isNavTab).filter(
-    (r) => `${String(r.fields.TabName ?? "")} ${r.label ?? ""} ${r.developerName}`.toLowerCase().includes(stem)
+    (r) => `${String(r.fields.TabName ?? "")} ${r.label ?? ""} ${r.developerName}`.toLowerCase().includes(stem2)
   );
   const dropped = tabs.filter((t) => t.Name.toLowerCase().includes("samples_management"));
   const off = settings.filter((r) => !r.isActive || !r.isOrgLevel && r.assignments.length === 0);
@@ -99491,14 +99491,56 @@ var STOP_WORDS = /* @__PURE__ */ new Set([
 function normalizeText(text12) {
   return text12.replace(/\\[nrt]/g, " ").toLowerCase().replace(/[‘’‚‛]/g, "'").replace(/[“”„‟]/g, '"').replace(/\b[a-z0-9]{3}[a-z0-9]{12}(?:[a-z0-9]{3})?\b/g, (m) => /\d/.test(m) ? " " : m).replace(/\d+/g, " ").replace(/\s+/g, " ").trim();
 }
+var TERMS = [
+  "store check",
+  "order management",
+  "price book",
+  "action plan",
+  "quoted order",
+  "line item",
+  "metadata cache",
+  "record type",
+  "visit engagement",
+  "add products",
+  "last order",
+  "pricing procedure",
+  "admin console",
+  "product catalog",
+  "browse catalog",
+  "store assortment"
+].map((t) => [new RegExp(`\\b${t}\\b`, "g"), t.replace(" ", "_")]);
+function joinTerms(text12) {
+  return TERMS.reduce((t, [re, joined2]) => t.replace(re, joined2), text12);
+}
+var SYNONYMS = {
+  tablet: "ipad",
+  device: "ipad",
+  browser: "web",
+  desktop: "web",
+  spins: "spinner",
+  spinning: "spinner"
+};
+function stem(t) {
+  if (t.includes("_") || t.length <= 4) return t;
+  if (t.endsWith("ies") && t.length > 5) return t.slice(0, -3) + "y";
+  if (t.endsWith("ing") && t.length > 6) return t.slice(0, -3);
+  if (t.endsWith("ed") && t.length > 5 && !t.endsWith("eed")) return t.slice(0, -2);
+  if (t.endsWith("es") && /(ss|x|ch|sh)es$/.test(t)) return t.slice(0, -2);
+  if (t.endsWith("s") && !t.endsWith("ss")) return t.slice(0, -1);
+  return t;
+}
 function tokens(text12) {
-  return normalizeText(text12).split(/[^a-z0-9_'.]+/).map((t) => t.replace(/^[.']+|[.']+$/g, "")).filter((t) => t.length > 2 && !STOP_WORDS.has(t)).map((t) => t.length > 4 && t.endsWith("s") && !t.endsWith("ss") ? t.slice(0, -1) : t);
+  return joinTerms(normalizeText(text12)).split(/[^a-z0-9_'.]+/).map((t) => t.replace(/^[.']+|[.']+$/g, "")).filter((t) => t.length > 2 && !STOP_WORDS.has(t)).map((t) => t.length > 4 && t.endsWith("s") && !t.endsWith("ss") ? t.slice(0, -1) : t);
+}
+function looseTokens(text12) {
+  return joinTerms(normalizeText(text12)).split(/[^a-z0-9_'.]+/).map((t) => t.replace(/^[.']+|[.']+$/g, "")).map((t) => SYNONYMS[t] ?? t).filter((t) => t.length > 2 && !STOP_WORDS.has(t)).map(stem);
 }
 function containsWords(text12, phrase) {
   const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`(^|[^a-z0-9_])${escaped}($|[^a-z0-9_])`).test(text12);
 }
-function phraseScore(query2, phrase) {
+var TWO_WORD_WEIGHT = 0.65;
+function phraseScore(query2, phrase, phraseOnly = false) {
   const q2 = normalizeText(query2);
   const p = normalizeText(phrase);
   if (!q2 || !p) return 0;
@@ -99511,50 +99553,129 @@ function phraseScore(query2, phrase) {
   for (const t of pTokens) if (qTokens.has(t)) shared++;
   if (shared === 0) return 0;
   if (shared === 1) return pTokens.size > 1 ? 0 : 0.8 * 0.9 / qTokens.size;
-  return 0.8 * Math.max(shared / pTokens.size, 0.9 * shared / qTokens.size);
+  const coverage = 0.8 * (phraseOnly ? shared / pTokens.size : Math.max(shared / pTokens.size, 0.9 * shared / qTokens.size));
+  return shared === 2 ? coverage * TWO_WORD_WEIGHT : coverage;
 }
-function best(query2, phrases, weight = 1) {
+function best(query2, phrases, weight = 1, phraseOnly = false) {
   let top = { score: 0, matched: "" };
   for (const phrase of phrases) {
-    const score = phraseScore(query2, phrase) * weight;
+    const score = phraseScore(query2, phrase, phraseOnly) * weight;
     if (score > top.score) top = { score, matched: phrase };
   }
   return top;
 }
-function scoreCause(query2, cause) {
+function overlapsBeyondKeywords(query2, phrases, keywords2) {
+  const named2 = new Set(
+    keywords2.filter((k) => phraseScore(query2, k) >= 0.8).flatMap((k) => tokens(k))
+  );
+  const rest = new Set(tokens(query2).filter((t) => !named2.has(t)));
+  return phrases.some((p) => new Set(tokens(p).filter((t) => rest.has(t))).size >= 2);
+}
+var docFreq = /* @__PURE__ */ new WeakMap();
+function wordCauses(causes) {
+  let df = docFreq.get(causes);
+  if (df) return df;
+  df = /* @__PURE__ */ new Map();
+  for (const c of causes) {
+    const words = new Set(looseTokens([...c.symptoms, c.title, ...c.keywords ?? []].join(" | ")));
+    for (const w of words) df.set(w, (df.get(w) ?? 0) + 1);
+  }
+  docFreq.set(causes, df);
+  return df;
+}
+function rareOverlap(query2, cause, df, n2) {
+  const q2 = [...new Set(looseTokens(query2))];
+  if (q2.length === 0) return 0;
+  const phrases = [...cause.symptoms, cause.title].map((p) => new Set(looseTokens(p)));
+  let own = /* @__PURE__ */ new Set();
+  let ownShared = -1;
+  for (const p of phrases) {
+    const n3 = q2.filter((t) => p.has(t)).length;
+    if (n3 > ownShared) {
+      own = p;
+      ownShared = n3;
+    }
+  }
+  const phraseWords = new Set(own);
+  for (const k of cause.keywords ?? []) for (const t of looseTokens(k)) own.add(t);
+  const idf = (t) => Math.log(1 + n2 / (1 + (df.get(t) ?? 0)));
+  let shared = 0;
+  let sharedCount = 0;
+  let sharedRare = 0;
+  let total = 0;
+  for (const t of q2) {
+    if (!df.has(t)) continue;
+    total += idf(t);
+    if (own.has(t)) {
+      shared += idf(t);
+      if (phraseWords.has(t)) sharedCount++;
+      if (phraseWords.has(t) && (df.get(t) ?? 0) <= RARE_WORD_CAUSES) sharedRare++;
+    }
+  }
+  if (sharedCount < MIN_SHARED || sharedRare < MIN_RARE || total === 0) return 0;
+  return shared / total;
+}
+var MIN_SHARED = 3;
+var MIN_RARE = 1;
+var OVERLAP_WEIGHT = 0.6;
+var RARE_WORD_CAUSES = 2;
+function scoreCause(query2, cause, df = /* @__PURE__ */ new Map(), nCauses = 1) {
   const bySymptom = best(query2, cause.symptoms);
-  const byKeyword = best(query2, cause.keywords ?? [], 0.6);
-  const byTitle2 = best(query2, [cause.title], 0.7);
-  const top = [bySymptom, byKeyword, byTitle2].reduce((a, b) => b.score > a.score ? b : a);
+  const byTitle2 = best(query2, [cause.title], 0.7, true);
   const keywordHits = (cause.keywords ?? []).filter((k) => phraseScore(query2, k) >= 0.8).length;
+  const rareKeyword = (cause.keywords ?? []).some(
+    (k) => phraseScore(query2, k) >= 0.8 && looseTokens(k).length > 0 && looseTokens(k).every((t) => (df.get(t) ?? 0) <= RARE_WORD_CAUSES) && // The rare keyword is most of what the query says, not one word in a longer story.
+    looseTokens(k).length * 2 >= new Set(looseTokens(query2)).size
+  );
+  const corroborated = keywordHits >= 2 || rareKeyword || overlapsBeyondKeywords(query2, [...cause.symptoms, cause.title], cause.keywords ?? []);
+  const byKeyword = corroborated ? best(query2, cause.keywords ?? [], 0.6) : { score: 0, matched: "" };
+  const byOverlap = {
+    score: OVERLAP_WEIGHT * rareOverlap(query2, cause, df, nCauses),
+    matched: "(shared words)"
+  };
+  const top = [bySymptom, byKeyword, byTitle2, byOverlap].reduce(
+    (a, b) => b.score > a.score ? b : a
+  );
   return {
     score: Math.min(1, top.score + 0.1 * Math.max(0, keywordHits - 1)),
     matched: top.matched
   };
 }
+var RULE_WEIGHT = 0.8;
 function scoreRule(query2, rule) {
   const bySymptom = best(query2, rule.symptoms ?? []);
   const byName = best(query2, [rule.name], 0.7);
   const byDescription = best(query2, [rule.description], 0.5);
-  return [bySymptom, byName, byDescription].reduce((a, b) => b.score > a.score ? b : a);
+  const top = [bySymptom, byName, byDescription].reduce((a, b) => b.score > a.score ? b : a);
+  return { score: top.score * RULE_WEIGHT, matched: top.matched };
 }
 var MIN_MATCH_SCORE = 0.35;
 var RELATIVE_FLOOR = 0.6;
-function matchSymptom(query2, causes, rules, minScore = MIN_MATCH_SCORE) {
+function scoreAll(query2, causes, rules, minScore) {
   const matches = [];
+  const df = wordCauses(causes);
   for (const cause of causes) {
-    const { score, matched } = scoreCause(query2, cause);
+    const { score, matched } = scoreCause(query2, cause, df, causes.length);
     if (score >= minScore) matches.push({ kind: "cause", item: cause, score, matched });
   }
   for (const rule of rules) {
     const { score, matched } = scoreRule(query2, rule);
     if (score >= minScore) matches.push({ kind: "rule", item: rule, score, matched });
   }
-  matches.sort(
+  return matches.sort(
     (a, b) => b.score - a.score || (a.kind === b.kind ? 0 : a.kind === "cause" ? -1 : 1)
   );
+}
+function matchSymptom(query2, causes, rules, minScore = MIN_MATCH_SCORE) {
+  const matches = scoreAll(query2, causes, rules, minScore);
   const floor = (matches[0]?.score ?? 0) * RELATIVE_FLOOR;
   return matches.filter((m) => m.score >= floor);
+}
+var POSSIBLE_MIN_SCORE = 0.2;
+var MAX_POSSIBLE = 3;
+function possibleCauses(query2, causes, matched, max = MAX_POSSIBLE, minScore = POSSIBLE_MIN_SCORE) {
+  const taken = new Set(matched.map((m) => m.item.id));
+  return scoreAll(query2, causes, [], minScore).filter((m) => !taken.has(m.item.id)).slice(0, max);
 }
 
 // src/validation/rules-loader.ts
@@ -100169,8 +100290,10 @@ async function diagnose(symptom, targetOrg, deps = {}) {
   const linked = new Set(matches.flatMap((m) => m.kind === "cause" ? m.item.rules ?? [] : []));
   let rulesLeft = MAX_RULE_MATCHES;
   const kept = matches.filter((m) => m.kind === "cause" || !linked.has(m.item.id) && rulesLeft-- > 0).slice(0, MAX_MATCHES);
+  const possible = new Set(possibleCauses(symptom, causes, matches));
+  kept.push(...possible);
   const findById = (id2) => rules.find((r) => r.id === id2) ?? getRuleById(id2);
-  const findings = await Promise.all(
+  const checked = await Promise.all(
     kept.map(async (match) => {
       if (!targetOrg)
         return { match, status: match.item.check ? "unchecked" : "no-check", failedRules: [] };
@@ -100208,10 +100331,11 @@ async function diagnose(symptom, targetOrg, deps = {}) {
       return { match, status, outcome, failedRules };
     })
   );
-  if (targetOrg)
-    findings.sort(
-      (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || b.match.score - a.match.score
-    );
+  const findings = checked.map((f) => possible.has(f.match) ? { ...f, possible: true } : f);
+  const rank = (f) => f.possible ? 1 : 0;
+  findings.sort(
+    (a, b) => rank(a) - rank(b) || (targetOrg ? STATUS_ORDER[a.status] - STATUS_ORDER[b.status] : 0) || b.match.score - a.match.score
+  );
   return { symptom, targetOrg, findings };
 }
 function recordNames(outcome) {
@@ -100321,64 +100445,87 @@ function formatDiagnosis(diagnosis) {
     out += "- Search the docs with `search_lsc_knowledge`.\n";
     return out;
   }
-  const found = findings.filter((f) => f.status === "found").length;
-  if (connected) {
-    out += found > 0 ? `Checked against ${targetOrg}: ${found} of ${findings.length} possible cause${findings.length === 1 ? "" : "s"} found in the org.
+  const main2 = findings.filter((f) => !f.possible);
+  const weaker = findings.filter((f) => f.possible);
+  const found = main2.filter((f) => f.status === "found").length;
+  const weakerFound = weaker.filter((f) => f.status === "found").length;
+  const causes = (n2) => `${n2} possible cause${n2 === 1 ? "" : "s"}`;
+  const alsoFound = weakerFound > 0 ? ` ${weakerFound} of the weaker matches below ${weakerFound === 1 ? "is" : "are"} in the org too: a problem the org has, but maybe not this one.` : "";
+  if (main2.length === 0) {
+    out += weakerFound > 0 ? `Nothing matches this closely. ${causes(weaker.length)} ${weaker.length === 1 ? "shares" : "share"} some of its words, and ${weakerFound} ${weakerFound === 1 ? "is" : "are"} in ${targetOrg}. That is a problem the org has; check it fits what the user sees before calling it the cause.
 
-` : `Checked against ${targetOrg}: none of the checkable causes below are present. Work through the others by hand.
+` : `Nothing matches this closely. ${causes(weaker.length)} ${weaker.length === 1 ? "shares" : "share"} some of its words${connected ? `; none were found in ${targetOrg}` : ""}. Treat ${weaker.length === 1 ? "it as a lead" : "them as leads"}, not ${weaker.length === 1 ? "an answer" : "answers"}.
+
+`;
+  } else if (connected) {
+    out += (found > 0 ? `Checked against ${targetOrg}: ${found} of ${causes(main2.length)} found in the org.` : `Checked against ${targetOrg}: none of the checkable causes below are present. Work through the others by hand.`) + `${alsoFound}
 
 `;
   } else {
-    out += `${findings.length} possible cause${findings.length === 1 ? "" : "s"}. Connect an org to check which apply.
+    out += `${causes(main2.length)}. Connect an org to check which apply.
 
 `;
   }
-  for (const finding of findings) out += formatFinding(finding, connected);
+  for (const finding of main2) out += formatFinding(finding, connected);
+  if (weaker.length > 0) {
+    if (main2.length > 0)
+      out += `## Possible causes (weaker match)
+
+These share some words with the message. Look at them if nothing above fits.
+
+---
+
+`;
+    for (const finding of weaker) out += formatFinding(finding, connected);
+  }
   return out;
 }
 function diagnosisItems(diagnosis) {
-  return diagnosis.findings.map(({ match, status, outcome, notApplicable, failedRules }) => {
-    const base2 = {
-      status,
-      notApplicable: Boolean(notApplicable),
-      message: outcome?.message,
-      records: status === "found" ? recordNames(outcome).slice(0, 10) : [],
-      failedRules: failedRules.map(({ rule, outcome: o }) => ({
-        id: rule.id,
-        name: rule.name,
-        message: o.message
-      })),
-      matched: match.matched,
-      score: Math.round(match.score * 100) / 100
-    };
-    if (match.kind === "cause") {
-      const c = match.item;
+  return diagnosis.findings.map(
+    ({ match, status, outcome, notApplicable, failedRules, possible }) => {
+      const base2 = {
+        ...possible ? { possible: true } : {},
+        status,
+        notApplicable: Boolean(notApplicable),
+        message: outcome?.message,
+        records: status === "found" ? recordNames(outcome).slice(0, 10) : [],
+        failedRules: failedRules.map(({ rule, outcome: o }) => ({
+          id: rule.id,
+          name: rule.name,
+          message: o.message
+        })),
+        matched: match.matched,
+        score: Math.round(match.score * 100) / 100
+      };
+      if (match.kind === "cause") {
+        const c = match.item;
+        return {
+          ...base2,
+          id: c.id,
+          kind: "cause",
+          title: c.title,
+          area: c.module,
+          byDesign: Boolean(c.by_design),
+          why: oneLine(c.cause),
+          steps: c.fix,
+          uiPath: c.ui_path,
+          checkScope: c.check_scope ? oneLine(c.check_scope) : void 0
+        };
+      }
+      const r = match.item;
       return {
         ...base2,
-        id: c.id,
-        kind: "cause",
-        title: c.title,
-        area: c.module,
-        byDesign: Boolean(c.by_design),
-        why: oneLine(c.cause),
-        steps: c.fix,
-        uiPath: c.ui_path,
-        checkScope: c.check_scope ? oneLine(c.check_scope) : void 0
+        id: r.id,
+        kind: "rule",
+        title: r.name,
+        area: String(r.category),
+        byDesign: false,
+        why: oneLine(r.description),
+        steps: r.resolution.steps,
+        uiPath: r.resolution.ui_path
       };
     }
-    const r = match.item;
-    return {
-      ...base2,
-      id: r.id,
-      kind: "rule",
-      title: r.name,
-      area: String(r.category),
-      byDesign: false,
-      why: oneLine(r.description),
-      steps: r.resolution.steps,
-      uiPath: r.resolution.ui_path
-    };
-  });
+  );
 }
 
 // src/tools/validation.ts

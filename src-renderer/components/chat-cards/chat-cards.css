@@ -79,6 +79,13 @@
 
 .chat-card-rows { width: 100%; }
 
+.chat-card-subhead {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .chat-card-stage {
   list-style: none;
   margin: var(--space-2) 0 0;
