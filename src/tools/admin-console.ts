@@ -1,12 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
-  runSoqlQuery,
   runToolingQuery,
   cachedToolingQuery,
   createToolingRecord,
   updateToolingRecord,
-  updateRecord,
 } from "../salesforce/cli.js";
 import { validateOrgConnection } from "../salesforce/auth.js";
 import {
@@ -15,6 +13,15 @@ import {
   extractFieldValue,
   getValueColumn,
 } from "./helpers.js";
+
+function soqlString(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+/** A value for inside LIKE '%…%': quoted, with % and _ matched literally. */
+function soqlLike(value: string): string {
+  return soqlString(value).replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
 
 export function register(server: McpServer) {
   server.tool(
@@ -40,13 +47,16 @@ export function register(server: McpServer) {
       }
 
       try {
+        // LifeScienceTriggerHandler is a Tooling API object: the standard API
+        // answers "sObject type 'LifeScienceTriggerHandler' is not supported".
         let query =
           "SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler ORDER BY MasterLabel";
         if (objectName) {
-          query = `SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler WHERE DeveloperName LIKE '%${objectName}%' OR MasterLabel LIKE '%${objectName}%' OR Description LIKE '%${objectName}%' ORDER BY MasterLabel`;
+          const term = soqlLike(objectName);
+          query = `SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler WHERE DeveloperName LIKE '%${term}%' OR MasterLabel LIKE '%${term}%' OR Description LIKE '%${term}%' ORDER BY MasterLabel`;
         }
 
-        const result = await runSoqlQuery(query, effectiveOrg);
+        const result = await runToolingQuery(query, effectiveOrg);
 
         if (!result.success) {
           return {
@@ -122,8 +132,8 @@ export function register(server: McpServer) {
 
       try {
         // Query the handler by DeveloperName
-        const query = `SELECT Id, DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler WHERE DeveloperName = '${handlerName}' LIMIT 1`;
-        const result = await runSoqlQuery(query, effectiveOrg);
+        const query = `SELECT Id, DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler WHERE DeveloperName = '${soqlString(handlerName)}' LIMIT 1`;
+        const result = await runToolingQuery(query, effectiveOrg);
 
         if (!result.success) {
           return {
@@ -138,7 +148,7 @@ export function register(server: McpServer) {
           // Handler not found — list available ones
           const allQuery =
             "SELECT DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler ORDER BY MasterLabel";
-          const allResult = await runSoqlQuery(allQuery, effectiveOrg);
+          const allResult = await runToolingQuery(allQuery, effectiveOrg);
           const available = (allResult.data?.records || [])
             .map((r) => {
               const rec = r as Record<string, unknown>;
@@ -173,7 +183,7 @@ export function register(server: McpServer) {
         }
 
         // Update the handler
-        const updateResult = await updateRecord(
+        const updateResult = await updateToolingRecord(
           "LifeScienceTriggerHandler",
           handlerId,
           { IsActive: active },

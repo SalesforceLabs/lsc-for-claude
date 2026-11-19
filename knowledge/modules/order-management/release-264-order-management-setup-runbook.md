@@ -19,7 +19,7 @@ Salesforce Go checklist; pricing recipe, pricing procedure, and extended context
 - Existing Product Territory Availability rows seen defaulted to Purpose = Visit; none with Purpose = Quote, so quote availability must be created.
 - Pre-existing Revenue Cloud sample data (B2B/D2C catalogs, selling models, price adjustment schedules) may be present and is not LSC data; do not assume it serves Life Sciences products.
 - The "Price and Tax Calculation for Quoting" permission set may not exist (no PS, PSL, or group) until Revenue Cloud / Salesforce Go enablement creates it; the rep cannot be assigned it before then.
-- `list_trigger_handlers` errored ("sObject type 'LifeScienceTriggerHandler' is not supported") in this org; the deck has no trigger-handler step for Order Management, so it is not needed.
+- Order Management needs one trigger handler: `StagePathPermissionsHandler` (inactive by default). Without it Submit doesn't move the quote's stage on the server and stage locks aren't enforced. Check it in Admin Console > Trigger Handlers, or with a Tooling query: `SELECT DeveloperName, IsActive FROM LifeScienceTriggerHandler WHERE DeveloperName = 'StagePathPermissionsHandler'`. `LifeScienceTriggerHandler` is a Tooling API object; a standard SOQL query answers "sObject type 'LifeScienceTriggerHandler' is not supported".
 - Retrieving Settings:ContextService / Pricing / ProductCatalog returns "Settings type ... is unknown"; these are not metadata settings types (harmless).
 - `sf` retrieves can take about 2.5 minutes; run them in the background.
 
@@ -57,6 +57,21 @@ Salesforce Go checklist; pricing recipe, pricing procedure, and extended context
 4. **Run the batch job (UI only).** Admin Console > Product > Product Alignment Jobs > **Run the Publish Draft Product Territory Alignments Batch Job**. It can't be triggered from Apex or the API, so a person must run it.
 5. **Verify.** The PTA rows should now be Active, and the PTDA query from step 1 should show Quote rows with `IsActive = true`, one per product.
 6. **Resync the iPad** with the rep's territory selected, then open the quote's Add Products screen. No mobile metadata cache regeneration was needed in 264, because PTA and PTDA are data, not metadata.
+
+## What Makes a Product Quotable on the iPad (Checklist)
+
+Use this when a product won't show on Add Products, or when you clone an existing quotable product to make a new one. A product is quotable for a rep only when every item below is in place. The common miss is item 5.
+
+1. **Product2** is active.
+2. **Catalog**: a `ProductCategoryProduct` row puts it in a category of the product catalog the reps use.
+3. **Selling model** (only when the org's price book entries use selling models): a `ProductSellingModelOption` links it to an active One Time `ProductSellingModel`. Entries without a selling model also quote; match what the org's other quotable products have.
+4. **Price book entries**: a Standard Price Book `PricebookEntry` per currency (and selling model, if used) first, then the custom LS price book entry, with `ProductSellingModelId` set when the org uses selling models (see [Pricebook Data Loading Order](#pricebook-data-loading-order)).
+5. **Territory availability**: a `ProductTerritoryAvailability` row with Purpose Quote, Alignment Type Territory Inclusion and Usage Type LifeSciences for the rep's territory, that has `ProductTerrDtlAvailability` rows. Two ways get there: insert it as Draft and run the Publish Draft Product Territory Alignments batch job, or insert it by API as Queued and let the platform process it. A row inserted directly as Active gets no detail rows and doesn't work (see [Products Missing on the iPad "Add Products" Screen](#products-missing-on-the-ipad-add-products-screen-quoted-orders)). Price book entries alone don't make a product show.
+6. **Sharing**: where the org-wide default for the product, availability or pricing objects is Private, sharing rules that reach the reps.
+7. **Tier pricing** (only if the product has volume or tier discounts): `PriceAdjustmentTier` rows on a schedule with `EffectiveFrom` set, then **Refresh** the decision tables (see [pricing](./release-264-pricing.md)).
+8. **Publish and sync**: regenerate the mobile metadata cache for the rep profile, then have the rep sync. For a territory availability change alone, a sync was enough in 264.
+
+When cloning, copy items 2 to 7 from the source product; a new Product2 alone has none of them.
 
 ## Pricebook Data Loading Order
 Create the custom Pricebook2 (active), then insert PricebookEntry rows in the Standard Price Book first, then in the custom price book for the same products. A product must have a Standard Price Book entry before it can have a custom-book entry. Verify with a SOQL count on the custom book.
