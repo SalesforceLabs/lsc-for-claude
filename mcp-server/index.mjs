@@ -22650,7 +22650,7 @@ async function annotateSharing(org, territories) {
   const names5 = [...new Set(tables.map((t) => t.sobject))];
   if (names5.length === 0) return;
   const result2 = await org.soql(
-    `SELECT QualifiedApiName, InternalSharingModel FROM EntityDefinition WHERE QualifiedApiName IN (${names5.map((n2) => `'${soqlString(n2)}'`).join(",")})`
+    `SELECT QualifiedApiName, InternalSharingModel FROM EntityDefinition WHERE QualifiedApiName IN (${names5.map((n2) => `'${soqlString2(n2)}'`).join(",")})`
   );
   if (!result2.success) return;
   const models = /* @__PURE__ */ new Map();
@@ -22664,11 +22664,11 @@ async function annotateSharing(org, territories) {
     if (model) t.sharingModel = model;
   }
 }
-function soqlString(value4) {
+function soqlString2(value4) {
   return value4.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 async function loadUserContext(org, userRef) {
-  const ref3 = soqlString(userRef.trim());
+  const ref3 = soqlString2(userRef.trim());
   const isId = /^005[A-Za-z0-9]{12}([A-Za-z0-9]{3})?$/.test(userRef.trim());
   const where3 = isId ? `Id = '${ref3}'` : `Username = '${ref3}'`;
   const userResult = await org.soql(
@@ -22711,7 +22711,7 @@ async function territoryAccountCounts(org, territories) {
   const sizes = /* @__PURE__ */ new Map();
   const chunks7 = splitChunks(territories, TERRITORY_RANK_CHUNK);
   await mapWithConcurrency(chunks7, DEFAULT_PROFILE_OPTIONS.concurrency, async (chunk2) => {
-    const list2 = chunk2.map((t) => `'${soqlString(t.id)}'`).join(",");
+    const list2 = chunk2.map((t) => `'${soqlString2(t.id)}'`).join(",");
     const result2 = await org.soql(
       `SELECT Territory2Id, COUNT(Id) cnt FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2Id IN (${list2}) GROUP BY Territory2Id`
     );
@@ -30016,7 +30016,7 @@ async function latestCache(profile, org) {
   const rows3 = await query(
     `SELECT Id, Name, Status, Profile.Name, LastModifiedDate, MetadataDocument.LatestPublishedVersionId, MetadataDocument.ContentSize
      FROM LifeSciMobileMetadataRecord
-     WHERE ParentMobileMetadataRecId != null AND MetadataDocumentId != null AND Profile.Name = ${soqlString2(profile)}
+     WHERE ParentMobileMetadataRecId != null AND MetadataDocumentId != null AND Profile.Name = ${soqlString3(profile)}
      ORDER BY LastModifiedDate DESC LIMIT 200`,
     org,
     false,
@@ -30138,7 +30138,7 @@ function toProfileUser(u, sets) {
 }
 async function profileUsers(profile, org) {
   const result2 = await queryResult(
-    `SELECT Id, Name, LastLoginDate, LanguageLocaleKey FROM User WHERE IsActive = true AND Profile.Name = ${soqlString2(profile)} ORDER BY LastLoginDate DESC NULLS LAST, Name LIMIT ${USER_LIMIT}`,
+    `SELECT Id, Name, LastLoginDate, LanguageLocaleKey FROM User WHERE IsActive = true AND Profile.Name = ${soqlString3(profile)} ORDER BY LastLoginDate DESC NULLS LAST, Name LIMIT ${USER_LIMIT}`,
     org,
     false,
     { allowTruncated: true }
@@ -30154,7 +30154,7 @@ async function profileUsers(profile, org) {
 async function profileUserById(profile, id2, org) {
   if (!ID_PATTERN.test(id2)) return void 0;
   const rows3 = await query(
-    `SELECT Id, Name, LastLoginDate, LanguageLocaleKey FROM User WHERE Id = '${id2}' AND IsActive = true AND Profile.Name = ${soqlString2(profile)}`,
+    `SELECT Id, Name, LastLoginDate, LanguageLocaleKey FROM User WHERE Id = '${id2}' AND IsActive = true AND Profile.Name = ${soqlString3(profile)}`,
     org
   );
   return rows3[0] ? toProfileUser(rows3[0], await assignedSets([id2], org)) : void 0;
@@ -30163,7 +30163,7 @@ async function searchProfileUsers(profile, text12, org, limit = 50) {
   const term = text12.trim();
   if (!term) return [];
   const rows3 = await query(
-    `SELECT Id, Name FROM User WHERE IsActive = true AND Profile.Name = ${soqlString2(profile)} AND Name LIKE '%${likeEscape(term)}%' ORDER BY Name LIMIT ${Math.max(1, Math.min(limit, 200))}`,
+    `SELECT Id, Name FROM User WHERE IsActive = true AND Profile.Name = ${soqlString3(profile)} AND Name LIKE '%${likeEscape(term)}%' ORDER BY Name LIMIT ${Math.max(1, Math.min(limit, 200))}`,
     org,
     false,
     { allowTruncated: true }
@@ -30194,7 +30194,7 @@ async function availableTablesFor(profile, sobjects, org) {
       query(
         `SELECT SobjectType, Parent.Name, Parent.NamespacePrefix, Parent.IsOwnedByProfile FROM ObjectPermissions
          WHERE PermissionsRead = true AND SobjectType IN (${list2})
-         AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE Assignee.IsActive = true AND Assignee.Profile.Name = ${soqlString2(profile)})`,
+         AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE Assignee.IsActive = true AND Assignee.Profile.Name = ${soqlString3(profile)})`,
         org
       ),
       // An admin profile has a row for every object that has object permissions at all.
@@ -31000,7 +31000,7 @@ async function buildSnapshots(input) {
       fs7.rmSync(path6.join(dir, f), { force: true });
   }
 }
-var execFileAsync, trOf, NAMESPACE2, ns, str17, arr4, obj5, ieq, NATIVE_TAB_NAMES, TAB_FILTER_REASONS, EXACT_COMPONENTS, SUFFIX_COMPONENTS, MEETING_COMPONENTS, PROP_KEEP, stepOf, walkTranslation, TEMPLATE_REGIONS, picklistLabelsFor, layoutObject2, REFERENCE_TYPES, NUMERIC_TYPES, LIST_OPERATORS, MULTI_ENTITY, languageName, DASHBOARDS_READ, SHARE_MATCH, SHARE_NOUN, FILES, cacheRoot, SNAPSHOT_VERSION2, DEFAULT_LANGUAGE, MAX_COMBOS, yieldToEventLoop, soqlString2, USER_LIMIT, likeEscape, LANGUAGE, comboKey, REPORT_ROWS, FV_COLUMNS, LIST_PAGE, LIST_VIEWS_PER_OBJECT, LIST_VIEW_TIMEOUT_MS, LIST_BUDGET_MS, LIST_CONCURRENCY, RECORDS_TIMEOUT_MS, reason, CACHE_KEEP, CACHE_MAX_BYTES, EXTRA_COMBO_BUDGET_MS, inflight, builds;
+var execFileAsync, trOf, NAMESPACE2, ns, str17, arr4, obj5, ieq, NATIVE_TAB_NAMES, TAB_FILTER_REASONS, EXACT_COMPONENTS, SUFFIX_COMPONENTS, MEETING_COMPONENTS, PROP_KEEP, stepOf, walkTranslation, TEMPLATE_REGIONS, picklistLabelsFor, layoutObject2, REFERENCE_TYPES, NUMERIC_TYPES, LIST_OPERATORS, MULTI_ENTITY, languageName, DASHBOARDS_READ, SHARE_MATCH, SHARE_NOUN, FILES, cacheRoot, SNAPSHOT_VERSION2, DEFAULT_LANGUAGE, MAX_COMBOS, yieldToEventLoop, soqlString3, USER_LIMIT, likeEscape, LANGUAGE, comboKey, REPORT_ROWS, FV_COLUMNS, LIST_PAGE, LIST_VIEWS_PER_OBJECT, LIST_VIEW_TIMEOUT_MS, LIST_BUDGET_MS, LIST_CONCURRENCY, RECORDS_TIMEOUT_MS, reason, CACHE_KEEP, CACHE_MAX_BYTES, EXTRA_COMBO_BUDGET_MS, inflight, builds;
 var init_published = __esm({
   "src/studio/published.ts"() {
     "use strict";
@@ -31240,7 +31240,7 @@ var init_published = __esm({
     DEFAULT_LANGUAGE = "en_US";
     MAX_COMBOS = 25;
     yieldToEventLoop = () => new Promise((resolve4) => setImmediate(resolve4));
-    soqlString2 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+    soqlString3 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
     USER_LIMIT = 500;
     likeEscape = (v) => v.replace(/[\\'%_]/g, (c) => `\\${c}`);
     LANGUAGE = /^[A-Za-z]{2,3}(_[A-Za-z0-9]{2,4})*$/;
@@ -96405,6 +96405,12 @@ ${error2 instanceof Error ? error2.message : String(error2)}`
 // src/tools/admin-console.ts
 init_cli();
 init_helpers();
+function soqlString(value4) {
+  return value4.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+function soqlLike(value4) {
+  return soqlString(value4).replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
 function register4(server2) {
   server2.tool(
     "list_trigger_handlers",
@@ -96426,9 +96432,10 @@ function register4(server2) {
       try {
         let query2 = "SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler ORDER BY MasterLabel";
         if (objectName) {
-          query2 = `SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler WHERE DeveloperName LIKE '%${objectName}%' OR MasterLabel LIKE '%${objectName}%' OR Description LIKE '%${objectName}%' ORDER BY MasterLabel`;
+          const term = soqlLike(objectName);
+          query2 = `SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler WHERE DeveloperName LIKE '%${term}%' OR MasterLabel LIKE '%${term}%' OR Description LIKE '%${term}%' ORDER BY MasterLabel`;
         }
-        const result2 = await runSoqlQuery(query2, effectiveOrg);
+        const result2 = await runToolingQuery(query2, effectiveOrg);
         if (!result2.success) {
           return {
             content: [
@@ -96505,8 +96512,8 @@ ${error2 instanceof Error ? error2.message : String(error2)}`
         };
       }
       try {
-        const query2 = `SELECT Id, DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler WHERE DeveloperName = '${handlerName}' LIMIT 1`;
-        const result2 = await runSoqlQuery(query2, effectiveOrg);
+        const query2 = `SELECT Id, DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler WHERE DeveloperName = '${soqlString(handlerName)}' LIMIT 1`;
+        const result2 = await runToolingQuery(query2, effectiveOrg);
         if (!result2.success) {
           return {
             content: [
@@ -96519,7 +96526,7 @@ ${result2.error}` }
         const records = result2.data?.records || [];
         if (records.length === 0) {
           const allQuery = "SELECT DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler ORDER BY MasterLabel";
-          const allResult = await runSoqlQuery(allQuery, effectiveOrg);
+          const allResult = await runToolingQuery(allQuery, effectiveOrg);
           const available = (allResult.data?.records || []).map((r) => {
             const rec = r;
             return `- ${rec.DeveloperName} (${rec.IsActive ? "active" : "inactive"})`;
@@ -96555,7 +96562,7 @@ ${available || "No handlers found in org."}`
             ]
           };
         }
-        const updateResult = await updateRecord(
+        const updateResult = await updateToolingRecord(
           "LifeScienceTriggerHandler",
           handlerId,
           { IsActive: active2 },
@@ -102672,7 +102679,7 @@ function insertableRegion(root2, region) {
 
 // src/studio/metadata/live.ts
 init_xml2();
-var soqlString3 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+var soqlString4 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 var productionOrgs = /* @__PURE__ */ new Map();
 async function isProductionOrg(org) {
   const known = productionOrgs.get(org);
@@ -102696,7 +102703,7 @@ async function layoutProfiles(fullName, org) {
     const object3 = fullName.slice(0, dash);
     const name = decodeURIComponent(fullName.slice(dash + 1));
     const layouts = await query(
-      `SELECT Id, TableEnumOrId FROM Layout WHERE Name = ${soqlString3(name)}`,
+      `SELECT Id, TableEnumOrId FROM Layout WHERE Name = ${soqlString4(name)}`,
       org,
       true
     );
@@ -103047,7 +103054,7 @@ async function isManagedFlexiPage(fullName, org) {
   const [ns3, name] = sep6 > 0 ? [fullName.slice(0, sep6), fullName.slice(sep6 + 2)] : [null, fullName];
   try {
     const rows3 = await query(
-      `SELECT ManageableState FROM FlexiPage WHERE DeveloperName = ${soqlString3(name)} AND NamespacePrefix ${ns3 ? `= ${soqlString3(ns3)}` : "= null"}`,
+      `SELECT ManageableState FROM FlexiPage WHERE DeveloperName = ${soqlString4(name)} AND NamespacePrefix ${ns3 ? `= ${soqlString4(ns3)}` : "= null"}`,
       org,
       true
     );
@@ -124002,8 +124009,8 @@ Ensure the org is authenticated via \`sf org login web --alias ${targetOrg}\`.`
         if (effectiveScope === "all" || effectiveScope === "trigger-handlers") {
           const thQuery = "SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler ORDER BY DeveloperName";
           const [srcResult, tgtResult] = await Promise.all([
-            runSoqlQuery(thQuery, sourceOrg),
-            runSoqlQuery(thQuery, targetOrg)
+            runToolingQuery(thQuery, sourceOrg),
+            runToolingQuery(thQuery, targetOrg)
           ]);
           if (!srcResult.success || !tgtResult.success) {
             const errOrg = !srcResult.success ? sourceOrg : targetOrg;
@@ -125533,7 +125540,12 @@ async function applyTriggerHandler(targetOrg, rd) {
     };
   }
   const id2 = res.data.records[0].Id;
-  const upd = await updateRecord("LifeScienceTriggerHandler", id2, { IsActive: desired }, targetOrg);
+  const upd = await updateToolingRecord(
+    "LifeScienceTriggerHandler",
+    id2,
+    { IsActive: desired },
+    targetOrg
+  );
   return {
     key: rd.key,
     developerName: rd.developerName,
@@ -128736,7 +128748,7 @@ function applyAppOps(root2, fullName, ops2) {
 
 // src/studio/metadata/live-app.ts
 init_xml2();
-var soqlString4 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+var soqlString5 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 var TTL_MS = 6e4;
 var appListCache = /* @__PURE__ */ new Map();
 var tabListCache = /* @__PURE__ */ new Map();
@@ -128780,7 +128792,7 @@ function allApps(org) {
 async function profileApps(profile, org) {
   const [access, apps] = await Promise.all([
     query(
-      `SELECT SetupEntityId FROM SetupEntityAccess WHERE SetupEntityType = 'TabSet' AND ParentId IN (SELECT Id FROM PermissionSet WHERE Profile.Name = ${soqlString4(profile)})`,
+      `SELECT SetupEntityId FROM SetupEntityAccess WHERE SetupEntityType = 'TabSet' AND ParentId IN (SELECT Id FROM PermissionSet WHERE Profile.Name = ${soqlString5(profile)})`,
       org
     ),
     allApps(org)
@@ -128911,12 +128923,12 @@ async function readLiveApp(fullName, org) {
 }
 
 // src/studio/unpublished.ts
-var soqlString5 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+var soqlString6 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 var text5 = (v) => typeof v === "string" ? v : "";
 var nested2 = (r, key5) => r[key5] && typeof r[key5] === "object" ? r[key5] : {};
 async function liveCache(profile, org) {
   const profiles = await query(
-    `SELECT Id, Name FROM Profile WHERE Name = ${soqlString5(profile)}`,
+    `SELECT Id, Name FROM Profile WHERE Name = ${soqlString6(profile)}`,
     org
   );
   const found = profiles.find((p) => text5(p.Name).toLowerCase() === profile.toLowerCase());
@@ -133451,7 +133463,7 @@ function restorePage(app, profile, copy, source, added) {
 
 // src/studio/metadata/copy-fix.ts
 init_xml2();
-var soqlString6 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+var soqlString7 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 var rtLabel = (rt) => rt ? `Record type ${rt.slice(rt.indexOf(".") + 1)}` : "Default (no record type)";
 function appFiles3(dir) {
   if (!fs15.existsSync(dir)) return [];
@@ -133499,13 +133511,13 @@ async function appsNaming(pages, org) {
 async function exists5(type, fullName, org) {
   if (type === "FlexiPage") {
     return (await query(
-      `SELECT Id FROM FlexiPage WHERE DeveloperName = ${soqlString6(fullName)}`,
+      `SELECT Id FROM FlexiPage WHERE DeveloperName = ${soqlString7(fullName)}`,
       org,
       true
     )).length > 0;
   }
   const name = decodeURIComponent(fullName.slice(fullName.indexOf("-") + 1));
-  return (await query(`SELECT Id FROM Layout WHERE Name = ${soqlString6(name)}`, org, true)).length > 0;
+  return (await query(`SELECT Id FROM Layout WHERE Name = ${soqlString7(name)}`, org, true)).length > 0;
 }
 var revertApps = (fix) => fix.revert.moves.every((m) => m.app) ? [...new Set(fix.revert.moves.map((m) => m.app))] : void 0;
 function nameTaken(fix, org) {
@@ -140746,7 +140758,7 @@ function summarize(samples) {
     slowest: [...ok].filter((s11) => s11.totalSec !== void 0).sort((a, b) => b.totalSec - a.totalSec).slice(0, 10)
   };
 }
-function soqlString7(value4) {
+function soqlString8(value4) {
   return value4.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 var TELEMETRY_ROW_LIMIT = 1e4;
@@ -140757,14 +140769,14 @@ function buildTelemetryQuery(availableFields2, filters2) {
     filters2.range ? `CreatedDate >= ${filters2.range.from} AND CreatedDate < ${filters2.range.to}` : `CreatedDate = LAST_N_DAYS:${Math.max(1, Math.floor(filters2.days))}`
   ];
   if (filters2.userIds?.length) {
-    where3.push(`CreatedById IN (${filters2.userIds.map((u) => `'${soqlString7(u)}'`).join(",")})`);
+    where3.push(`CreatedById IN (${filters2.userIds.map((u) => `'${soqlString8(u)}'`).join(",")})`);
   } else if (filters2.usernames?.length) {
     where3.push(
-      `CreatedBy.Username IN (${filters2.usernames.map((u) => `'${soqlString7(u)}'`).join(",")})`
+      `CreatedBy.Username IN (${filters2.usernames.map((u) => `'${soqlString8(u)}'`).join(",")})`
     );
   }
   if (filters2.profileName) {
-    where3.push(`CreatedBy.Profile.Name = '${soqlString7(filters2.profileName)}'`);
+    where3.push(`CreatedBy.Profile.Name = '${soqlString8(filters2.profileName)}'`);
   }
   return `SELECT ${[...fields, "CreatedBy.Username"].join(", ")} FROM DeviceSyncSummary WHERE ${where3.join(
     " AND "
@@ -140867,18 +140879,18 @@ function overallStatus(evals) {
 init_sync_volume();
 var DEFAULT_SELECT_COUNT = 3;
 var ACTIVE_MODEL = "Territory2.Territory2Model.State = 'Active'";
-function soqlString8(value4) {
+function soqlString9(value4) {
   return value4.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 function likeValue(text12) {
-  return soqlString8(text12).replace(/%/g, "\\%").replace(/_/g, "\\_");
+  return soqlString9(text12).replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 async function rows(org, soql5) {
   const result2 = await org.soql(soql5);
   if (!result2.success) throw new Error(result2.error || "Query failed");
   return result2.data?.records ?? [];
 }
-var inList3 = (values) => values.map((v) => `'${soqlString8(v)}'`).join(",");
+var inList3 = (values) => values.map((v) => `'${soqlString9(v)}'`).join(",");
 var profileName2 = (u) => String(u.Profile?.Name ?? "");
 var territoryCount = (r) => Number(r.cnt ?? r.expr0 ?? 0);
 function toPerfUser(u, territories) {
@@ -140951,7 +140963,7 @@ async function withSyncs(org, users, days) {
 }
 async function heaviestOfProfile(org, profile, limit, exclude) {
   if (limit <= 0) return [];
-  const p = soqlString8(profile);
+  const p = soqlString9(profile);
   const notIn = (field3, ids) => ids.length ? ` AND ${field3} NOT IN (${inList3(ids)})` : "";
   const ranked = await rows(
     org,
@@ -140980,7 +140992,7 @@ async function syncingOfProfile(org, profile, limit, days) {
   try {
     synced = await dataSyncRows(
       org,
-      (window2) => `SELECT CreatedById, COUNT(Id) cnt FROM DeviceSyncSummary WHERE CreatedBy.Profile.Name = '${soqlString8(profile)}' AND CreatedBy.IsActive = true AND CreatedBy.UserType = 'Standard' AND ${window2} GROUP BY CreatedById ORDER BY COUNT(Id) DESC LIMIT 200`,
+      (window2) => `SELECT CreatedById, COUNT(Id) cnt FROM DeviceSyncSummary WHERE CreatedBy.Profile.Name = '${soqlString9(profile)}' AND CreatedBy.IsActive = true AND CreatedBy.UserType = 'Standard' AND ${window2} GROUP BY CreatedById ORDER BY COUNT(Id) DESC LIMIT 200`,
       days
     );
   } catch {
@@ -141030,7 +141042,7 @@ async function findHeaviestUsers(org, filters2) {
     const v = likeValue(search);
     where3.push(`(Name LIKE '%${v}%' OR Username LIKE '%${v}%')`);
   }
-  if (filters2.profile) where3.push(`Profile.Name = '${soqlString8(filters2.profile)}'`);
+  if (filters2.profile) where3.push(`Profile.Name = '${soqlString9(filters2.profile)}'`);
   const users = await rows(
     org,
     `SELECT Id, Username, Name, Profile.Name FROM User WHERE ${where3.join(" AND ")} ORDER BY Name LIMIT 200`
@@ -141382,7 +141394,7 @@ function splitList3(v) {
   if (Array.isArray(v)) return v.filter((x) => typeof x === "string");
   return typeof v === "string" ? v.split(/[;,]/).map((s11) => s11.trim()).filter(Boolean) : [];
 }
-function soqlString9(value4) {
+function soqlString10(value4) {
   return value4.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 function errorMessage3(e) {
@@ -141442,14 +141454,14 @@ function diffTables(compiled, dbSchema) {
 }
 async function findProfileArchive(org, profileId) {
   const rec = await org.soql(
-    `SELECT Id, MetadataDocumentId FROM LifeSciMobileMetadataRecord WHERE Status = 'Active' AND ProfileId = '${soqlString9(profileId)}' AND MetadataDocumentId != null ORDER BY LastModifiedDate DESC LIMIT 1`
+    `SELECT Id, MetadataDocumentId FROM LifeSciMobileMetadataRecord WHERE Status = 'Active' AND ProfileId = '${soqlString10(profileId)}' AND MetadataDocumentId != null ORDER BY LastModifiedDate DESC LIMIT 1`
   );
   if (!rec.success) throw new Error(`LifeSciMobileMetadataRecord query failed: ${rec.error}`);
   const row = rec.data?.records?.[0];
   const docId = str27(row?.MetadataDocumentId);
   if (!row || !docId) return null;
   const ver = await org.soql(
-    `SELECT Id, Checksum, ContentSize FROM ContentVersion WHERE ContentDocumentId = '${soqlString9(docId)}' AND IsLatest = true LIMIT 1`
+    `SELECT Id, Checksum, ContentSize FROM ContentVersion WHERE ContentDocumentId = '${soqlString10(docId)}' AND IsLatest = true LIMIT 1`
   );
   if (!ver.success) throw new Error(`ContentVersion query failed: ${ver.error}`);
   const v = ver.data?.records?.[0];
@@ -141471,13 +141483,13 @@ function sobjectTypes(records) {
 }
 async function loadObjectAccess(org, userId, sobjects) {
   if (sobjects.length === 0) return null;
-  const names5 = sobjects.map((n2) => `'${soqlString9(n2)}'`).join(",");
+  const names5 = sobjects.map((n2) => `'${soqlString10(n2)}'`).join(",");
   const [governed, readable3] = await Promise.all([
     org.soql(
       `SELECT SobjectType FROM ObjectPermissions WHERE SobjectType IN (${names5}) GROUP BY SobjectType`
     ),
     org.soql(
-      `SELECT SobjectType FROM ObjectPermissions WHERE PermissionsRead = true AND SobjectType IN (${names5}) AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = '${soqlString9(userId)}') GROUP BY SobjectType`
+      `SELECT SobjectType FROM ObjectPermissions WHERE PermissionsRead = true AND SobjectType IN (${names5}) AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = '${soqlString10(userId)}') GROUP BY SobjectType`
     )
   ]);
   if (!governed.success || !readable3.success) return null;
@@ -145650,8 +145662,8 @@ var defaultDeps3 = {
 };
 var TELEMETRY_LIMIT = 1e4;
 var MAX_AT_RISK = 25;
-var soqlString10 = (v) => v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-var inList4 = (values) => values.map((v) => `'${soqlString10(v)}'`).join(",");
+var soqlString11 = (v) => v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+var inList4 = (values) => values.map((v) => `'${soqlString11(v)}'`).join(",");
 var idKey2 = (id2) => id2.slice(0, 15);
 async function rows2(org, soql5) {
   const result2 = await org.soql(soql5);

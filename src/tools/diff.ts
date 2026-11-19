@@ -95,8 +95,8 @@ export function register(server: McpServer) {
           const thQuery =
             "SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler ORDER BY DeveloperName";
           const [srcResult, tgtResult] = await Promise.all([
-            runSoqlQuery(thQuery, sourceOrg),
-            runSoqlQuery(thQuery, targetOrg),
+            runToolingQuery(thQuery, sourceOrg),
+            runToolingQuery(thQuery, targetOrg),
           ]);
 
           if (!srcResult.success || !tgtResult.success) {
