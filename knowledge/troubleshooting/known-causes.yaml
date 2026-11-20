@@ -1992,9 +1992,9 @@ causes:
       - "Set EffectiveFrom on the schedule, then on its tiers."
       - "Refresh the decision tables, regenerate the metadata cache and sync."
     check:
-      type: soql_count
-      query: "SELECT COUNT() FROM PriceAdjustmentSchedule WHERE IsActive = true AND EffectiveFrom = null"
-      expect: "count == 0"
+      type: soql
+      query: "SELECT Id, Name FROM PriceAdjustmentSchedule WHERE IsActive = true AND EffectiveFrom = null LIMIT 50"
+      expect: "records.length == 0"
     check_scope: "Checks active schedules only, not their tiers."
   - id: om-header-adjustments-off
     title: Header Adjustments is off, so the iPad cart has no Order Discount

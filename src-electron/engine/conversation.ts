@@ -268,6 +268,7 @@ export class ConversationEngine {
     messages: Message[],
     abort: AbortToken
   ): Promise<void> {
+    const offered = new Set(tools.map((t) => t.name));
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       if (abort.aborted) throw new Error("aborted");
 
@@ -336,6 +337,13 @@ export class ConversationEngine {
           // A session stays in its org; its server would otherwise be pointed elsewhere for every later call.
           if (ORG_SWITCH_TOOLS.has(toolCall.name!)) {
             throw new Error(orgSwitchRefusal(this.org));
+          }
+          // A name the model wasn't offered (it sometimes invents `read` for a file a tool saved) would
+          // otherwise reach the write gate as an unknown write and ask the user to approve nothing.
+          if (offered.size && !offered.has(toolCall.name!)) {
+            throw new Error(
+              `There is no tool named ${toolCall.name}. Use only the tools you were given; no tool reads local files.`
+            );
           }
           const overBudget = spendToolBudget(toolCall.name!, abort.budget);
           if (overBudget) throw new Error(overBudget);

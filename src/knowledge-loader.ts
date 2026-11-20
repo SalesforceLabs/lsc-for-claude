@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { getCitation } from "./citation-map.js";
 import { searchGuides, type GuideSectionSearchResult } from "./guide-loader.js";
+import { matchText, sectionAround, type TextMatch } from "./search-match.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -47,7 +48,14 @@ export interface SearchResult {
   endPage?: number;
   matchPage?: number;
   pdfFileName?: string;
+  /** Match strength from `matchText`; results are sorted by it. */
+  score?: number;
+  /** The markdown section the match is in (cut to `SECTION_LIMIT`), for the top results. */
+  section?: string;
 }
+
+/** Characters of a matching markdown section the top search results carry. */
+export const SECTION_LIMIT = 4_000;
 
 /**
  * Convert a slug to a human-readable title
@@ -157,7 +165,6 @@ export function getModuleContent(moduleSlug: string): string | null {
  */
 export function searchKnowledge(query: string): SearchResult[] {
   const results: SearchResult[] = [];
-  const queryLower = query.toLowerCase();
 
   // Search modules
   if (existsSync(KNOWLEDGE_BASE_PATH)) {
@@ -172,15 +179,17 @@ export function searchKnowledge(query: string): SearchResult[] {
       for (const file of files) {
         const filePath = join(modulePath, file);
         const content = readFileSync(filePath, "utf-8");
-
-        if (content.toLowerCase().includes(queryLower)) {
-          const excerpt = extractExcerpt(content, queryLower, query.length);
+        const title = slugToTitle(basename(file, ".md"));
+        const match = matchText(content, query, title);
+        if (match) {
           results.push({
             module: moduleSlug,
-            title: slugToTitle(basename(file, ".md")),
-            excerpt,
+            title,
+            excerpt: extractExcerpt(content, match),
+            section: sectionAround(content, match.index, SECTION_LIMIT),
             source: "modules",
             sourceFile: basename(file, ".md"),
+            score: match.score,
           });
         }
       }
@@ -188,13 +197,13 @@ export function searchKnowledge(query: string): SearchResult[] {
   }
 
   // Search help docs
-  searchDirectory(HELP_DOCS_PATH, queryLower, query.length, "help", results);
+  searchDirectory(HELP_DOCS_PATH, query, "help", results);
 
   // Search exercises
-  searchDirectory(EXERCISES_PATH, queryLower, query.length, "exercises", results);
+  searchDirectory(EXERCISES_PATH, query, "exercises", results);
 
   // Search standalone guide files (skip section directories like admin-guide/, dev-guide/)
-  searchDirectory(GUIDES_PATH, queryLower, query.length, "guides", results, true);
+  searchDirectory(GUIDES_PATH, query, "guides", results, true);
 
   // Search guide sections (section-chunked PDFs)
   const guideResults = searchGuides(query);
@@ -211,18 +220,18 @@ export function searchKnowledge(query: string): SearchResult[] {
       endPage: gr.endPage,
       matchPage: gr.matchPage,
       pdfFileName: gr.pdfFileName,
+      score: gr.score,
     });
   }
 
   // Search troubleshooting
-  searchDirectory(TROUBLESHOOTING_PATH, queryLower, query.length, "troubleshooting", results);
+  searchDirectory(TROUBLESHOOTING_PATH, query, "troubleshooting", results);
 
-  // Sort by relevance: title matches first, then guide-section boost
+  // Sort by relevance: the exact phrase, then more of the query's words (title words count
+  // extra), then official guide sections over other matches.
   results.sort((a, b) => {
-    const aTitle = a.title.toLowerCase().includes(queryLower) ? 1 : 0;
-    const bTitle = b.title.toLowerCase().includes(queryLower) ? 1 : 0;
-    if (aTitle !== bTitle) return bTitle - aTitle;
-    // Boost guide-section results (official docs) over generic matches
+    const byScore = (b.score ?? 0) - (a.score ?? 0);
+    if (Math.abs(byScore) >= 1) return byScore;
     const aGuide = a.source === "guide-section" ? 1 : 0;
     const bGuide = b.source === "guide-section" ? 1 : 0;
     return bGuide - aGuide;
@@ -234,10 +243,9 @@ export function searchKnowledge(query: string): SearchResult[] {
 /**
  * Helper to extract excerpt around a match
  */
-function extractExcerpt(content: string, queryLower: string, queryLength: number): string {
-  const index = content.toLowerCase().indexOf(queryLower);
-  const start = Math.max(0, index - 100);
-  const end = Math.min(content.length, index + queryLength + 100);
+function extractExcerpt(content: string, match: TextMatch): string {
+  const start = Math.max(0, match.index - 100);
+  const end = Math.min(content.length, match.index + Math.max(match.length, 200) + 100);
   let excerpt = content.slice(start, end);
 
   if (start > 0) excerpt = "..." + excerpt;
@@ -251,8 +259,7 @@ function extractExcerpt(content: string, queryLower: string, queryLength: number
  */
 function searchDirectory(
   dirPath: string,
-  queryLower: string,
-  queryLength: number,
+  query: string,
   source: string,
   results: SearchResult[],
   filesOnly?: boolean
@@ -266,15 +273,17 @@ function searchDirectory(
   for (const file of files) {
     const filePath = join(dirPath, file);
     const content = readFileSync(filePath, "utf-8");
-
-    if (content.toLowerCase().includes(queryLower)) {
-      const excerpt = extractExcerpt(content, queryLower, queryLength);
+    const title = slugToTitle(basename(file, ".md"));
+    const match = matchText(content, query, title);
+    if (match) {
       results.push({
         module: source,
-        title: slugToTitle(basename(file, ".md")),
-        excerpt,
+        title,
+        excerpt: extractExcerpt(content, match),
+        section: sectionAround(content, match.index, SECTION_LIMIT),
         source,
         sourceFile: basename(file, ".md"),
+        score: match.score,
       });
     }
   }

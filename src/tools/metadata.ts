@@ -2,6 +2,47 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { deployMetadata, retrieveMetadata } from "../salesforce/cli.js";
 import { validateOrgConnection } from "../salesforce/auth.js";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
+
+/** Total characters of retrieved file text put in the tool result; the rest is listed by path. */
+export const RETRIEVED_TEXT_LIMIT = 60_000;
+
+/**
+ * The retrieved files' text, so the model can read what it asked for: chat has no tool that reads
+ * local files. Files are listed in path order; once `limit` is used up the rest are named only.
+ */
+export function retrievedFilesText(dir: string, limit = RETRIEVED_TEXT_LIMIT): string {
+  const files: string[] = [];
+  const walk = (d: string) => {
+    for (const name of readdirSync(d).sort()) {
+      const p = join(d, name);
+      if (statSync(p).isDirectory()) walk(p);
+      else files.push(p);
+    }
+  };
+  try {
+    walk(dir);
+  } catch {
+    return "";
+  }
+  let left = limit;
+  let out = "";
+  const skipped: string[] = [];
+  for (const f of files) {
+    const rel = relative(dir, f);
+    const text = readFileSync(f, "utf8");
+    if (text.length > left || text.includes("\u0000")) {
+      skipped.push(rel);
+      continue;
+    }
+    left -= text.length;
+    out += `### ${rel}\n\n\`\`\`xml\n${text}\n\`\`\`\n\n`;
+  }
+  if (skipped.length)
+    out += `Not shown (too large or binary): ${skipped.join(", ")}. Retrieve them one at a time to read them.\n`;
+  return out ? `## Files\n\n${out}` : "";
+}
 
 export function register(server: McpServer) {
   server.tool(
@@ -51,6 +92,9 @@ export function register(server: McpServer) {
       if (result.rawOutput) {
         report += `## Details\n\n\`\`\`\n${result.rawOutput.substring(0, 2000)}\n\`\`\`\n`;
       }
+
+      const actualDir = (result.data as { outputDir: string } | undefined)?.outputDir;
+      if (actualDir) report += `\n${retrievedFilesText(actualDir)}`;
 
       return { content: [{ type: "text", text: report }] };
     }
@@ -113,6 +157,9 @@ export function register(server: McpServer) {
       if (result.rawOutput) {
         report += `## Details\n\n\`\`\`\n${result.rawOutput.substring(0, 2000)}\n\`\`\`\n`;
       }
+
+      const actualDir = (result.data as { outputDir: string } | undefined)?.outputDir;
+      if (actualDir) report += `\n${retrievedFilesText(actualDir)}`;
 
       return { content: [{ type: "text", text: report }] };
     }

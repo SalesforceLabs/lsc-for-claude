@@ -17,6 +17,9 @@ import {
 } from "../knowledge-loader.js";
 import { searchGuides } from "../guide-loader.js";
 
+/** How many of the top search results show their whole matching section. */
+const SECTION_RESULTS = 3;
+
 /**
  * Find the most relevant guide sections for a topic and return formatted citations.
  * Appended to module/concept responses so users can drill into the official guides.
@@ -156,7 +159,10 @@ export function register(server: McpServer) {
       const formattedResults = results
         .map((r, i) => {
           const pageInfo = r.matchPage ? ` (page ${r.matchPage})` : "";
-          return `### ${i + 1}. ${r.title}${pageInfo}\n**Module:** ${r.module}\n\n${r.excerpt}`;
+          // The top results carry their whole section, so a checklist or a list of steps arrives
+          // complete instead of as the 300 characters around one matching line.
+          const body = i < SECTION_RESULTS && r.section ? r.section : r.excerpt;
+          return `### ${i + 1}. ${r.title}${pageInfo}\n**Module:** ${r.module}\n\n${body}`;
         })
         .join("\n\n---\n\n");
 

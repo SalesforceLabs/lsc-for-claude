@@ -6,6 +6,7 @@
  */
 
 import { readFileSync, readdirSync, existsSync } from "fs";
+import { matchText } from "./search-match.js";
 import { join, basename } from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
@@ -41,6 +42,8 @@ export interface GuideSectionSearchResult {
   matchPage: number;
   pdfFileName: string;
   excerpt: string;
+  /** Match strength from `matchText`. */
+  score: number;
 }
 
 // Cache manifests and section content
@@ -135,7 +138,6 @@ function findMatchPage(content: string, matchOffset: number, startPage: number):
 export function searchGuides(query: string): GuideSectionSearchResult[] {
   const manifests = loadGuideManifests();
   const results: GuideSectionSearchResult[] = [];
-  const queryLower = query.toLowerCase();
 
   for (const manifest of manifests) {
     const guideDir = join(GUIDES_PATH, manifest.guideSlug);
@@ -151,13 +153,13 @@ export function searchGuides(query: string): GuideSectionSearchResult[] {
         sectionContentCache.set(cacheKey, content);
       }
 
-      const contentLower = content.toLowerCase();
-      const matchIdx = contentLower.indexOf(queryLower);
-      if (matchIdx === -1) continue;
+      const match = matchText(content, query, section.title);
+      if (!match) continue;
+      const matchIdx = match.index;
 
       // Extract excerpt around match
       const start = Math.max(0, matchIdx - 100);
-      const end = Math.min(content.length, matchIdx + query.length + 100);
+      const end = Math.min(content.length, matchIdx + Math.max(match.length, 200) + 100);
       let excerpt = content.slice(start, end);
       if (start > 0) excerpt = "..." + excerpt;
       if (end < content.length) excerpt = excerpt + "...";
@@ -176,6 +178,7 @@ export function searchGuides(query: string): GuideSectionSearchResult[] {
         matchPage,
         pdfFileName: manifest.pdfFileName,
         excerpt,
+        score: match.score,
       });
     }
   }

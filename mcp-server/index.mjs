@@ -3599,49 +3599,49 @@ var require_fast_uri = __commonJS({
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    function resolveComponent(base2, relative3, options2, skipNormalization) {
+    function resolveComponent(base2, relative4, options2, skipNormalization) {
       const target3 = {};
       if (!skipNormalization) {
         base2 = parse6(serialize(base2, options2), options2);
-        relative3 = parse6(serialize(relative3, options2), options2);
+        relative4 = parse6(serialize(relative4, options2), options2);
       }
       options2 = options2 || {};
-      if (!options2.tolerant && relative3.scheme) {
-        target3.scheme = relative3.scheme;
-        target3.userinfo = relative3.userinfo;
-        target3.host = relative3.host;
-        target3.port = relative3.port;
-        target3.path = removeDotSegments(relative3.path || "");
-        target3.query = relative3.query;
+      if (!options2.tolerant && relative4.scheme) {
+        target3.scheme = relative4.scheme;
+        target3.userinfo = relative4.userinfo;
+        target3.host = relative4.host;
+        target3.port = relative4.port;
+        target3.path = removeDotSegments(relative4.path || "");
+        target3.query = relative4.query;
       } else {
-        if (relative3.userinfo !== void 0 || relative3.host !== void 0 || relative3.port !== void 0) {
-          target3.userinfo = relative3.userinfo;
-          target3.host = relative3.host;
-          target3.port = relative3.port;
-          target3.path = removeDotSegments(relative3.path || "");
-          target3.query = relative3.query;
+        if (relative4.userinfo !== void 0 || relative4.host !== void 0 || relative4.port !== void 0) {
+          target3.userinfo = relative4.userinfo;
+          target3.host = relative4.host;
+          target3.port = relative4.port;
+          target3.path = removeDotSegments(relative4.path || "");
+          target3.query = relative4.query;
         } else {
-          if (!relative3.path) {
+          if (!relative4.path) {
             target3.path = base2.path;
-            if (relative3.query !== void 0) {
-              target3.query = relative3.query;
+            if (relative4.query !== void 0) {
+              target3.query = relative4.query;
             } else {
               target3.query = base2.query;
             }
           } else {
-            if (relative3.path[0] === "/") {
-              target3.path = removeDotSegments(relative3.path);
+            if (relative4.path[0] === "/") {
+              target3.path = removeDotSegments(relative4.path);
             } else {
               if ((base2.userinfo !== void 0 || base2.host !== void 0 || base2.port !== void 0) && !base2.path) {
-                target3.path = "/" + relative3.path;
+                target3.path = "/" + relative4.path;
               } else if (!base2.path) {
-                target3.path = relative3.path;
+                target3.path = relative4.path;
               } else {
-                target3.path = base2.path.slice(0, base2.path.lastIndexOf("/") + 1) + relative3.path;
+                target3.path = base2.path.slice(0, base2.path.lastIndexOf("/") + 1) + relative4.path;
               }
               target3.path = removeDotSegments(target3.path);
             }
-            target3.query = relative3.query;
+            target3.query = relative4.query;
           }
           target3.userinfo = base2.userinfo;
           target3.host = base2.host;
@@ -3649,7 +3649,7 @@ var require_fast_uri = __commonJS({
         }
         target3.scheme = base2.scheme;
       }
-      target3.fragment = relative3.fragment;
+      target3.fragment = relative4.fragment;
       return target3;
     }
     function equal(uriA, uriB, options2) {
@@ -25089,8 +25089,8 @@ function parsePopc(bundle, allTime) {
   if (!diff || !cmp || !target3 || cmp.is_nan === true || target3.is_nan === true)
     return { comparison: empty2 };
   const absolute = diff.absolute?.formatted;
-  const relative3 = diff.relative?.formatted;
-  if (typeof absolute !== "string" || typeof relative3 !== "string") return { comparison: empty2 };
+  const relative4 = diff.relative?.formatted;
+  if (typeof absolute !== "string" || typeof relative4 !== "string") return { comparison: empty2 };
   const direction = String(diff.direction ?? "").toLowerCase();
   const up = direction === "up" || direction === "increase";
   const down = direction === "down" || direction === "decrease";
@@ -25098,7 +25098,7 @@ function parsePopc(bundle, allTime) {
     facts.comparison_period_label ?? facts.comparison_type_label ?? "prior period"
   ).toLowerCase();
   return {
-    relative: up && !relative3.startsWith("+") ? `+${relative3}` : relative3,
+    relative: up && !relative4.startsWith("+") ? `+${relative4}` : relative4,
     tone: up ? "positive" : down ? "negative" : "neutral",
     comparison: `(${absolute}) vs. ${period}`
   };
@@ -29564,7 +29564,7 @@ function listViewWhere(filters2, booleanFilter, fields) {
         return v;
       return v === "" ? "null" : `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
     };
-    const any = (cond, join27) => `(${values.map(cond).join(join27)})`;
+    const any = (cond, join28) => `(${values.map(cond).join(join28)})`;
     switch (op) {
       case "equals":
         return values.length > 1 ? `${name} IN (${values.map(literal3).join(", ")})` : `${name} = ${literal3(values[0])}`;
@@ -54463,8 +54463,8 @@ var require_readdir_glob = __commonJS({
           useStat = true;
         }
         const filename = dir + "/" + name;
-        const relative3 = filename.slice(1);
-        const absolute = path24 + "/" + relative3;
+        const relative4 = filename.slice(1);
+        const absolute = path24 + "/" + relative4;
         let stats = null;
         if (useStat || followSymlinks) {
           stats = await stat(absolute, followSymlinks);
@@ -54476,12 +54476,12 @@ var require_readdir_glob = __commonJS({
           stats = { isDirectory: () => false };
         }
         if (stats.isDirectory()) {
-          if (!shouldSkip(relative3)) {
-            yield { relative: relative3, absolute, stats };
+          if (!shouldSkip(relative4)) {
+            yield { relative: relative4, absolute, stats };
             yield* exploreWalkAsync(filename, path24, followSymlinks, useStat, shouldSkip, false);
           }
         } else {
-          yield { relative: relative3, absolute, stats };
+          yield { relative: relative4, absolute, stats };
         }
       }
     }
@@ -54551,11 +54551,11 @@ var require_readdir_glob = __commonJS({
         }
         setTimeout(() => this._next(), 0);
       }
-      _shouldSkipDirectory(relative3) {
-        return this.skipMatchers.some((m) => m.match(relative3));
+      _shouldSkipDirectory(relative4) {
+        return this.skipMatchers.some((m) => m.match(relative4));
       }
-      _fileMatches(relative3, isDirectory) {
-        const file = relative3 + (isDirectory ? "/" : "");
+      _fileMatches(relative4, isDirectory) {
+        const file = relative4 + (isDirectory ? "/" : "");
         return (this.matchers.length === 0 || this.matchers.some((m) => m.match(file))) && !this.ignoreMatchers.some((m) => m.match(file)) && (!this.options.nodir || !isDirectory);
       }
       _next() {
@@ -54564,16 +54564,16 @@ var require_readdir_glob = __commonJS({
             if (!obj12.done) {
               const isDirectory = obj12.value.stats.isDirectory();
               if (this._fileMatches(obj12.value.relative, isDirectory)) {
-                let relative3 = obj12.value.relative;
+                let relative4 = obj12.value.relative;
                 let absolute = obj12.value.absolute;
                 if (this.options.mark && isDirectory) {
-                  relative3 += "/";
+                  relative4 += "/";
                   absolute += "/";
                 }
                 if (this.options.stat) {
-                  this.emit("match", { relative: relative3, absolute, stat: obj12.value.stats });
+                  this.emit("match", { relative: relative4, absolute, stat: obj12.value.stats });
                 } else {
-                  this.emit("match", { relative: relative3, absolute });
+                  this.emit("match", { relative: relative4, absolute });
                 }
               }
               this._next(this.iterator);
@@ -57543,7 +57543,7 @@ var require_BufferList = __commonJS({
         this.head = this.tail = null;
         this.length = 0;
       };
-      BufferList.prototype.join = function join27(s11) {
+      BufferList.prototype.join = function join28(s11) {
         if (this.length === 0) return "";
         var p = this.head;
         var ret = "" + p.data;
@@ -72974,10 +72974,10 @@ var require_ignore = __commonJS({
       ignored(p) {
         const fullpath = p.fullpath();
         const fullpaths = `${fullpath}/`;
-        const relative3 = p.relative() || ".";
-        const relatives = `${relative3}/`;
+        const relative4 = p.relative() || ".";
+        const relatives = `${relative4}/`;
         for (const m of this.relative) {
-          if (m.match(relative3) || m.match(relatives))
+          if (m.match(relative4) || m.match(relatives))
             return true;
         }
         for (const m of this.absolute) {
@@ -72988,9 +72988,9 @@ var require_ignore = __commonJS({
       }
       childrenIgnored(p) {
         const fullpath = p.fullpath() + "/";
-        const relative3 = (p.relative() || ".") + "/";
+        const relative4 = (p.relative() || ".") + "/";
         for (const m of this.relativeChildren) {
-          if (m.match(relative3))
+          if (m.match(relative4))
             return true;
         }
         for (const m of this.absoluteChildren) {
@@ -93245,6 +93245,90 @@ function getCitation(slug, moduleName) {
 
 // src/guide-loader.ts
 import { readFileSync, readdirSync, existsSync } from "fs";
+
+// src/search-match.ts
+var STOPWORDS = new Set(
+  "a an and are as at be by can do does for from has have how i in is it its my of on or set the this that to up what when where which why with".split(
+    " "
+  )
+);
+function queryTerms(query2) {
+  const words = query2.toLowerCase().match(/[a-z0-9_]+/g) ?? [];
+  const out = /* @__PURE__ */ new Set();
+  for (const w of words) {
+    if (w.length < 2 || STOPWORDS.has(w)) continue;
+    out.add(w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w);
+  }
+  return [...out];
+}
+function wordsNeeded(n2) {
+  return n2 <= 2 ? n2 : Math.max(2, Math.ceil(n2 / 2));
+}
+function matchText(content, query2, title = "") {
+  const lower2 = content.toLowerCase();
+  const phrase = query2.trim().toLowerCase();
+  const terms = queryTerms(query2);
+  const titleLower = title.toLowerCase();
+  const titleHits = terms.filter((t) => titleLower.includes(t)).length;
+  const phraseAt = phrase ? lower2.indexOf(phrase) : -1;
+  if (phraseAt !== -1)
+    return { score: 1e4 + titleHits * 50, index: phraseAt, length: phrase.length };
+  if (terms.length === 0) return null;
+  const found = terms.filter((t) => lower2.includes(t));
+  if (found.length < wordsNeeded(terms.length)) return null;
+  let occurrences = 0;
+  for (const t of found) occurrences += lower2.split(t).length - 1;
+  const density = Math.min(50, occurrences * 1e4 / Math.max(lower2.length, 1));
+  const starts = [
+    0,
+    ...[...lower2.matchAll(/^#{1,6} /gm)].map((m) => m.index).filter((x) => x > 0)
+  ];
+  let bestSection = { distinct: -1, occ: -1, from: 0, to: lower2.length };
+  starts.forEach((from, k) => {
+    const to = starts[k + 1] ?? lower2.length;
+    const text12 = lower2.slice(from, to);
+    const hit = found.filter((t) => text12.includes(t));
+    const occ = hit.reduce((n2, t) => n2 + text12.split(t).length - 1, 0);
+    if (hit.length > bestSection.distinct || hit.length === bestSection.distinct && occ > bestSection.occ)
+      bestSection = { distinct: hit.length, occ, from, to };
+  });
+  let best2 = { hits: -1, index: bestSection.from };
+  let offset2 = bestSection.from;
+  for (const line of lower2.slice(bestSection.from, bestSection.to).split("\n")) {
+    const hits = found.filter((t) => line.includes(t)).length;
+    if (hits > best2.hits) best2 = { hits, index: offset2 };
+    offset2 += line.length + 1;
+  }
+  return {
+    score: found.length * 100 + titleHits * 50 + density,
+    index: best2.index,
+    length: 0
+  };
+}
+function sectionAround(content, index, limit) {
+  const headings = [...content.matchAll(/^(#{1,6}) /gm)].map((m) => ({
+    at: m.index,
+    level: m[1].length
+  }));
+  const own = headings.filter((h) => h.at <= index).at(-1);
+  const start = own?.at ?? 0;
+  const next = headings.find((h) => h.at > start && (!own || h.level <= own.level));
+  const end = next?.at ?? content.length;
+  if (end - start <= limit) return content.slice(start, end).trim();
+  const lineStart = (i) => content.lastIndexOf("\n", i - 1) + 1;
+  const from = Math.max(start, lineStart(Math.max(start, index - Math.floor(limit / 4))));
+  let to = Math.min(end, from + limit);
+  if (to < end) {
+    const cut = content.lastIndexOf("\n", to);
+    if (cut > from) to = cut;
+  }
+  const matchLineEnd = content.indexOf("\n", index);
+  to = Math.min(end, Math.max(to, matchLineEnd === -1 ? end : matchLineEnd));
+  const body = content.slice(from, to).trim();
+  return `${from > start ? "..." : ""}${body}${to < end ? "\n..." : ""}`;
+}
+
+// src/guide-loader.ts
 import { join } from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
@@ -93284,7 +93368,6 @@ function findMatchPage(content, matchOffset, startPage) {
 function searchGuides(query2) {
   const manifests = loadGuideManifests();
   const results = [];
-  const queryLower = query2.toLowerCase();
   for (const manifest2 of manifests) {
     const guideDir = join(GUIDES_PATH, manifest2.guideSlug);
     for (const section of manifest2.sections) {
@@ -93296,11 +93379,11 @@ function searchGuides(query2) {
         content = readFileSync(filePath, "utf-8");
         sectionContentCache.set(cacheKey, content);
       }
-      const contentLower = content.toLowerCase();
-      const matchIdx = contentLower.indexOf(queryLower);
-      if (matchIdx === -1) continue;
+      const match = matchText(content, query2, section.title);
+      if (!match) continue;
+      const matchIdx = match.index;
       const start = Math.max(0, matchIdx - 100);
-      const end = Math.min(content.length, matchIdx + query2.length + 100);
+      const end = Math.min(content.length, matchIdx + Math.max(match.length, 200) + 100);
       let excerpt = content.slice(start, end);
       if (start > 0) excerpt = "..." + excerpt;
       if (end < content.length) excerpt = excerpt + "...";
@@ -93315,7 +93398,8 @@ function searchGuides(query2) {
         endPage: section.endPage,
         matchPage,
         pdfFileName: manifest2.pdfFileName,
-        excerpt
+        excerpt,
+        score: match.score
       });
     }
   }
@@ -93330,6 +93414,7 @@ var HELP_DOCS_PATH = join2(__dirname2, "..", "knowledge", "help");
 var EXERCISES_PATH = join2(__dirname2, "..", "knowledge", "exercises");
 var GUIDES_PATH2 = join2(__dirname2, "..", "knowledge", "guides");
 var TROUBLESHOOTING_PATH = join2(__dirname2, "..", "knowledge", "troubleshooting");
+var SECTION_LIMIT = 4e3;
 function slugToTitle(slug) {
   return slug.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 }
@@ -93376,7 +93461,6 @@ ${content}`;
 }
 function searchKnowledge(query2) {
   const results = [];
-  const queryLower = query2.toLowerCase();
   if (existsSync2(KNOWLEDGE_BASE_PATH)) {
     const moduleDirs = readdirSync2(KNOWLEDGE_BASE_PATH, { withFileTypes: true }).filter((dirent) => dirent.isDirectory()).map((dirent) => dirent.name);
     for (const moduleSlug of moduleDirs) {
@@ -93385,22 +93469,25 @@ function searchKnowledge(query2) {
       for (const file of files) {
         const filePath = join2(modulePath, file);
         const content = readFileSync2(filePath, "utf-8");
-        if (content.toLowerCase().includes(queryLower)) {
-          const excerpt = extractExcerpt(content, queryLower, query2.length);
+        const title = slugToTitle(basename2(file, ".md"));
+        const match = matchText(content, query2, title);
+        if (match) {
           results.push({
             module: moduleSlug,
-            title: slugToTitle(basename2(file, ".md")),
-            excerpt,
+            title,
+            excerpt: extractExcerpt(content, match),
+            section: sectionAround(content, match.index, SECTION_LIMIT),
             source: "modules",
-            sourceFile: basename2(file, ".md")
+            sourceFile: basename2(file, ".md"),
+            score: match.score
           });
         }
       }
     }
   }
-  searchDirectory(HELP_DOCS_PATH, queryLower, query2.length, "help", results);
-  searchDirectory(EXERCISES_PATH, queryLower, query2.length, "exercises", results);
-  searchDirectory(GUIDES_PATH2, queryLower, query2.length, "guides", results, true);
+  searchDirectory(HELP_DOCS_PATH, query2, "help", results);
+  searchDirectory(EXERCISES_PATH, query2, "exercises", results);
+  searchDirectory(GUIDES_PATH2, query2, "guides", results, true);
   const guideResults = searchGuides(query2);
   for (const gr of guideResults) {
     results.push({
@@ -93414,43 +93501,45 @@ function searchKnowledge(query2) {
       startPage: gr.startPage,
       endPage: gr.endPage,
       matchPage: gr.matchPage,
-      pdfFileName: gr.pdfFileName
+      pdfFileName: gr.pdfFileName,
+      score: gr.score
     });
   }
-  searchDirectory(TROUBLESHOOTING_PATH, queryLower, query2.length, "troubleshooting", results);
+  searchDirectory(TROUBLESHOOTING_PATH, query2, "troubleshooting", results);
   results.sort((a, b) => {
-    const aTitle = a.title.toLowerCase().includes(queryLower) ? 1 : 0;
-    const bTitle = b.title.toLowerCase().includes(queryLower) ? 1 : 0;
-    if (aTitle !== bTitle) return bTitle - aTitle;
+    const byScore = (b.score ?? 0) - (a.score ?? 0);
+    if (Math.abs(byScore) >= 1) return byScore;
     const aGuide = a.source === "guide-section" ? 1 : 0;
     const bGuide = b.source === "guide-section" ? 1 : 0;
     return bGuide - aGuide;
   });
   return results;
 }
-function extractExcerpt(content, queryLower, queryLength) {
-  const index = content.toLowerCase().indexOf(queryLower);
-  const start = Math.max(0, index - 100);
-  const end = Math.min(content.length, index + queryLength + 100);
+function extractExcerpt(content, match) {
+  const start = Math.max(0, match.index - 100);
+  const end = Math.min(content.length, match.index + Math.max(match.length, 200) + 100);
   let excerpt = content.slice(start, end);
   if (start > 0) excerpt = "..." + excerpt;
   if (end < content.length) excerpt = excerpt + "...";
   return excerpt;
 }
-function searchDirectory(dirPath, queryLower, queryLength, source, results, filesOnly) {
+function searchDirectory(dirPath, query2, source, results, filesOnly) {
   if (!existsSync2(dirPath)) return;
   const files = readdirSync2(dirPath, { withFileTypes: true }).filter((f) => f.isFile() && f.name.endsWith(".md")).map((f) => f.name);
   for (const file of files) {
     const filePath = join2(dirPath, file);
     const content = readFileSync2(filePath, "utf-8");
-    if (content.toLowerCase().includes(queryLower)) {
-      const excerpt = extractExcerpt(content, queryLower, queryLength);
+    const title = slugToTitle(basename2(file, ".md"));
+    const match = matchText(content, query2, title);
+    if (match) {
       results.push({
         module: source,
-        title: slugToTitle(basename2(file, ".md")),
-        excerpt,
+        title,
+        excerpt: extractExcerpt(content, match),
+        section: sectionAround(content, match.index, SECTION_LIMIT),
         source,
-        sourceFile: basename2(file, ".md")
+        sourceFile: basename2(file, ".md"),
+        score: match.score
       });
     }
   }
@@ -93594,6 +93683,7 @@ After changing mobile configuration (DB Schema, actions, tabs, mobile settings),
 Ask before writing to a production org. For implementation guidance, search the knowledge base (search_lsc_knowledge, get_lsc_module_docs, explain_lsc_concept) and cite the source rather than answering from memory.`;
 
 // src/tools/knowledge.ts
+var SECTION_RESULTS = 3;
 function getGuideSectionCitations(topic, max = 3) {
   const guideResults = searchGuides(topic);
   if (guideResults.length === 0) return "";
@@ -93711,10 +93801,11 @@ Try different search terms or use \`list_lsc_modules\` to see available document
       }
       const formattedResults = results.map((r, i) => {
         const pageInfo = r.matchPage ? ` (page ${r.matchPage})` : "";
+        const body = i < SECTION_RESULTS && r.section ? r.section : r.excerpt;
         return `### ${i + 1}. ${r.title}${pageInfo}
 **Module:** ${r.module}
 
-${r.excerpt}`;
+${body}`;
       }).join("\n\n---\n\n");
       const citations = [];
       for (const r of results) {
@@ -127017,6 +127108,49 @@ Failed to parse records JSON: ${e instanceof Error ? e.message : "Unknown error"
 
 // src/tools/metadata.ts
 init_cli();
+import { readdirSync as readdirSync12, readFileSync as readFileSync15, statSync as statSync5 } from "node:fs";
+import { join as join16, relative } from "node:path";
+var RETRIEVED_TEXT_LIMIT = 6e4;
+function retrievedFilesText(dir, limit = RETRIEVED_TEXT_LIMIT) {
+  const files = [];
+  const walk5 = (d) => {
+    for (const name of readdirSync12(d).sort()) {
+      const p = join16(d, name);
+      if (statSync5(p).isDirectory()) walk5(p);
+      else files.push(p);
+    }
+  };
+  try {
+    walk5(dir);
+  } catch {
+    return "";
+  }
+  let left = limit;
+  let out = "";
+  const skipped = [];
+  for (const f of files) {
+    const rel5 = relative(dir, f);
+    const text12 = readFileSync15(f, "utf8");
+    if (text12.length > left || text12.includes("\0")) {
+      skipped.push(rel5);
+      continue;
+    }
+    left -= text12.length;
+    out += `### ${rel5}
+
+\`\`\`xml
+${text12}
+\`\`\`
+
+`;
+  }
+  if (skipped.length)
+    out += `Not shown (too large or binary): ${skipped.join(", ")}. Retrieve them one at a time to read them.
+`;
+  return out ? `## Files
+
+${out}` : "";
+}
 function register20(server2) {
   server2.tool(
     "deploy_metadata",
@@ -127076,6 +127210,9 @@ ${result2.rawOutput.substring(0, 2e3)}
 \`\`\`
 `;
       }
+      const actualDir = result2.data?.outputDir;
+      if (actualDir) report += `
+${retrievedFilesText(actualDir)}`;
       return { content: [{ type: "text", text: report }] };
     }
   );
@@ -127144,6 +127281,9 @@ ${result2.rawOutput.substring(0, 2e3)}
 \`\`\`
 `;
       }
+      const actualDir = result2.data?.outputDir;
+      if (actualDir) report += `
+${retrievedFilesText(actualDir)}`;
       return { content: [{ type: "text", text: report }] };
     }
   );
@@ -136118,13 +136258,13 @@ import {
   createWriteStream as createWriteStream3,
   existsSync as existsSync19,
   mkdirSync as mkdirSync10,
-  readdirSync as readdirSync16,
-  readFileSync as readFileSync18,
+  readdirSync as readdirSync17,
+  readFileSync as readFileSync19,
   rmSync as rmSync12,
-  statSync as statSync5,
+  statSync as statSync6,
   writeFileSync as writeFileSync10
 } from "node:fs";
-import { dirname as dirname10, join as join21 } from "node:path";
+import { dirname as dirname10, join as join22 } from "node:path";
 
 // src/studio/screens/clm-bridge.ts
 var CLM_BRIDGE_FILE = "Common_3i0p1.js";
@@ -136260,13 +136400,13 @@ import {
   existsSync as existsSync18,
   lstatSync as lstatSync2,
   mkdirSync as mkdirSync9,
-  readdirSync as readdirSync15,
-  readFileSync as readFileSync17,
+  readdirSync as readdirSync16,
+  readFileSync as readFileSync18,
   renameSync as renameSync3,
   rmSync as rmSync11,
   writeFileSync as writeFileSync9
 } from "node:fs";
-import { join as join20, relative } from "node:path";
+import { join as join21, relative as relative2 } from "node:path";
 import { promisify as promisify6 } from "node:util";
 
 // src/studio/screens/mustache-lite.ts
@@ -136381,8 +136521,8 @@ function safeEntries(names5) {
   );
 }
 function dropLinks(dir) {
-  for (const name of readdirSync15(dir)) {
-    const p = join20(dir, name);
+  for (const name of readdirSync16(dir)) {
+    const p = join21(dir, name);
     const st = lstatSync2(p);
     if (st.isSymbolicLink()) rmSync11(p, { force: true });
     else if (st.isDirectory()) dropLinks(p);
@@ -136398,12 +136538,12 @@ async function download2(org, version3, dest) {
   if (!res.success) throw new Error(res.error || "Download failed");
 }
 async function ensurePageFolder(org, root2, folder, version3) {
-  const dir = join20(root2, folder);
-  if (existsSync18(join20(dir, ".ok"))) return dir;
-  const work = join20(root2, `.work-${randomUUID2()}`);
+  const dir = join21(root2, folder);
+  if (existsSync18(join21(dir, ".ok"))) return dir;
+  const work = join21(root2, `.work-${randomUUID2()}`);
   mkdirSync9(work, { recursive: true, mode: 448 });
   try {
-    const zip = join20(work, "page.zip");
+    const zip = join21(work, "page.zip");
     await download2(org, version3, zip);
     const { stdout } = await run4("unzip", ["-Z1", zip], { timeout: 3e4, maxBuffer: 8 << 20 });
     const names5 = stdout.split("\n").filter(Boolean);
@@ -136415,33 +136555,33 @@ async function ensurePageFolder(org, root2, folder, version3) {
     });
     const total = Number(/^\s*(\d+)\s+\d+\s+files?\s*$/m.exec(listing)?.[1] ?? 0);
     if (total > MAX_UNZIPPED_BYTES) throw new Error("The page's ZIP is too large to unpack here.");
-    const out = join20(work, "x");
+    const out = join21(work, "x");
     await run4("unzip", ["-q", "-o", zip, "-d", out], { timeout: 12e4 });
     dropLinks(out);
     rmSync11(dir, { recursive: true, force: true });
     renameSync3(out, dir);
-    writeFileSync9(join20(dir, ".ok"), version3);
+    writeFileSync9(join21(dir, ".ok"), version3);
     return dir;
   } finally {
     rmSync11(work, { recursive: true, force: true });
   }
 }
 async function ensurePdfPages(org, root2, folder, version3, numbers) {
-  const dir = join20(root2, folder);
+  const dir = join21(root2, folder);
   mkdirSync9(dir, { recursive: true, mode: 448 });
-  const pdf = join20(dir, "content.pdf");
-  if (!existsSync18(join20(dir, ".ok"))) {
-    const tmp = join20(dir, `.content-${randomUUID2()}.pdf`);
+  const pdf = join21(dir, "content.pdf");
+  if (!existsSync18(join21(dir, ".ok"))) {
+    const tmp = join21(dir, `.content-${randomUUID2()}.pdf`);
     try {
       await download2(org, version3, tmp);
       renameSync3(tmp, pdf);
-      writeFileSync9(join20(dir, ".ok"), version3);
+      writeFileSync9(join21(dir, ".ok"), version3);
     } finally {
       rmSync11(tmp, { force: true });
     }
   }
   for (const n2 of numbers) {
-    const out = join20(dir, `page-${n2}`);
+    const out = join21(dir, `page-${n2}`);
     if (existsSync18(`${out}.jpg`)) continue;
     await run4(
       "pdftoppm",
@@ -136457,30 +136597,30 @@ async function ensurePdfPages(org, root2, folder, version3, numbers) {
   return dir;
 }
 async function ensureAsset(org, root2, folder, version3) {
-  const dir = join20(root2, folder);
+  const dir = join21(root2, folder);
   const id2 = s7(version3.Id);
   const type = s7(version3.FileType).toUpperCase();
-  const listed = () => readdirSync15(dir).filter((n2) => /^(page-\d+\.jpg|asset\.(png|jpg|jpeg|gif))$/.test(n2)).sort((a, b) => a.localeCompare(b, void 0, { numeric: true })).map((n2) => `${folder}/${n2}`);
-  if (existsSync18(join20(dir, ".ok"))) return listed();
+  const listed = () => readdirSync16(dir).filter((n2) => /^(page-\d+\.jpg|asset\.(png|jpg|jpeg|gif))$/.test(n2)).sort((a, b) => a.localeCompare(b, void 0, { numeric: true })).map((n2) => `${folder}/${n2}`);
+  if (existsSync18(join21(dir, ".ok"))) return listed();
   if (type !== "PDF" && !IMAGE_TYPES.has(type)) return [];
   rmSync11(dir, { recursive: true, force: true });
   mkdirSync9(dir, { recursive: true, mode: 448 });
   if (type === "PDF") {
-    const pdf = join20(dir, "content.pdf");
+    const pdf = join21(dir, "content.pdf");
     await download2(org, id2, pdf);
     await run4(
       "pdftoppm",
-      ["-l", String(MAX_ASSET_PAGES), "-jpeg", "-scale-to", "1600", pdf, join20(dir, "page")],
+      ["-l", String(MAX_ASSET_PAGES), "-jpeg", "-scale-to", "1600", pdf, join21(dir, "page")],
       { timeout: 12e4 }
     ).catch(
-      () => run4("sips", ["-s", "format", "jpeg", "-Z", "1600", pdf, "--out", join20(dir, "page-1.jpg")], {
+      () => run4("sips", ["-s", "format", "jpeg", "-Z", "1600", pdf, "--out", join21(dir, "page-1.jpg")], {
         timeout: 6e4
       })
     );
   } else {
-    await download2(org, id2, join20(dir, `asset.${type.toLowerCase()}`));
+    await download2(org, id2, join21(dir, `asset.${type.toLowerCase()}`));
   }
-  writeFileSync9(join20(dir, ".ok"), id2);
+  writeFileSync9(join21(dir, ".ok"), id2);
   return listed();
 }
 async function mapLimit(items, n2, fn) {
@@ -136584,7 +136724,7 @@ async function loadContentPlayer(org, presentationId, userId) {
         numbered.forEach(({ l, n: n2 }, i) => {
           const page = pageOf(l);
           const file = `${folder}/page-${n2}.jpg`;
-          if (!existsSync18(join20(dir, `page-${n2}.jpg`))) {
+          if (!existsSync18(join21(dir, `page-${n2}.jpg`))) {
             notes.push(`Page ${n2} of the PDF couldn't be drawn here.`);
             return;
           }
@@ -136629,7 +136769,7 @@ async function loadContentPlayer(org, presentationId, userId) {
       const got = folders[i];
       if (!got) return;
       const page = pageOf(l);
-      const files = slideFiles(readdirSync15(got.dir));
+      const files = slideFiles(readdirSync16(got.dir));
       if (!files.length) {
         notes.push(
           `"${s7(page.Name)}" has no .html file at the top of its ZIP, so the iPad shows no slide for it.`
@@ -136651,7 +136791,7 @@ async function loadContentPlayer(org, presentationId, userId) {
           name: f,
           kind: "html",
           file: `${got.folder}/${f}${RENDERED}`,
-          thumbnail: existsSync18(join20(got.dir, thumb)) ? `${got.folder}/${thumb}` : void 0,
+          thumbnail: existsSync18(join21(got.dir, thumb)) ? `${got.folder}/${thumb}` : void 0,
           mandatory: page.IsMandatory === true
         });
       }
@@ -136674,8 +136814,8 @@ async function loadContentPlayer(org, presentationId, userId) {
     let tagged = false;
     for (const slide of slides) {
       const folder = slide.file.slice(0, slide.file.indexOf("/"));
-      const dir = join20(root2, folder);
-      const original = readFileSync17(join20(dir, slide.name), "utf8");
+      const dir = join21(root2, folder);
+      const original = readFileSync18(join21(dir, slide.name), "utf8");
       if (original.includes("{{")) tagged = true;
       const data2 = {
         presentations: [presentationData],
@@ -136695,10 +136835,10 @@ async function loadContentPlayer(org, presentationId, userId) {
         state: ""
       };
       writeFileSync9(
-        join20(dir, slide.name + RENDERED),
+        join21(dir, slide.name + RENDERED),
         injectBridgeTag(renderSlideTemplate(original, data2))
       );
-      writeFileSync9(join20(dir, CLM_BRIDGE_FILE), CLM_BRIDGE_JS);
+      writeFileSync9(join21(dir, CLM_BRIDGE_FILE), CLM_BRIDGE_JS);
     }
     if (tagged)
       notes.push(
@@ -136708,7 +136848,7 @@ async function loadContentPlayer(org, presentationId, userId) {
   if (!slides.length && !notes.length)
     notes.push("This presentation has no active pages with content.");
   for (const sl of slides)
-    if (relative(root2, join20(root2, sl.file)).startsWith("..")) throw new Error("Bad slide path.");
+    if (relative2(root2, join21(root2, sl.file)).startsWith("..")) throw new Error("Bad slide path.");
   return {
     root: root2,
     presentation: {
@@ -136753,7 +136893,7 @@ function draftDir(id2) {
   return privateTmp(CLM_ROOT_NAME, "drafts", id2);
 }
 function draftExists(id2) {
-  return DRAFT_ID.test(id2) && slideFiles(readdirSync16(draftDir(id2))).length > 0;
+  return DRAFT_ID.test(id2) && slideFiles(readdirSync17(draftDir(id2))).length > 0;
 }
 function fileProblems(files) {
   const out = [];
@@ -136794,8 +136934,8 @@ function references(text12) {
   }
   return { local: [...local], external: [...external] };
 }
-var listFiles = (dir, prefix = "") => existsSync19(dir) ? readdirSync16(dir, { withFileTypes: true }).flatMap(
-  (e) => e.isDirectory() ? prefix ? [] : listFiles(join21(dir, e.name), `${e.name}/`) : e.isFile() ? [`${prefix}${e.name}`] : []
+var listFiles = (dir, prefix = "") => existsSync19(dir) ? readdirSync17(dir, { withFileTypes: true }).flatMap(
+  (e) => e.isDirectory() ? prefix ? [] : listFiles(join22(dir, e.name), `${e.name}/`) : e.isFile() ? [`${prefix}${e.name}`] : []
 ) : [];
 function draftFiles(id2) {
   return listFiles(draftDir(id2)).filter((f) => !f.endsWith(RENDERED) && f !== CLM_BRIDGE_FILE && !THUMBS.test(f)).sort();
@@ -136818,7 +136958,7 @@ function checkDraft(id2) {
         file: sl,
         message: "The iPad orders slides by file name and finds each one's thumbnail by its number: name it like 01_intro.html."
       });
-    const html = readFileSync18(join21(dir, sl), "utf8");
+    const html = readFileSync19(join22(dir, sl), "utf8");
     if (!/<meta[^>]+name=["']viewport["']/i.test(html))
       checks.push({
         level: "warning",
@@ -136827,7 +136967,7 @@ function checkDraft(id2) {
       });
   }
   for (const f of files.filter((f2) => /\.(html|css)$/i.test(f2))) {
-    const { local, external } = references(readFileSync18(join21(dir, f), "utf8"));
+    const { local, external } = references(readFileSync19(join22(dir, f), "utf8"));
     for (const ref3 of external)
       checks.push({
         level: "error",
@@ -136852,11 +136992,11 @@ function writeDraft(id2, files, replace) {
     mkdirSync10(dir, { recursive: true, mode: 448 });
   }
   for (const f of files) {
-    const at2 = join21(dir, f.path);
+    const at2 = join22(dir, f.path);
     mkdirSync10(dirname10(at2), { recursive: true, mode: 448 });
     writeFileSync10(at2, f.base64 ? Buffer.from(f.content, "base64") : f.content, { mode: 384 });
   }
-  const total = listFiles(dir).reduce((n2, f) => n2 + statSync5(join21(dir, f)).size, 0);
+  const total = listFiles(dir).reduce((n2, f) => n2 + statSync6(join22(dir, f)).size, 0);
   if (total > MAX_DRAFT_BYTES * 2)
     throw new Error(`The draft is over ${MAX_DRAFT_BYTES * 2 >> 20} MB.`);
 }
@@ -136868,7 +137008,7 @@ function draftPlayer(id2, name) {
   const dir = draftDir(id2);
   const folder = `drafts/${id2}`;
   const pageId = `new:${id2}`;
-  const files = slideFiles(readdirSync16(dir));
+  const files = slideFiles(readdirSync17(dir));
   const slides = files.map((f, index) => {
     const thumb = thumbnailFor(f);
     return {
@@ -136879,7 +137019,7 @@ function draftPlayer(id2, name) {
       name: f,
       kind: "html",
       file: `${folder}/${f}${RENDERED}`,
-      thumbnail: existsSync19(join21(dir, thumb)) ? `${folder}/${thumb}` : void 0,
+      thumbnail: existsSync19(join22(dir, thumb)) ? `${folder}/${thumb}` : void 0,
       mandatory: false
     };
   });
@@ -136909,11 +137049,11 @@ function draftPlayer(id2, name) {
       state: ""
     };
     writeFileSync10(
-      join21(dir, sl.name + RENDERED),
-      injectBridgeTag(renderSlideTemplate(readFileSync18(join21(dir, sl.name), "utf8"), data2))
+      join22(dir, sl.name + RENDERED),
+      injectBridgeTag(renderSlideTemplate(readFileSync19(join22(dir, sl.name), "utf8"), data2))
     );
   }
-  writeFileSync10(join21(dir, CLM_BRIDGE_FILE), CLM_BRIDGE_JS);
+  writeFileSync10(join22(dir, CLM_BRIDGE_FILE), CLM_BRIDGE_JS);
   return {
     root: root2,
     presentation: {
@@ -136935,14 +137075,14 @@ async function zipDraft(id2) {
   const files = listFiles(dir).filter((f) => !f.endsWith(RENDERED) && f !== CLM_BRIDGE_FILE);
   if (!slideFiles(files.filter((f) => !f.includes("/"))).length)
     throw new Error("The draft has no slide.");
-  const out = join21(privateTmp("lsc-studio-content-upload"), `${id2}-${Date.now()}.zip`);
+  const out = join22(privateTmp("lsc-studio-content-upload"), `${id2}-${Date.now()}.zip`);
   await new Promise((resolve4, reject) => {
     const stream = createWriteStream3(out, { mode: 384 });
     const archive = (0, import_archiver2.default)("zip", { zlib: { level: 9 } });
     stream.on("close", () => resolve4());
     archive.on("error", reject);
     archive.pipe(stream);
-    for (const f of files) archive.file(join21(dir, f), { name: f });
+    for (const f of files) archive.file(join22(dir, f), { name: f });
     void archive.finalize();
   });
   return out;
@@ -148629,10 +148769,10 @@ async function appSource(name, org) {
 }
 
 // src/studio/apps/starters.ts
-import { readFileSync as readFileSync22, readdirSync as readdirSync18 } from "node:fs";
-import { dirname as dirname13, join as join25 } from "node:path";
+import { readFileSync as readFileSync23, readdirSync as readdirSync19 } from "node:fs";
+import { dirname as dirname13, join as join26 } from "node:path";
 import { fileURLToPath as fileURLToPath5 } from "node:url";
-var STARTERS_DIR = join25(
+var STARTERS_DIR = join26(
   dirname13(fileURLToPath5(import.meta.url)),
   "..",
   "..",
@@ -148642,17 +148782,17 @@ var STARTERS_DIR = join25(
 );
 var ID_RE2 = /^[a-z0-9-]{1,60}$/;
 function readManifest(dir) {
-  const data2 = JSON.parse(readFileSync22(join25(dir, "manifest.json"), "utf8"));
+  const data2 = JSON.parse(readFileSync23(join26(dir, "manifest.json"), "utf8"));
   return data2.starters ?? [];
 }
 function readFiles(dir, entry) {
   const files = [];
   for (const bundle of entry.bundles) {
-    for (const file of readdirSync18(join25(dir, entry.id, "lwc", bundle)).sort()) {
+    for (const file of readdirSync19(join26(dir, entry.id, "lwc", bundle)).sort()) {
       files.push({
         bundle,
         path: `lwc/${bundle}/${file}`,
-        source: readFileSync22(join25(dir, entry.id, "lwc", bundle, file), "utf8")
+        source: readFileSync23(join26(dir, entry.id, "lwc", bundle, file), "utf8")
       });
     }
   }

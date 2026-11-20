@@ -56,11 +56,11 @@ Salesforce Go checklist; pricing recipe, pricing procedure, and extended context
    - `Status` = Draft
 4. **Run the batch job (UI only).** Admin Console > Product > Product Alignment Jobs > **Run the Publish Draft Product Territory Alignments Batch Job**. It can't be triggered from Apex or the API, so a person must run it.
 5. **Verify.** The PTA rows should now be Active, and the PTDA query from step 1 should show Quote rows with `IsActive = true`, one per product.
-6. **Resync the iPad** with the rep's territory selected, then open the quote's Add Products screen. No mobile metadata cache regeneration was needed in 264, because PTA and PTDA are data, not metadata.
+6. **Resync the iPad** with the rep's territory selected, then open the quote's Add Products screen. For this territory-only fix, no mobile metadata cache regeneration was needed in 264, because PTA and PTDA are data, not metadata. A new or cloned product still needs the cache regenerated (see item 8 of the checklist below).
 
 ## What Makes a Product Quotable on the iPad (Checklist)
 
-Use this when a product won't show on Add Products, or when you clone an existing quotable product to make a new one. A product is quotable for a rep only when every item below is in place. The common miss is item 5.
+Use this when a product won't show on Add Products, or when you clone an existing quotable product to make a new one. A product is quotable for a rep only when every item below is in place. The common miss is item 5; when cloning, the misses are the tiers (item 7) and the cache regeneration (item 8).
 
 1. **Product2** is active.
 2. **Catalog**: a `ProductCategoryProduct` row puts it in a category of the product catalog the reps use.
@@ -68,10 +68,12 @@ Use this when a product won't show on Add Products, or when you clone an existin
 4. **Price book entries**: a Standard Price Book `PricebookEntry` per currency (and selling model, if used) first, then the custom LS price book entry, with `ProductSellingModelId` set when the org uses selling models (see [Pricebook Data Loading Order](#pricebook-data-loading-order)).
 5. **Territory availability**: a `ProductTerritoryAvailability` row with Purpose Quote, Alignment Type Territory Inclusion and Usage Type LifeSciences for the rep's territory, that has `ProductTerrDtlAvailability` rows. Two ways get there: insert it as Draft and run the Publish Draft Product Territory Alignments batch job, or insert it by API as Queued and let the platform process it. A row inserted directly as Active gets no detail rows and doesn't work (see [Products Missing on the iPad "Add Products" Screen](#products-missing-on-the-ipad-add-products-screen-quoted-orders)). Price book entries alone don't make a product show.
 6. **Sharing**: where the org-wide default for the product, availability or pricing objects is Private, sharing rules that reach the reps.
-7. **Tier pricing** (only if the product has volume or tier discounts): `PriceAdjustmentTier` rows on a schedule with `EffectiveFrom` set, then **Refresh** the decision tables (see [pricing](./release-264-pricing.md)).
+7. **Tier pricing** (only if the product has volume or tier discounts): `PriceAdjustmentTier` rows on a schedule with `EffectiveFrom` set, then **Refresh** the decision tables (see [pricing](./release-264-pricing.md)). The product sits on each **tier**, not on the schedule: find a product's tiers with `SELECT Id, PriceAdjustmentSchedule.Name, PriceAdjustmentSchedule.IsActive, LowerBound, UpperBound, TierType, TierValue, ProductSellingModelId, EffectiveFrom, EffectiveTo FROM PriceAdjustmentTier WHERE Product2Id = '<product id>'`. Filtering `PriceAdjustmentSchedule` by product finds nothing, even when the product has tiers. One product can have tiers in several schedules, active and inactive; say which ones are active.
 8. **Publish and sync**: regenerate the mobile metadata cache for the rep profile, then have the rep sync. For a territory availability change alone, a sync was enough in 264.
 
-When cloning, copy items 2 to 7 from the source product; a new Product2 alone has none of them.
+**Cloning a quotable product** copies Product2, ProductCategoryProduct, ProductSellingModelOption, PricebookEntry, ProductTerritoryAvailability and PriceAdjustmentTier (tiers via `PriceAdjustmentTier WHERE Product2Id`), then refreshes the decision tables, **regenerates the mobile metadata cache** and has the reps sync.
+
+In detail: copy items 2 to 7 from the source product (tiers: a new `PriceAdjustmentTier` per source tier, on the same schedule, with the new product and its selling model), then do item 8. A new Product2 alone has none of them, and a sync without a cache regeneration isn't enough for a new product.
 
 ## Pricebook Data Loading Order
 Create the custom Pricebook2 (active), then insert PricebookEntry rows in the Standard Price Book first, then in the custom price book for the same products. A product must have a Standard Price Book entry before it can have a custom-book entry. Verify with a SOQL count on the custom book.
