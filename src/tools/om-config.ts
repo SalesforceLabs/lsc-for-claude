@@ -24,6 +24,12 @@ export const OM_WARN_ONLY = new Set([
   "om-submitted-stage-not-locked",
   "om-unlock-no-manager",
   "om-locked-quote-no-view-line-items",
+  "om-unlock-approver-no-territory",
+  "om-pricing-selectors-disagree",
+  "om-browse-catalog-save-as-apexclass-invalid",
+  "om-approve-automated-process-user",
+  "sc-action-plan-template-multiple-versions",
+  "sc-photo-dbschemas-missing",
 ]);
 
 /** Passes when the org uses Order Management at all: a Quote product alignment exists. */
@@ -143,15 +149,20 @@ export function renderOmReport(org: string, checks: OmCheck[], inUse: boolean | 
     out += "\n";
   }
   const unchecked = omUncheckedCauses();
-  if (unchecked.length)
-    out += `Not checked here (${unchecked.length} known causes need a look by hand or an error message; \`diagnose_lsc_issue\` matches them): ${unchecked.map((c) => c.title).join("; ")}.\n`;
+  if (unchecked.length) {
+    out += "### Not checked here\n\n";
+    for (const c of unchecked)
+      out += `- **${c.title}:** ${c.no_check_reason ? oneLine(c.no_check_reason) : "No automatic check is possible for this one."}\n`;
+    out +=
+      "\n`diagnose_lsc_issue` still matches these from an error message or a description of the symptom.\n";
+  }
   return out;
 }
 
 export function register(server: McpServer) {
   server.tool(
     "check_om_config",
-    "Check Order Management (quoted orders, Store Check) configuration against the known setup mistakes: DB Schema pairs (Quote/QuoteLineItem, Pricebook2/PricebookEntry) half assigned to a profile, price adjustment schedules with no EffectiveFrom, the Life Sciences Commercial pricing recipe mappings, StagePathPermissionsHandler, the Submitted quote stage lock, unpublished Quote product alignments (ProductTerritoryAvailability with no ProductTerrDtlAvailability), quote owners with no manager for Request for Unlock, locked stages with no View Line Items, and Store Check visit routing. Read-only. CORRECT object names: Quote, QuoteLineItem, Pricebook2, PricebookEntry, ProductTerritoryAvailability, ProductTerrDtlAvailability, PriceAdjustmentSchedule, LifeSciStagePath, LifeSciStageOperation. WRONG names (DO NOT USE): Order__c, QuotedOrder__c, ProductAvailability__c.",
+    "Check Order Management (quoted orders, Store Check) configuration against the known setup mistakes: DB Schema pairs (Quote/QuoteLineItem, Pricebook2/PricebookEntry) half assigned to a profile, price adjustment schedules with no EffectiveFrom, the Life Sciences Commercial pricing recipe mappings, StagePathPermissionsHandler, the Submitted quote stage lock, unpublished Quote product alignments (ProductTerritoryAvailability with no ProductTerrDtlAvailability), quote owners with no manager for Request for Unlock, locked stages with no View Line Items, Store Check visit routing, Quote status and document permissions of quote owners, Revenue Management, Product Configurator, Store Check and Translation Workbench settings, pricing procedure selection, rounding and price adjustment matrix steps, approval flow run-as, standard price book entries, Quote status values, and required licences. Causes with no automatic check are listed with the reason. Read-only. CORRECT object names: Quote, QuoteLineItem, Pricebook2, PricebookEntry, ProductTerritoryAvailability, ProductTerrDtlAvailability, PriceAdjustmentSchedule, LifeSciStagePath, LifeSciStageOperation. WRONG names (DO NOT USE): Order__c, QuotedOrder__c, ProductAvailability__c.",
     {
       targetOrg: z
         .string()

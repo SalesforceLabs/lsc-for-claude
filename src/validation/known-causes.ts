@@ -27,6 +27,8 @@ export interface KnownCause {
   ui_path?: string;
   /** The behavior is intended; the answer is an explanation, not a fix in the org. */
   by_design?: boolean;
+  /** Why no automatic check is possible (one plain sentence); listed in reports for causes with no check. */
+  no_check_reason?: string;
   /** Passes when the cause isn't present. */
   check?: RuleCheck;
   /** Must pass for the cause to apply at all (a feature in use, a handler on). */

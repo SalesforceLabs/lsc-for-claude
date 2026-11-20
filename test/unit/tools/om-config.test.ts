@@ -131,7 +131,9 @@ describe("renderOmReport()", () => {
     expect(out).toContain("Found: X\\|Y");
     expect(out).toContain("not passes");
     expect(out).toContain("- **B:** Only some.");
-    expect(out).toContain("Not checked here");
+    expect(out).toContain("### Not checked here");
+    expect(out).toMatch(/^- \*\*[^*]+:\*\* \S/m);
+    expect(out).toContain("`diagnose_lsc_issue` still matches these");
   });
 
   it("says when Order Management doesn't look set up", () => {

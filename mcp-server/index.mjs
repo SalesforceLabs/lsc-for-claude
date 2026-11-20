@@ -108,7 +108,7 @@ var require_code = __commonJS({
     }
     exports2._ = _2;
     var plus = new _Code("+");
-    function str33(strs, ...args) {
+    function str34(strs, ...args) {
       const expr = [safeStringify(strs[0])];
       let i = 0;
       while (i < args.length) {
@@ -119,7 +119,7 @@ var require_code = __commonJS({
       optimize(expr);
       return new _Code(expr);
     }
-    exports2.str = str33;
+    exports2.str = str34;
     function addCodeArg(code, arg) {
       if (arg instanceof _Code)
         code.push(...arg._items);
@@ -162,7 +162,7 @@ var require_code = __commonJS({
       return;
     }
     function strConcat(c1, c2) {
-      return c2.emptyStr() ? c1 : c1.emptyStr() ? c2 : str33`${c1}${c2}`;
+      return c2.emptyStr() ? c1 : c1.emptyStr() ? c2 : str34`${c1}${c2}`;
     }
     exports2.strConcat = strConcat;
     function interpolate(x) {
@@ -1124,22 +1124,22 @@ var require_util = __commonJS({
       return (0, codegen_1._)`${topSchemaRef}${schemaPath}${(0, codegen_1.getProperty)(keyword)}`;
     }
     exports2.schemaRefOrVal = schemaRefOrVal;
-    function unescapeFragment(str33) {
-      return unescapeJsonPointer(decodeURIComponent(str33));
+    function unescapeFragment(str34) {
+      return unescapeJsonPointer(decodeURIComponent(str34));
     }
     exports2.unescapeFragment = unescapeFragment;
-    function escapeFragment(str33) {
-      return encodeURIComponent(escapeJsonPointer(str33));
+    function escapeFragment(str34) {
+      return encodeURIComponent(escapeJsonPointer(str34));
     }
     exports2.escapeFragment = escapeFragment;
-    function escapeJsonPointer(str33) {
-      if (typeof str33 == "number")
-        return `${str33}`;
-      return str33.replace(/~/g, "~0").replace(/\//g, "~1");
+    function escapeJsonPointer(str34) {
+      if (typeof str34 == "number")
+        return `${str34}`;
+      return str34.replace(/~/g, "~0").replace(/\//g, "~1");
     }
     exports2.escapeJsonPointer = escapeJsonPointer;
-    function unescapeJsonPointer(str33) {
-      return str33.replace(/~1/g, "/").replace(/~0/g, "~");
+    function unescapeJsonPointer(str34) {
+      return str34.replace(/~1/g, "/").replace(/~0/g, "~");
     }
     exports2.unescapeJsonPointer = unescapeJsonPointer;
     function eachItem(xs, f) {
@@ -2164,8 +2164,8 @@ var require_json_schema_traverse = __commonJS({
         post(schema, jsonPtr, rootSchema, parentJsonPtr, parentKeyword, parentSchema, keyIndex);
       }
     }
-    function escapeJsonPtr(str33) {
-      return str33.replace(/~/g, "~0").replace(/\//g, "~1");
+    function escapeJsonPtr(str34) {
+      return str34.replace(/~/g, "~0").replace(/\//g, "~1");
     }
   }
 });
@@ -3226,15 +3226,15 @@ var require_utils = __commonJS({
         return { host, isIPV6: false };
       }
     }
-    function findToken(str33, token) {
+    function findToken(str34, token) {
       let ind = 0;
-      for (let i = 0; i < str33.length; i++) {
-        if (str33[i] === token) ind++;
+      for (let i = 0; i < str34.length; i++) {
+        if (str34[i] === token) ind++;
       }
       return ind;
     }
-    function removeDotSegments(path24) {
-      let input = path24;
+    function removeDotSegments(path25) {
+      let input = path25;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -3433,8 +3433,8 @@ var require_schemes = __commonJS({
         wsComponent.secure = void 0;
       }
       if (wsComponent.resourceName) {
-        const [path24, query2] = wsComponent.resourceName.split("?");
-        wsComponent.path = path24 && path24 !== "/" ? path24 : void 0;
+        const [path25, query2] = wsComponent.resourceName.split("?");
+        wsComponent.path = path25 && path25 !== "/" ? path25 : void 0;
         wsComponent.query = query2;
         wsComponent.resourceName = void 0;
       }
@@ -3882,7 +3882,7 @@ var require_core = __commonJS({
     var util_1 = require_util();
     var $dataRefSchema = require_data();
     var uri_1 = require_uri();
-    var defaultRegExp = (str33, flags) => new RegExp(str33, flags);
+    var defaultRegExp = (str34, flags) => new RegExp(str34, flags);
     defaultRegExp.code = "new RegExp";
     var META_IGNORE_OPTIONS = ["removeAdditional", "useDefaults", "coerceTypes"];
     var EXT_SCOPE_NAMES = /* @__PURE__ */ new Set([
@@ -4677,16 +4677,16 @@ var require_ucs2length = __commonJS({
   "node_modules/ajv/dist/runtime/ucs2length.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
-    function ucs2length(str33) {
-      const len = str33.length;
+    function ucs2length(str34) {
+      const len = str34.length;
       let length = 0;
       let pos = 0;
       let value4;
       while (pos < len) {
         length++;
-        value4 = str33.charCodeAt(pos++);
+        value4 = str34.charCodeAt(pos++);
         if (value4 >= 55296 && value4 <= 56319 && pos < len) {
-          value4 = str33.charCodeAt(pos);
+          value4 = str34.charCodeAt(pos);
           if ((value4 & 64512) === 56320)
             pos++;
         }
@@ -6569,8 +6569,8 @@ var require_formats = __commonJS({
     }
     var DATE = /^(\d\d\d\d)-(\d\d)-(\d\d)$/;
     var DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    function date3(str33) {
-      const matches = DATE.exec(str33);
+    function date3(str34) {
+      const matches = DATE.exec(str34);
       if (!matches)
         return false;
       const year = +matches[1];
@@ -6589,8 +6589,8 @@ var require_formats = __commonJS({
     }
     var TIME = /^(\d\d):(\d\d):(\d\d(?:\.\d+)?)(z|([+-])(\d\d)(?::?(\d\d))?)?$/i;
     function getTime(strictTimeZone) {
-      return function time3(str33) {
-        const matches = TIME.exec(str33);
+      return function time3(str34) {
+        const matches = TIME.exec(str34);
         if (!matches)
           return false;
         const hr = +matches[1];
@@ -6636,8 +6636,8 @@ var require_formats = __commonJS({
     var DATE_TIME_SEPARATOR = /t|\s/i;
     function getDateTime(strictTimeZone) {
       const time3 = getTime(strictTimeZone);
-      return function date_time(str33) {
-        const dateTime = str33.split(DATE_TIME_SEPARATOR);
+      return function date_time(str34) {
+        const dateTime = str34.split(DATE_TIME_SEPARATOR);
         return dateTime.length === 2 && date3(dateTime[0]) && time3(dateTime[1]);
       };
     }
@@ -6662,13 +6662,13 @@ var require_formats = __commonJS({
     }
     var NOT_URI_FRAGMENT = /\/|:/;
     var URI = /^(?:[a-z][a-z0-9+\-.]*:)(?:\/?\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:]|%[0-9a-f]{2})*@)?(?:\[(?:(?:(?:(?:[0-9a-f]{1,4}:){6}|::(?:[0-9a-f]{1,4}:){5}|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){4}|(?:(?:[0-9a-f]{1,4}:){0,1}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){3}|(?:(?:[0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){2}|(?:(?:[0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:|(?:(?:[0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::)(?:[0-9a-f]{1,4}:[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?))|(?:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(?:(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::)|[Vv][0-9a-f]+\.[a-z0-9\-._~!$&'()*+,;=:]+)\]|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)|(?:[a-z0-9\-._~!$&'()*+,;=]|%[0-9a-f]{2})*)(?::\d*)?(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*|\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*)?|(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*)(?:\?(?:[a-z0-9\-._~!$&'()*+,;=:@/?]|%[0-9a-f]{2})*)?(?:#(?:[a-z0-9\-._~!$&'()*+,;=:@/?]|%[0-9a-f]{2})*)?$/i;
-    function uri(str33) {
-      return NOT_URI_FRAGMENT.test(str33) && URI.test(str33);
+    function uri(str34) {
+      return NOT_URI_FRAGMENT.test(str34) && URI.test(str34);
     }
     var BYTE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/gm;
-    function byte(str33) {
+    function byte(str34) {
       BYTE.lastIndex = 0;
-      return BYTE.test(str33);
+      return BYTE.test(str34);
     }
     var MIN_INT32 = -(2 ** 31);
     var MAX_INT32 = 2 ** 31 - 1;
@@ -6682,11 +6682,11 @@ var require_formats = __commonJS({
       return true;
     }
     var Z_ANCHOR = /[^\\]\\Z/;
-    function regex(str33) {
-      if (Z_ANCHOR.test(str33))
+    function regex(str34) {
+      if (Z_ANCHOR.test(str34))
         return false;
       try {
-        new RegExp(str33);
+        new RegExp(str34);
         return true;
       } catch (e) {
         return false;
@@ -6796,12 +6796,12 @@ var require_dist = __commonJS({
         throw new Error(`Unknown format "${name}"`);
       return f;
     };
-    function addFormats(ajv, list2, fs24, exportName) {
+    function addFormats(ajv, list2, fs25, exportName) {
       var _a;
       var _b;
       (_a = (_b = ajv.opts.code).formats) !== null && _a !== void 0 ? _a : _b.formats = (0, codegen_1._)`require("ajv-formats/dist/formats").${exportName}`;
       for (const f of list2)
-        ajv.addFormat(f, fs24[f]);
+        ajv.addFormat(f, fs25[f]);
     }
     module.exports = exports2 = formatsPlugin;
     Object.defineProperty(exports2, "__esModule", { value: true });
@@ -6845,9 +6845,9 @@ function cacheInvalidateOrg(org) {
     }
   }
 }
-function queryCacheKey(query2, tooling2 = false) {
+function queryCacheKey(query2, tooling3 = false) {
   const normalised = query2.replace(/\s+/g, " ").trim();
-  return `${tooling2 ? "tooling" : "soql"}:${normalised}`;
+  return `${tooling3 ? "tooling" : "soql"}:${normalised}`;
 }
 function describeCacheKey(objectName) {
   return `describe:${objectName}`;
@@ -7343,8 +7343,8 @@ async function directToolingWrite(method, type, id2, body, org, fetcher, timeout
   if (!directEnabled(org) || !TOOLING_RECORD_TYPES.has(type)) return null;
   if (method === "POST" ? id2 !== null : !id2 || !/^[a-zA-Z0-9]{15,18}$/.test(id2)) return null;
   const version3 = await apiVersion(org, fetcher);
-  const path24 = `/services/data/v${version3}/tooling/sobjects/${type}${id2 ? `/${id2}` : ""}`;
-  const res = await getOnce(org, path24, fetcher, timeoutMs, {
+  const path25 = `/services/data/v${version3}/tooling/sobjects/${type}${id2 ? `/${id2}` : ""}`;
+  const res = await getOnce(org, path25, fetcher, timeoutMs, {
     method,
     body: method === "DELETE" ? void 0 : body,
     once: method === "POST"
@@ -8097,29 +8097,29 @@ var init_EntityDecoder = __esm({
        * @param {string} str
        * @returns {string}
        */
-      decode(str33) {
-        if (typeof str33 !== "string" || str33.length === 0) return str33;
-        if (str33.indexOf("&") === -1) return str33;
-        const original = str33;
-        const chunks7 = [];
-        const len = str33.length;
+      decode(str34) {
+        if (typeof str34 !== "string" || str34.length === 0) return str34;
+        if (str34.indexOf("&") === -1) return str34;
+        const original = str34;
+        const chunks8 = [];
+        const len = str34.length;
         let last = 0;
         let i = 0;
         const limitExpansions = this._maxTotalExpansions > 0;
         const limitLength = this._maxExpandedLength > 0;
         const checkLimits = limitExpansions || limitLength;
         while (i < len) {
-          if (str33.charCodeAt(i) !== 38) {
+          if (str34.charCodeAt(i) !== 38) {
             i++;
             continue;
           }
           let j = i + 1;
-          while (j < len && str33.charCodeAt(j) !== 59 && j - i <= 32) j++;
-          if (j >= len || str33.charCodeAt(j) !== 59) {
+          while (j < len && str34.charCodeAt(j) !== 59 && j - i <= 32) j++;
+          if (j >= len || str34.charCodeAt(j) !== 59) {
             i++;
             continue;
           }
-          const token = str33.slice(i + 1, j);
+          const token = str34.slice(i + 1, j);
           if (token.length === 0) {
             i++;
             continue;
@@ -8151,8 +8151,8 @@ var init_EntityDecoder = __esm({
             i++;
             continue;
           }
-          if (i > last) chunks7.push(str33.slice(last, i));
-          chunks7.push(replacement);
+          if (i > last) chunks8.push(str34.slice(last, i));
+          chunks8.push(replacement);
           last = j + 1;
           i = last;
           if (checkLimits && this._tierCounts(tier)) {
@@ -8177,8 +8177,8 @@ var init_EntityDecoder = __esm({
             }
           }
         }
-        if (last < len) chunks7.push(str33.slice(last));
-        const result2 = chunks7.length === 0 ? str33 : chunks7.join("");
+        if (last < len) chunks8.push(str34.slice(last));
+        const result2 = chunks8.length === 0 ? str34 : chunks8.join("");
         return this._postCheck(result2, original);
       }
       // -------------------------------------------------------------------------
@@ -8520,7 +8520,7 @@ var init_src2 = __esm({
       if (asciiOnly) return regexesAscii;
       return xmlVersion === "1.1" ? regexes11 : regexes10;
     };
-    qName = (str33, { xmlVersion = "1.0", asciiOnly = false } = {}) => getRegexes(xmlVersion, asciiOnly).qName.test(str33);
+    qName = (str34, { xmlVersion = "1.0", asciiOnly = false } = {}) => getRegexes(xmlVersion, asciiOnly).qName.test(str34);
   }
 });
 
@@ -8977,13 +8977,13 @@ var init_digitTable = __esm({
 });
 
 // node_modules/anynum/anynum.js
-function anynum(str33) {
-  if (typeof str33 !== "string") return str33;
-  const len = str33.length;
-  if (len === 0) return str33;
+function anynum(str34) {
+  if (typeof str34 !== "string") return str34;
+  const len = str34.length;
+  if (len === 0) return str34;
   let firstHit = -1;
   for (let i = 0; i < len; i++) {
-    const cc = str33.charCodeAt(i);
+    const cc = str34.charCodeAt(i);
     if (cc >= CHAR_0 && cc <= CHAR_9 || cc === CHAR_MINUS) continue;
     if (cc < TABLE_OFFSET) {
       if (MINUS_SET.has(cc)) {
@@ -8994,7 +8994,7 @@ function anynum(str33) {
     }
     if (cc >= 55296 && cc <= 56319) {
       if (i + 1 < len) {
-        const low = str33.charCodeAt(i + 1);
+        const low = str34.charCodeAt(i + 1);
         if (low >= 56320 && low <= 57343) {
           const cp = 65536 + (cc - 55296 << 10) + (low - 56320);
           if (HIGH_MAP.has(cp)) {
@@ -9010,22 +9010,22 @@ function anynum(str33) {
       break;
     }
   }
-  if (firstHit === -1) return str33;
+  if (firstHit === -1) return str34;
   const chars = [];
-  if (firstHit > 0) chars.push(str33.slice(0, firstHit));
+  if (firstHit > 0) chars.push(str34.slice(0, firstHit));
   for (let i = firstHit; i < len; i++) {
-    const cc = str33.charCodeAt(i);
+    const cc = str34.charCodeAt(i);
     if (cc >= CHAR_0 && cc <= CHAR_9 || cc === CHAR_MINUS) {
-      chars.push(str33[i]);
+      chars.push(str34[i]);
       continue;
     }
     if (cc < TABLE_OFFSET) {
-      chars.push(MINUS_SET.has(cc) ? "-" : str33[i]);
+      chars.push(MINUS_SET.has(cc) ? "-" : str34[i]);
       continue;
     }
     if (cc >= 55296 && cc <= 56319) {
       if (i + 1 < len) {
-        const low = str33.charCodeAt(i + 1);
+        const low = str34.charCodeAt(i + 1);
         if (low >= 56320 && low <= 57343) {
           const cp = 65536 + (cc - 55296 << 10) + (low - 56320);
           const d2 = HIGH_MAP.get(cp);
@@ -9036,7 +9036,7 @@ function anynum(str33) {
           }
         }
       }
-      chars.push(str33[i]);
+      chars.push(str34[i]);
       continue;
     }
     if (MINUS_SET.has(cc)) {
@@ -9044,7 +9044,7 @@ function anynum(str33) {
       continue;
     }
     const d = TABLE[cc - TABLE_OFFSET];
-    chars.push(d !== NOT_DIGIT ? String.fromCharCode(d + 48) : str33[i]);
+    chars.push(d !== NOT_DIGIT ? String.fromCharCode(d + 48) : str34[i]);
   }
   return chars.join("");
 }
@@ -9062,12 +9062,12 @@ var init_anynum = __esm({
 });
 
 // node_modules/strnum/strnum.js
-function toNumber(str33, options2 = {}) {
+function toNumber(str34, options2 = {}) {
   options2 = Object.assign({}, consider, options2);
-  if (!str33 || typeof str33 !== "string") return str33;
-  let trimmedStr = str33.trim();
-  if (trimmedStr.length === 0) return str33;
-  else if (options2.skipLike !== void 0 && options2.skipLike.test(trimmedStr)) return str33;
+  if (!str34 || typeof str34 !== "string") return str34;
+  let trimmedStr = str34.trim();
+  if (trimmedStr.length === 0) return str34;
+  else if (options2.skipLike !== void 0 && options2.skipLike.test(trimmedStr)) return str34;
   else if (trimmedStr === "0") return 0;
   if (options2.unicode) {
     trimmedStr = anynum_default(trimmedStr);
@@ -9081,10 +9081,10 @@ function toNumber(str33, options2 = {}) {
     return parse_int(trimmedStr, 8);
   } else if (!isFinite(trimmedStr)) {
     const num6 = Number(trimmedStr);
-    if (Number.isNaN(num6)) return str33;
-    return handleInfinity(str33, num6, options2);
+    if (Number.isNaN(num6)) return str34;
+    return handleInfinity(str34, num6, options2);
   } else if (trimmedStr.includes("e") || trimmedStr.includes("E")) {
-    return resolveEnotation(str33, trimmedStr, options2);
+    return resolveEnotation(str34, trimmedStr, options2);
   } else {
     const match = numRegex.exec(trimmedStr);
     if (match) {
@@ -9096,34 +9096,34 @@ function toNumber(str33, options2 = {}) {
         trimmedStr[leadingZeros.length + 1] === "."
       ) : trimmedStr[leadingZeros.length] === ".";
       if (!options2.leadingZeros && (leadingZeros.length > 1 || leadingZeros.length === 1 && !decimalAdjacentToLeadingZeros)) {
-        return str33;
+        return str34;
       } else {
         const num6 = Number(trimmedStr);
         const parsedStr = String(num6);
         if (num6 === 0) return num6;
         if (parsedStr.search(/[eE]/) !== -1) {
           if (options2.eNotation) return num6;
-          else return str33;
+          else return str34;
         } else if (trimmedStr.indexOf(".") !== -1) {
           if (parsedStr === "0") return num6;
           else if (parsedStr === numTrimmedByZeros) return num6;
           else if (parsedStr === `${sign}${numTrimmedByZeros}`) return num6;
-          else return str33;
+          else return str34;
         }
         let n2 = leadingZeros ? numTrimmedByZeros : trimmedStr;
         if (leadingZeros) {
-          return n2 === parsedStr || sign + n2 === parsedStr ? num6 : str33;
+          return n2 === parsedStr || sign + n2 === parsedStr ? num6 : str34;
         } else {
-          return n2 === parsedStr || n2 === sign + parsedStr ? num6 : str33;
+          return n2 === parsedStr || n2 === sign + parsedStr ? num6 : str34;
         }
       }
     } else {
-      return str33;
+      return str34;
     }
   }
 }
-function resolveEnotation(str33, trimmedStr, options2) {
-  if (!options2.eNotation) return str33;
+function resolveEnotation(str34, trimmedStr, options2) {
+  if (!options2.eNotation) return str34;
   const notation = trimmedStr.match(eNotationRegx);
   if (notation) {
     let sign = notation[1] || "";
@@ -9133,18 +9133,18 @@ function resolveEnotation(str33, trimmedStr, options2) {
       // 0E.
       trimmedStr[leadingZeros.length + 1] === eChar
     ) : trimmedStr[leadingZeros.length] === eChar;
-    if (leadingZeros.length > 1 && eAdjacentToLeadingZeros) return str33;
+    if (leadingZeros.length > 1 && eAdjacentToLeadingZeros) return str34;
     else if (leadingZeros.length === 1 && (notation[3].startsWith(`.${eChar}`) || notation[3][0] === eChar)) {
       return Number(trimmedStr);
     } else if (leadingZeros.length > 0) {
       if (options2.leadingZeros && !eAdjacentToLeadingZeros) {
         return Number(trimmedStr);
-      } else return str33;
+      } else return str34;
     } else {
       return Number(trimmedStr);
     }
   } else {
-    return str33;
+    return str34;
   }
 }
 function trimZeros(numStr) {
@@ -9160,14 +9160,14 @@ function trimZeros(numStr) {
   return numStr;
 }
 function parse_int(numStr, base2) {
-  const str33 = numStr.trim();
-  if (base2 === 2 || base2 === 8) numStr = str33.substring(2);
+  const str34 = numStr.trim();
+  if (base2 === 2 || base2 === 8) numStr = str34.substring(2);
   if (parseInt) return parseInt(numStr, base2);
   else if (Number.parseInt) return Number.parseInt(numStr, base2);
   else if (window && window.parseInt) return window.parseInt(numStr, base2);
   else throw new Error("parseInt, Number.parseInt, window.parseInt are not supported");
 }
-function handleInfinity(str33, num6, options2) {
+function handleInfinity(str34, num6, options2) {
   const isPositive = num6 === Infinity;
   switch (options2.infinity.toLowerCase()) {
     case "null":
@@ -9178,7 +9178,7 @@ function handleInfinity(str33, num6, options2) {
       return isPositive ? "Infinity" : "-Infinity";
     case "original":
     default:
-      return str33;
+      return str34;
   }
 }
 var hexRegex, binRegex, octRegex, numRegex, consider, eNotationRegx;
@@ -9594,16 +9594,16 @@ var init_Matcher = __esm({
        * @returns {string|undefined}
        */
       getCurrentTag() {
-        const path24 = this._matcher.path;
-        return path24.length > 0 ? path24[path24.length - 1].tag : void 0;
+        const path25 = this._matcher.path;
+        return path25.length > 0 ? path25[path25.length - 1].tag : void 0;
       }
       /**
        * Get current namespace.
        * @returns {string|undefined}
        */
       getCurrentNamespace() {
-        const path24 = this._matcher.path;
-        return path24.length > 0 ? path24[path24.length - 1].namespace : void 0;
+        const path25 = this._matcher.path;
+        return path25.length > 0 ? path25[path25.length - 1].namespace : void 0;
       }
       /**
        * Get current node's attribute value.
@@ -9611,9 +9611,9 @@ var init_Matcher = __esm({
        * @returns {*}
        */
       getAttrValue(attrName) {
-        const path24 = this._matcher.path;
-        if (path24.length === 0) return void 0;
-        return path24[path24.length - 1].values?.[attrName];
+        const path25 = this._matcher.path;
+        if (path25.length === 0) return void 0;
+        return path25[path25.length - 1].values?.[attrName];
       }
       /**
        * Check if current node has an attribute.
@@ -9621,9 +9621,9 @@ var init_Matcher = __esm({
        * @returns {boolean}
        */
       hasAttr(attrName) {
-        const path24 = this._matcher.path;
-        if (path24.length === 0) return false;
-        const current2 = path24[path24.length - 1];
+        const path25 = this._matcher.path;
+        if (path25.length === 0) return false;
+        const current2 = path25[path25.length - 1];
         return current2.values !== void 0 && attrName in current2.values;
       }
       /**
@@ -9649,18 +9649,18 @@ var init_Matcher = __esm({
        * @returns {number}
        */
       getPosition() {
-        const path24 = this._matcher.path;
-        if (path24.length === 0) return -1;
-        return path24[path24.length - 1].position ?? 0;
+        const path25 = this._matcher.path;
+        if (path25.length === 0) return -1;
+        return path25[path25.length - 1].position ?? 0;
       }
       /**
        * Get current node's repeat counter (occurrence count of this tag name).
        * @returns {number}
        */
       getCounter() {
-        const path24 = this._matcher.path;
-        if (path24.length === 0) return -1;
-        return path24[path24.length - 1].counter ?? 0;
+        const path25 = this._matcher.path;
+        if (path25.length === 0) return -1;
+        return path25[path25.length - 1].counter ?? 0;
       }
       /**
        * Get current node's sibling index (alias for getPosition).
@@ -11095,12 +11095,12 @@ function tagExpWithClosingIndex(xmlData, i, closingChar = ">") {
     }
   }
 }
-function findClosingIndex(xmlData, str33, i, errMsg) {
-  const closingIndex = xmlData.indexOf(str33, i);
+function findClosingIndex(xmlData, str34, i, errMsg) {
+  const closingIndex = xmlData.indexOf(str34, i);
   if (closingIndex === -1) {
     throw new Error(errMsg);
   } else {
-    return closingIndex + str33.length - 1;
+    return closingIndex + str34.length - 1;
   }
 }
 function findClosingChar(xmlData, char, i, errMsg) {
@@ -11807,8 +11807,8 @@ function fromParsed(p) {
   else node.children = raw.map(fromParsed).filter((n2) => !!n2);
   return node;
 }
-function parseXml2(xml) {
-  const roots = parser.parse(xml).map(fromParsed).filter((n2) => !!n2);
+function parseXml2(xml2) {
+  const roots = parser.parse(xml2).map(fromParsed).filter((n2) => !!n2);
   if (roots.length !== 1) throw new Error("Expected one root element in the metadata file.");
   return roots[0];
 }
@@ -12330,10 +12330,10 @@ function qualifyComponentNames(metadata) {
     }
   }
 }
-function xmlToToolingMetadata(type, xml) {
+function xmlToToolingMetadata(type, xml2) {
   try {
-    if (PADDED_TEXT.test(xml.replace(/^<\?xml[^>]*\?>/, ""))) return null;
-    const root2 = parseXml2(xml);
+    if (PADDED_TEXT.test(xml2.replace(/^<\?xml[^>]*\?>/, ""))) return null;
+    const root2 = parseXml2(xml2);
     const expected = type === "CustomApplication" ? "CustomApplication" : type;
     if (root2.tag !== expected) return null;
     const body = { ...root2, children: root2.children.filter((c) => c.tag !== "fullName") };
@@ -12769,7 +12769,7 @@ function nodeRequest(url, method, headers, body, req, redirectsLeft) {
           return;
         }
         const shaper = req.shaper;
-        const chunks7 = [];
+        const chunks8 = [];
         let wire = 0;
         const responseHeaders = {};
         for (const [k, v] of Object.entries(res.headers)) {
@@ -12780,7 +12780,7 @@ function nodeRequest(url, method, headers, body, req, redirectsLeft) {
         (async () => {
           for await (const chunk2 of res) {
             if (counter) await counter.write(chunk2);
-            else chunks7.push(chunk2);
+            else chunks8.push(chunk2);
             wire += chunk2.length;
             if (shaper) await shaper.down.takeSliced(chunk2.length);
           }
@@ -12797,7 +12797,7 @@ function nodeRequest(url, method, headers, body, req, redirectsLeft) {
             });
             return;
           }
-          const decoded = decodeBody(Buffer.concat(chunks7), responseHeaders["content-encoding"]);
+          const decoded = decodeBody(Buffer.concat(chunks8), responseHeaders["content-encoding"]);
           resolve4({
             status,
             headers: responseHeaders,
@@ -13513,16 +13513,16 @@ async function deleteMetadata(type, fullName, targetOrg) {
   );
   fs5.mkdirSync(dir, { recursive: true });
   const version3 = await orgApiVersion(targetOrg);
-  const xml = (body) => `<?xml version="1.0" encoding="UTF-8"?>
+  const xml2 = (body) => `<?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
 ${body}    <version>${version3}</version>
 </Package>
 `;
   const escaped = fullName.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  fs5.writeFileSync(path4.join(dir, "package.xml"), xml(""));
+  fs5.writeFileSync(path4.join(dir, "package.xml"), xml2(""));
   fs5.writeFileSync(
     path4.join(dir, "destructiveChanges.xml"),
-    xml(
+    xml2(
       `    <types>
         <members>${escaped}</members>
         <name>${type}</name>
@@ -13947,9 +13947,9 @@ var init_cli = __esm({
 
 // src/tools/helpers.ts
 function chunkIds(ids, size = ID_CHUNK_SIZE) {
-  const chunks7 = [];
-  for (let i = 0; i < ids.length; i += size) chunks7.push(ids.slice(i, i + size));
-  return chunks7;
+  const chunks8 = [];
+  for (let i = 0; i < ids.length; i += size) chunks8.push(ids.slice(i, i + size));
+  return chunks8;
 }
 async function queryAssignments(recordIds, targetOrg, strict = false) {
   const result2 = /* @__PURE__ */ new Map();
@@ -14206,17 +14206,17 @@ var require_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP;
     visit.REMOVE = REMOVE;
-    function visit_(key5, node, visitor, path24) {
-      const ctrl = callVisitor(key5, node, visitor, path24);
+    function visit_(key5, node, visitor, path25) {
+      const ctrl = callVisitor(key5, node, visitor, path25);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key5, path24, ctrl);
-        return visit_(key5, ctrl, visitor, path24);
+        replaceNode(key5, path25, ctrl);
+        return visit_(key5, ctrl, visitor, path25);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path24 = Object.freeze(path24.concat(node));
+          path25 = Object.freeze(path25.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci2 = visit_(i, node.items[i], visitor, path24);
+            const ci2 = visit_(i, node.items[i], visitor, path25);
             if (typeof ci2 === "number")
               i = ci2 - 1;
             else if (ci2 === BREAK)
@@ -14227,13 +14227,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path24 = Object.freeze(path24.concat(node));
-          const ck = visit_("key", node.key, visitor, path24);
+          path25 = Object.freeze(path25.concat(node));
+          const ck = visit_("key", node.key, visitor, path25);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = visit_("value", node.value, visitor, path24);
+          const cv = visit_("value", node.value, visitor, path25);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -14254,17 +14254,17 @@ var require_visit = __commonJS({
     visitAsync.BREAK = BREAK;
     visitAsync.SKIP = SKIP;
     visitAsync.REMOVE = REMOVE;
-    async function visitAsync_(key5, node, visitor, path24) {
-      const ctrl = await callVisitor(key5, node, visitor, path24);
+    async function visitAsync_(key5, node, visitor, path25) {
+      const ctrl = await callVisitor(key5, node, visitor, path25);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key5, path24, ctrl);
-        return visitAsync_(key5, ctrl, visitor, path24);
+        replaceNode(key5, path25, ctrl);
+        return visitAsync_(key5, ctrl, visitor, path25);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path24 = Object.freeze(path24.concat(node));
+          path25 = Object.freeze(path25.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci2 = await visitAsync_(i, node.items[i], visitor, path24);
+            const ci2 = await visitAsync_(i, node.items[i], visitor, path25);
             if (typeof ci2 === "number")
               i = ci2 - 1;
             else if (ci2 === BREAK)
@@ -14275,13 +14275,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path24 = Object.freeze(path24.concat(node));
-          const ck = await visitAsync_("key", node.key, visitor, path24);
+          path25 = Object.freeze(path25.concat(node));
+          const ck = await visitAsync_("key", node.key, visitor, path25);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = await visitAsync_("value", node.value, visitor, path24);
+          const cv = await visitAsync_("value", node.value, visitor, path25);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -14308,23 +14308,23 @@ var require_visit = __commonJS({
       }
       return visitor;
     }
-    function callVisitor(key5, node, visitor, path24) {
+    function callVisitor(key5, node, visitor, path25) {
       if (typeof visitor === "function")
-        return visitor(key5, node, path24);
+        return visitor(key5, node, path25);
       if (identity.isMap(node))
-        return visitor.Map?.(key5, node, path24);
+        return visitor.Map?.(key5, node, path25);
       if (identity.isSeq(node))
-        return visitor.Seq?.(key5, node, path24);
+        return visitor.Seq?.(key5, node, path25);
       if (identity.isPair(node))
-        return visitor.Pair?.(key5, node, path24);
+        return visitor.Pair?.(key5, node, path25);
       if (identity.isScalar(node))
-        return visitor.Scalar?.(key5, node, path24);
+        return visitor.Scalar?.(key5, node, path25);
       if (identity.isAlias(node))
-        return visitor.Alias?.(key5, node, path24);
+        return visitor.Alias?.(key5, node, path25);
       return void 0;
     }
-    function replaceNode(key5, path24, node) {
-      const parent = path24[path24.length - 1];
+    function replaceNode(key5, path25, node) {
+      const parent = path25[path25.length - 1];
       if (identity.isCollection(parent)) {
         parent.items[key5] = node;
       } else if (identity.isPair(parent)) {
@@ -14932,10 +14932,10 @@ var require_Collection = __commonJS({
     var createNode = require_createNode();
     var identity = require_identity();
     var Node3 = require_Node();
-    function collectionFromPath(schema, path24, value4) {
+    function collectionFromPath(schema, path25, value4) {
       let v = value4;
-      for (let i = path24.length - 1; i >= 0; --i) {
-        const k = path24[i];
+      for (let i = path25.length - 1; i >= 0; --i) {
+        const k = path25[i];
         if (typeof k === "number" && Number.isInteger(k) && k >= 0) {
           const a = [];
           a[k] = v;
@@ -14954,7 +14954,7 @@ var require_Collection = __commonJS({
         sourceObjects: /* @__PURE__ */ new Map()
       });
     }
-    var isEmptyPath = (path24) => path24 == null || typeof path24 === "object" && !!path24[Symbol.iterator]().next().done;
+    var isEmptyPath = (path25) => path25 == null || typeof path25 === "object" && !!path25[Symbol.iterator]().next().done;
     var Collection = class extends Node3.NodeBase {
       constructor(type, schema) {
         super(type);
@@ -14984,11 +14984,11 @@ var require_Collection = __commonJS({
        * be a Pair instance or a `{ key, value }` object, which may not have a key
        * that already exists in the map.
        */
-      addIn(path24, value4) {
-        if (isEmptyPath(path24))
+      addIn(path25, value4) {
+        if (isEmptyPath(path25))
           this.add(value4);
         else {
-          const [key5, ...rest] = path24;
+          const [key5, ...rest] = path25;
           const node = this.get(key5, true);
           if (identity.isCollection(node))
             node.addIn(rest, value4);
@@ -15002,8 +15002,8 @@ var require_Collection = __commonJS({
        * Removes a value from the collection.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path24) {
-        const [key5, ...rest] = path24;
+      deleteIn(path25) {
+        const [key5, ...rest] = path25;
         if (rest.length === 0)
           return this.delete(key5);
         const node = this.get(key5, true);
@@ -15017,8 +15017,8 @@ var require_Collection = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path24, keepScalar) {
-        const [key5, ...rest] = path24;
+      getIn(path25, keepScalar) {
+        const [key5, ...rest] = path25;
         const node = this.get(key5, true);
         if (rest.length === 0)
           return !keepScalar && identity.isScalar(node) ? node.value : node;
@@ -15036,8 +15036,8 @@ var require_Collection = __commonJS({
       /**
        * Checks if the collection includes a value with the key `key`.
        */
-      hasIn(path24) {
-        const [key5, ...rest] = path24;
+      hasIn(path25) {
+        const [key5, ...rest] = path25;
         if (rest.length === 0)
           return this.has(key5);
         const node = this.get(key5, true);
@@ -15047,8 +15047,8 @@ var require_Collection = __commonJS({
        * Sets a value in this collection. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path24, value4) {
-        const [key5, ...rest] = path24;
+      setIn(path25, value4) {
+        const [key5, ...rest] = path25;
         if (rest.length === 0) {
           this.set(key5, value4);
         } else {
@@ -15072,13 +15072,13 @@ var require_Collection = __commonJS({
 var require_stringifyComment = __commonJS({
   "node_modules/yaml/dist/stringify/stringifyComment.js"(exports2) {
     "use strict";
-    var stringifyComment = (str33) => str33.replace(/^(?!$)(?: $)?/gm, "#");
+    var stringifyComment = (str34) => str34.replace(/^(?!$)(?: $)?/gm, "#");
     function indentComment(comment, indent) {
       if (/^\n+$/.test(comment))
         return comment.substring(1);
       return indent ? comment.replace(/^(?! *$)/gm, indent) : comment;
     }
-    var lineComment = (str33, indent, comment) => str33.endsWith("\n") ? indentComment(comment, indent) : comment.includes("\n") ? "\n" + indentComment(comment, indent) : (str33.endsWith(" ") ? "" : " ") + comment;
+    var lineComment = (str34, indent, comment) => str34.endsWith("\n") ? indentComment(comment, indent) : comment.includes("\n") ? "\n" + indentComment(comment, indent) : (str34.endsWith(" ") ? "" : " ") + comment;
     exports2.indentComment = indentComment;
     exports2.lineComment = lineComment;
     exports2.stringifyComment = stringifyComment;
@@ -15232,16 +15232,16 @@ var require_stringifyString = __commonJS({
       lineWidth: ctx.options.lineWidth,
       minContentWidth: ctx.options.minContentWidth
     });
-    var containsDocumentMarker = (str33) => /^(%|---|\.\.\.)/m.test(str33);
-    function lineLengthOverLimit(str33, lineWidth, indentLength) {
+    var containsDocumentMarker = (str34) => /^(%|---|\.\.\.)/m.test(str34);
+    function lineLengthOverLimit(str34, lineWidth, indentLength) {
       if (!lineWidth || lineWidth < 0)
         return false;
       const limit = lineWidth - indentLength;
-      const strLen = str33.length;
+      const strLen = str34.length;
       if (strLen <= limit)
         return false;
       for (let i = 0, start = 0; i < strLen; ++i) {
-        if (str33[i] === "\n") {
+        if (str34[i] === "\n") {
           if (i - start > limit)
             return true;
           start = i + 1;
@@ -15258,11 +15258,11 @@ var require_stringifyString = __commonJS({
       const { implicitKey } = ctx;
       const minMultiLineLength = ctx.options.doubleQuotedMinMultiLineLength;
       const indent = ctx.indent || (containsDocumentMarker(value4) ? "  " : "");
-      let str33 = "";
+      let str34 = "";
       let start = 0;
       for (let i = 0, ch = json2[i]; ch; ch = json2[++i]) {
         if (ch === " " && json2[i + 1] === "\\" && json2[i + 2] === "n") {
-          str33 += json2.slice(start, i) + "\\ ";
+          str34 += json2.slice(start, i) + "\\ ";
           i += 1;
           start = i;
           ch = "\\";
@@ -15271,38 +15271,38 @@ var require_stringifyString = __commonJS({
           switch (json2[i + 1]) {
             case "u":
               {
-                str33 += json2.slice(start, i);
+                str34 += json2.slice(start, i);
                 const code = json2.substr(i + 2, 4);
                 switch (code) {
                   case "0000":
-                    str33 += "\\0";
+                    str34 += "\\0";
                     break;
                   case "0007":
-                    str33 += "\\a";
+                    str34 += "\\a";
                     break;
                   case "000b":
-                    str33 += "\\v";
+                    str34 += "\\v";
                     break;
                   case "001b":
-                    str33 += "\\e";
+                    str34 += "\\e";
                     break;
                   case "0085":
-                    str33 += "\\N";
+                    str34 += "\\N";
                     break;
                   case "00a0":
-                    str33 += "\\_";
+                    str34 += "\\_";
                     break;
                   case "2028":
-                    str33 += "\\L";
+                    str34 += "\\L";
                     break;
                   case "2029":
-                    str33 += "\\P";
+                    str34 += "\\P";
                     break;
                   default:
                     if (code.substr(0, 2) === "00")
-                      str33 += "\\x" + code.substr(2);
+                      str34 += "\\x" + code.substr(2);
                     else
-                      str33 += json2.substr(i, 6);
+                      str34 += json2.substr(i, 6);
                 }
                 i += 5;
                 start = i + 1;
@@ -15312,14 +15312,14 @@ var require_stringifyString = __commonJS({
               if (implicitKey || json2[i + 2] === '"' || json2.length < minMultiLineLength) {
                 i += 1;
               } else {
-                str33 += json2.slice(start, i) + "\n\n";
+                str34 += json2.slice(start, i) + "\n\n";
                 while (json2[i + 2] === "\\" && json2[i + 3] === "n" && json2[i + 4] !== '"') {
-                  str33 += "\n";
+                  str34 += "\n";
                   i += 2;
                 }
-                str33 += indent;
+                str34 += indent;
                 if (json2[i + 2] === " ")
-                  str33 += "\\";
+                  str34 += "\\";
                 i += 1;
                 start = i + 1;
               }
@@ -15328,8 +15328,8 @@ var require_stringifyString = __commonJS({
               i += 1;
           }
       }
-      str33 = start ? str33 + json2.slice(start) : json2;
-      return implicitKey ? str33 : foldFlowLines.foldFlowLines(str33, indent, foldFlowLines.FOLD_QUOTED, getFoldOptions(ctx, false));
+      str34 = start ? str34 + json2.slice(start) : json2;
+      return implicitKey ? str34 : foldFlowLines.foldFlowLines(str34, indent, foldFlowLines.FOLD_QUOTED, getFoldOptions(ctx, false));
     }
     function singleQuotedString(value4, ctx) {
       if (ctx.options.singleQuote === false || ctx.implicitKey && value4.includes("\n") || /[ \t]\n|\n[ \t]/.test(value4))
@@ -15457,15 +15457,15 @@ ${indent}${start}${value4}${end}`;
           return quotedString(value4, ctx);
         }
       }
-      const str33 = value4.replace(/\n+/g, `$&
+      const str34 = value4.replace(/\n+/g, `$&
 ${indent}`);
       if (actualString) {
-        const test = (tag) => tag.default && tag.tag !== "tag:yaml.org,2002:str" && tag.test?.test(str33);
+        const test = (tag) => tag.default && tag.tag !== "tag:yaml.org,2002:str" && tag.test?.test(str34);
         const { compat, tags } = ctx.doc.schema;
         if (tags.some(test) || compat?.some(test))
           return quotedString(value4, ctx);
       }
-      return implicitKey ? str33 : foldFlowLines.foldFlowLines(str33, indent, foldFlowLines.FOLD_FLOW, getFoldOptions(ctx, false));
+      return implicitKey ? str34 : foldFlowLines.foldFlowLines(str34, indent, foldFlowLines.FOLD_FLOW, getFoldOptions(ctx, false));
     }
     function stringifyString(item2, ctx, onComment, onChompKeep) {
       const { implicitKey, inFlow } = ctx;
@@ -15616,11 +15616,11 @@ var require_stringify = __commonJS({
       const props = stringifyProps(node, tagObj, ctx);
       if (props.length > 0)
         ctx.indentAtStart = (ctx.indentAtStart ?? 0) + props.length + 1;
-      const str33 = typeof tagObj.stringify === "function" ? tagObj.stringify(node, ctx, onComment, onChompKeep) : identity.isScalar(node) ? stringifyString.stringifyString(node, ctx, onComment, onChompKeep) : node.toString(ctx, onComment, onChompKeep);
+      const str34 = typeof tagObj.stringify === "function" ? tagObj.stringify(node, ctx, onComment, onChompKeep) : identity.isScalar(node) ? stringifyString.stringifyString(node, ctx, onComment, onChompKeep) : node.toString(ctx, onComment, onChompKeep);
       if (!props)
-        return str33;
-      return identity.isScalar(node) || str33[0] === "{" || str33[0] === "[" ? `${props} ${str33}` : `${props}
-${ctx.indent}${str33}`;
+        return str34;
+      return identity.isScalar(node) || str34[0] === "{" || str34[0] === "[" ? `${props} ${str34}` : `${props}
+${ctx.indent}${str34}`;
     }
     exports2.createStringifyContext = createStringifyContext;
     exports2.stringify = stringify;
@@ -15655,8 +15655,8 @@ var require_stringifyPair = __commonJS({
       });
       let keyCommentDone = false;
       let chompKeep = false;
-      let str33 = stringify.stringify(key5, ctx, () => keyCommentDone = true, () => chompKeep = true);
-      if (!explicitKey && !ctx.inFlow && str33.length > 1024) {
+      let str34 = stringify.stringify(key5, ctx, () => keyCommentDone = true, () => chompKeep = true);
+      if (!explicitKey && !ctx.inFlow && str34.length > 1024) {
         if (simpleKeys)
           throw new Error("With simple keys, single line scalar must not span more than 1024 characters");
         explicitKey = true;
@@ -15665,27 +15665,27 @@ var require_stringifyPair = __commonJS({
         if (allNullValues || value4 == null) {
           if (keyCommentDone && onComment)
             onComment();
-          return str33 === "" ? "?" : explicitKey ? `? ${str33}` : str33;
+          return str34 === "" ? "?" : explicitKey ? `? ${str34}` : str34;
         }
       } else if (allNullValues && !simpleKeys || value4 == null && explicitKey) {
-        str33 = `? ${str33}`;
+        str34 = `? ${str34}`;
         if (keyComment && !keyCommentDone) {
-          str33 += stringifyComment.lineComment(str33, ctx.indent, commentString(keyComment));
+          str34 += stringifyComment.lineComment(str34, ctx.indent, commentString(keyComment));
         } else if (chompKeep && onChompKeep)
           onChompKeep();
-        return str33;
+        return str34;
       }
       if (keyCommentDone)
         keyComment = null;
       if (explicitKey) {
         if (keyComment)
-          str33 += stringifyComment.lineComment(str33, ctx.indent, commentString(keyComment));
-        str33 = `? ${str33}
+          str34 += stringifyComment.lineComment(str34, ctx.indent, commentString(keyComment));
+        str34 = `? ${str34}
 ${indent}:`;
       } else {
-        str33 = `${str33}:`;
+        str34 = `${str34}:`;
         if (keyComment)
-          str33 += stringifyComment.lineComment(str33, ctx.indent, commentString(keyComment));
+          str34 += stringifyComment.lineComment(str34, ctx.indent, commentString(keyComment));
       }
       let vsb, vcb, valueComment;
       if (identity.isNode(value4)) {
@@ -15701,7 +15701,7 @@ ${indent}:`;
       }
       ctx.implicitKey = false;
       if (!explicitKey && !keyComment && identity.isScalar(value4))
-        ctx.indentAtStart = str33.length + 1;
+        ctx.indentAtStart = str34.length + 1;
       chompKeep = false;
       if (!indentSeq && indentStep.length >= 2 && !ctx.inFlow && !explicitKey && identity.isSeq(value4) && !value4.flow && !value4.tag && !value4.anchor) {
         ctx.indent = ctx.indent.substring(2);
@@ -15745,16 +15745,16 @@ ${ctx.indent}`;
       } else if (valueStr === "" || valueStr[0] === "\n") {
         ws = "";
       }
-      str33 += ws + valueStr;
+      str34 += ws + valueStr;
       if (ctx.inFlow) {
         if (valueCommentDone && onComment)
           onComment();
       } else if (valueComment && !valueCommentDone) {
-        str33 += stringifyComment.lineComment(str33, ctx.indent, commentString(valueComment));
+        str34 += stringifyComment.lineComment(str34, ctx.indent, commentString(valueComment));
       } else if (chompKeep && onChompKeep) {
         onChompKeep();
       }
-      return str33;
+      return str34;
     }
     exports2.stringifyPair = stringifyPair;
   }
@@ -15978,31 +15978,31 @@ var require_stringifyCollection = __commonJS({
           }
         }
         chompKeep = false;
-        let str34 = stringify.stringify(item2, itemCtx, () => comment2 = null, () => chompKeep = true);
+        let str35 = stringify.stringify(item2, itemCtx, () => comment2 = null, () => chompKeep = true);
         if (comment2)
-          str34 += stringifyComment.lineComment(str34, itemIndent, commentString(comment2));
+          str35 += stringifyComment.lineComment(str35, itemIndent, commentString(comment2));
         if (chompKeep && comment2)
           chompKeep = false;
-        lines2.push(blockItemPrefix + str34);
+        lines2.push(blockItemPrefix + str35);
       }
-      let str33;
+      let str34;
       if (lines2.length === 0) {
-        str33 = flowChars.start + flowChars.end;
+        str34 = flowChars.start + flowChars.end;
       } else {
-        str33 = lines2[0];
+        str34 = lines2[0];
         for (let i = 1; i < lines2.length; ++i) {
           const line = lines2[i];
-          str33 += line ? `
+          str34 += line ? `
 ${indent}${line}` : "\n";
         }
       }
       if (comment) {
-        str33 += "\n" + stringifyComment.indentComment(commentString(comment), indent);
+        str34 += "\n" + stringifyComment.indentComment(commentString(comment), indent);
         if (onComment)
           onComment();
       } else if (chompKeep && onChompKeep)
         onChompKeep();
-      return str33;
+      return str34;
     }
     function stringifyFlowCollection({ items }, ctx, { flowChars, itemIndent }) {
       const { indent, indentStep, flowCollectionPadding: fcPadding, options: { commentString } } = ctx;
@@ -16045,14 +16045,14 @@ ${indent}${line}` : "\n";
         }
         if (comment)
           reqNewline = true;
-        let str33 = stringify.stringify(item2, itemCtx, () => comment = null);
+        let str34 = stringify.stringify(item2, itemCtx, () => comment = null);
         if (i < items.length - 1)
-          str33 += ",";
+          str34 += ",";
         if (comment)
-          str33 += stringifyComment.lineComment(str33, itemIndent, commentString(comment));
-        if (!reqNewline && (lines2.length > linesAtValue || str33.includes("\n")))
+          str34 += stringifyComment.lineComment(str34, itemIndent, commentString(comment));
+        if (!reqNewline && (lines2.length > linesAtValue || str34.includes("\n")))
           reqNewline = true;
-        lines2.push(str33);
+        lines2.push(str34);
         linesAtValue = lines2.length;
       }
       const { start, end } = flowChars;
@@ -16064,11 +16064,11 @@ ${indent}${line}` : "\n";
           reqNewline = ctx.options.lineWidth > 0 && len > ctx.options.lineWidth;
         }
         if (reqNewline) {
-          let str33 = start;
+          let str34 = start;
           for (const line of lines2)
-            str33 += line ? `
+            str34 += line ? `
 ${indentStep}${indent}${line}` : "\n";
-          return `${str33}
+          return `${str34}
 ${indent}${end}`;
         } else {
           return `${start}${fcPadding}${lines2.join(" ")}${fcPadding}${end}`;
@@ -16400,7 +16400,7 @@ var require_string = __commonJS({
       identify: (value4) => typeof value4 === "string",
       default: true,
       tag: "tag:yaml.org,2002:str",
-      resolve: (str33) => str33,
+      resolve: (str34) => str34,
       stringify(item2, ctx, onComment, onChompKeep) {
         ctx = Object.assign({ actualString: true }, ctx);
         return stringifyString.stringifyString(item2, ctx, onComment, onChompKeep);
@@ -16438,7 +16438,7 @@ var require_bool = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:bool",
       test: /^(?:[Tt]rue|TRUE|[Ff]alse|FALSE)$/,
-      resolve: (str33) => new Scalar.Scalar(str33[0] === "t" || str33[0] === "T"),
+      resolve: (str34) => new Scalar.Scalar(str34[0] === "t" || str34[0] === "T"),
       stringify({ source, value: value4 }, ctx) {
         if (source && boolTag.test.test(source)) {
           const sv = source[0] === "t" || source[0] === "T";
@@ -16490,7 +16490,7 @@ var require_float = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^(?:[-+]?\.(?:inf|Inf|INF)|\.nan|\.NaN|\.NAN)$/,
-      resolve: (str33) => str33.slice(-3).toLowerCase() === "nan" ? NaN : str33[0] === "-" ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
+      resolve: (str34) => str34.slice(-3).toLowerCase() === "nan" ? NaN : str34[0] === "-" ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
       stringify: stringifyNumber.stringifyNumber
     };
     var floatExp = {
@@ -16499,7 +16499,7 @@ var require_float = __commonJS({
       tag: "tag:yaml.org,2002:float",
       format: "EXP",
       test: /^[-+]?(?:\.[0-9]+|[0-9]+(?:\.[0-9]*)?)[eE][-+]?[0-9]+$/,
-      resolve: (str33) => parseFloat(str33),
+      resolve: (str34) => parseFloat(str34),
       stringify(node) {
         const num6 = Number(node.value);
         return isFinite(num6) ? num6.toExponential() : stringifyNumber.stringifyNumber(node);
@@ -16510,11 +16510,11 @@ var require_float = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^[-+]?(?:\.[0-9]+|[0-9]+\.[0-9]*)$/,
-      resolve(str33) {
-        const node = new Scalar.Scalar(parseFloat(str33));
-        const dot = str33.indexOf(".");
-        if (dot !== -1 && str33[str33.length - 1] === "0")
-          node.minFractionDigits = str33.length - dot - 1;
+      resolve(str34) {
+        const node = new Scalar.Scalar(parseFloat(str34));
+        const dot = str34.indexOf(".");
+        if (dot !== -1 && str34[str34.length - 1] === "0")
+          node.minFractionDigits = str34.length - dot - 1;
         return node;
       },
       stringify: stringifyNumber.stringifyNumber
@@ -16531,7 +16531,7 @@ var require_int = __commonJS({
     "use strict";
     var stringifyNumber = require_stringifyNumber();
     var intIdentify = (value4) => typeof value4 === "bigint" || Number.isInteger(value4);
-    var intResolve = (str33, offset2, radix, { intAsBigInt }) => intAsBigInt ? BigInt(str33) : parseInt(str33.substring(offset2), radix);
+    var intResolve = (str34, offset2, radix, { intAsBigInt }) => intAsBigInt ? BigInt(str34) : parseInt(str34.substring(offset2), radix);
     function intStringify(node, radix, prefix) {
       const { value: value4 } = node;
       if (intIdentify(value4) && value4 >= 0)
@@ -16544,7 +16544,7 @@ var require_int = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "OCT",
       test: /^0o[0-7]+$/,
-      resolve: (str33, _onError, opt) => intResolve(str33, 2, 8, opt),
+      resolve: (str34, _onError, opt) => intResolve(str34, 2, 8, opt),
       stringify: (node) => intStringify(node, 8, "0o")
     };
     var int4 = {
@@ -16552,7 +16552,7 @@ var require_int = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:int",
       test: /^[-+]?[0-9]+$/,
-      resolve: (str33, _onError, opt) => intResolve(str33, 0, 10, opt),
+      resolve: (str34, _onError, opt) => intResolve(str34, 0, 10, opt),
       stringify: stringifyNumber.stringifyNumber
     };
     var intHex = {
@@ -16561,7 +16561,7 @@ var require_int = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "HEX",
       test: /^0x[0-9a-fA-F]+$/,
-      resolve: (str33, _onError, opt) => intResolve(str33, 2, 16, opt),
+      resolve: (str34, _onError, opt) => intResolve(str34, 2, 16, opt),
       stringify: (node) => intStringify(node, 16, "0x")
     };
     exports2.int = int4;
@@ -16614,7 +16614,7 @@ var require_schema2 = __commonJS({
         identify: (value4) => typeof value4 === "string",
         default: true,
         tag: "tag:yaml.org,2002:str",
-        resolve: (str33) => str33,
+        resolve: (str34) => str34,
         stringify: stringifyJSON
       },
       {
@@ -16631,7 +16631,7 @@ var require_schema2 = __commonJS({
         default: true,
         tag: "tag:yaml.org,2002:bool",
         test: /^true$|^false$/,
-        resolve: (str33) => str33 === "true",
+        resolve: (str34) => str34 === "true",
         stringify: stringifyJSON
       },
       {
@@ -16639,7 +16639,7 @@ var require_schema2 = __commonJS({
         default: true,
         tag: "tag:yaml.org,2002:int",
         test: /^-?(?:0|[1-9][0-9]*)$/,
-        resolve: (str33, _onError, { intAsBigInt }) => intAsBigInt ? BigInt(str33) : parseInt(str33, 10),
+        resolve: (str34, _onError, { intAsBigInt }) => intAsBigInt ? BigInt(str34) : parseInt(str34, 10),
         stringify: ({ value: value4 }) => intIdentify(value4) ? value4.toString() : JSON.stringify(value4)
       },
       {
@@ -16647,7 +16647,7 @@ var require_schema2 = __commonJS({
         default: true,
         tag: "tag:yaml.org,2002:float",
         test: /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]*)?(?:[eE][-+]?[0-9]+)?$/,
-        resolve: (str33) => parseFloat(str33),
+        resolve: (str34) => parseFloat(str34),
         stringify: stringifyJSON
       }
     ];
@@ -16655,9 +16655,9 @@ var require_schema2 = __commonJS({
       default: true,
       tag: "",
       test: /^/,
-      resolve(str33, onError) {
-        onError(`Unresolved plain scalar ${JSON.stringify(str33)}`);
-        return str33;
+      resolve(str34, onError) {
+        onError(`Unresolved plain scalar ${JSON.stringify(str34)}`);
+        return str34;
       }
     };
     var schema = [map.map, seq.seq].concat(jsonScalars, jsonError2);
@@ -16689,10 +16689,10 @@ var require_binary = __commonJS({
         if (typeof node_buffer.Buffer === "function") {
           return node_buffer.Buffer.from(src, "base64");
         } else if (typeof atob === "function") {
-          const str33 = atob(src.replace(/[\n\r]/g, ""));
-          const buffer = new Uint8Array(str33.length);
-          for (let i = 0; i < str33.length; ++i)
-            buffer[i] = str33.charCodeAt(i);
+          const str34 = atob(src.replace(/[\n\r]/g, ""));
+          const buffer = new Uint8Array(str34.length);
+          for (let i = 0; i < str34.length; ++i)
+            buffer[i] = str34.charCodeAt(i);
           return buffer;
         } else {
           onError("This environment does not support reading binary tags; either Buffer or atob is required");
@@ -16703,28 +16703,28 @@ var require_binary = __commonJS({
         if (!value4)
           return "";
         const buf = value4;
-        let str33;
+        let str34;
         if (typeof node_buffer.Buffer === "function") {
-          str33 = buf instanceof node_buffer.Buffer ? buf.toString("base64") : node_buffer.Buffer.from(buf.buffer).toString("base64");
+          str34 = buf instanceof node_buffer.Buffer ? buf.toString("base64") : node_buffer.Buffer.from(buf.buffer).toString("base64");
         } else if (typeof btoa === "function") {
           let s11 = "";
           for (let i = 0; i < buf.length; ++i)
             s11 += String.fromCharCode(buf[i]);
-          str33 = btoa(s11);
+          str34 = btoa(s11);
         } else {
           throw new Error("This environment does not support writing binary tags; either Buffer or btoa is required");
         }
         type ?? (type = Scalar.Scalar.BLOCK_LITERAL);
         if (type !== Scalar.Scalar.QUOTE_DOUBLE) {
           const lineWidth = Math.max(ctx.options.lineWidth - ctx.indent.length, ctx.options.minContentWidth);
-          const n2 = Math.ceil(str33.length / lineWidth);
+          const n2 = Math.ceil(str34.length / lineWidth);
           const lines2 = new Array(n2);
           for (let i = 0, o = 0; i < n2; ++i, o += lineWidth) {
-            lines2[i] = str33.substr(o, lineWidth);
+            lines2[i] = str34.substr(o, lineWidth);
           }
-          str33 = lines2.join(type === Scalar.Scalar.BLOCK_LITERAL ? "\n" : " ");
+          str34 = lines2.join(type === Scalar.Scalar.BLOCK_LITERAL ? "\n" : " ");
         }
-        return stringifyString.stringifyString({ comment, type, value: str33 }, ctx, onComment, onChompKeep);
+        return stringifyString.stringifyString({ comment, type, value: str34 }, ctx, onComment, onChompKeep);
       }
     };
     exports2.binary = binary;
@@ -16930,7 +16930,7 @@ var require_float2 = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^(?:[-+]?\.(?:inf|Inf|INF)|\.nan|\.NaN|\.NAN)$/,
-      resolve: (str33) => str33.slice(-3).toLowerCase() === "nan" ? NaN : str33[0] === "-" ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
+      resolve: (str34) => str34.slice(-3).toLowerCase() === "nan" ? NaN : str34[0] === "-" ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
       stringify: stringifyNumber.stringifyNumber
     };
     var floatExp = {
@@ -16939,7 +16939,7 @@ var require_float2 = __commonJS({
       tag: "tag:yaml.org,2002:float",
       format: "EXP",
       test: /^[-+]?(?:[0-9][0-9_]*)?(?:\.[0-9_]*)?[eE][-+]?[0-9]+$/,
-      resolve: (str33) => parseFloat(str33.replace(/_/g, "")),
+      resolve: (str34) => parseFloat(str34.replace(/_/g, "")),
       stringify(node) {
         const num6 = Number(node.value);
         return isFinite(num6) ? num6.toExponential() : stringifyNumber.stringifyNumber(node);
@@ -16950,11 +16950,11 @@ var require_float2 = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^[-+]?(?:[0-9][0-9_]*)?\.[0-9_]*$/,
-      resolve(str33) {
-        const node = new Scalar.Scalar(parseFloat(str33.replace(/_/g, "")));
-        const dot = str33.indexOf(".");
+      resolve(str34) {
+        const node = new Scalar.Scalar(parseFloat(str34.replace(/_/g, "")));
+        const dot = str34.indexOf(".");
         if (dot !== -1) {
-          const f = str33.substring(dot + 1).replace(/_/g, "");
+          const f = str34.substring(dot + 1).replace(/_/g, "");
           if (f[f.length - 1] === "0")
             node.minFractionDigits = f.length;
         }
@@ -16974,34 +16974,34 @@ var require_int2 = __commonJS({
     "use strict";
     var stringifyNumber = require_stringifyNumber();
     var intIdentify = (value4) => typeof value4 === "bigint" || Number.isInteger(value4);
-    function intResolve(str33, offset2, radix, { intAsBigInt }) {
-      const sign = str33[0];
+    function intResolve(str34, offset2, radix, { intAsBigInt }) {
+      const sign = str34[0];
       if (sign === "-" || sign === "+")
         offset2 += 1;
-      str33 = str33.substring(offset2).replace(/_/g, "");
+      str34 = str34.substring(offset2).replace(/_/g, "");
       if (intAsBigInt) {
         switch (radix) {
           case 2:
-            str33 = `0b${str33}`;
+            str34 = `0b${str34}`;
             break;
           case 8:
-            str33 = `0o${str33}`;
+            str34 = `0o${str34}`;
             break;
           case 16:
-            str33 = `0x${str33}`;
+            str34 = `0x${str34}`;
             break;
         }
-        const n3 = BigInt(str33);
+        const n3 = BigInt(str34);
         return sign === "-" ? BigInt(-1) * n3 : n3;
       }
-      const n2 = parseInt(str33, radix);
+      const n2 = parseInt(str34, radix);
       return sign === "-" ? -1 * n2 : n2;
     }
     function intStringify(node, radix, prefix) {
       const { value: value4 } = node;
       if (intIdentify(value4)) {
-        const str33 = value4.toString(radix);
-        return value4 < 0 ? "-" + prefix + str33.substr(1) : prefix + str33;
+        const str34 = value4.toString(radix);
+        return value4 < 0 ? "-" + prefix + str34.substr(1) : prefix + str34;
       }
       return stringifyNumber.stringifyNumber(node);
     }
@@ -17011,7 +17011,7 @@ var require_int2 = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "BIN",
       test: /^[-+]?0b[0-1_]+$/,
-      resolve: (str33, _onError, opt) => intResolve(str33, 2, 2, opt),
+      resolve: (str34, _onError, opt) => intResolve(str34, 2, 2, opt),
       stringify: (node) => intStringify(node, 2, "0b")
     };
     var intOct = {
@@ -17020,7 +17020,7 @@ var require_int2 = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "OCT",
       test: /^[-+]?0[0-7_]+$/,
-      resolve: (str33, _onError, opt) => intResolve(str33, 1, 8, opt),
+      resolve: (str34, _onError, opt) => intResolve(str34, 1, 8, opt),
       stringify: (node) => intStringify(node, 8, "0")
     };
     var int4 = {
@@ -17028,7 +17028,7 @@ var require_int2 = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:int",
       test: /^[-+]?[0-9][0-9_]*$/,
-      resolve: (str33, _onError, opt) => intResolve(str33, 0, 10, opt),
+      resolve: (str34, _onError, opt) => intResolve(str34, 0, 10, opt),
       stringify: stringifyNumber.stringifyNumber
     };
     var intHex = {
@@ -17037,7 +17037,7 @@ var require_int2 = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "HEX",
       test: /^[-+]?0x[0-9a-fA-F_]+$/,
-      resolve: (str33, _onError, opt) => intResolve(str33, 2, 16, opt),
+      resolve: (str34, _onError, opt) => intResolve(str34, 2, 16, opt),
       stringify: (node) => intStringify(node, 16, "0x")
     };
     exports2.int = int4;
@@ -17141,9 +17141,9 @@ var require_timestamp = __commonJS({
   "node_modules/yaml/dist/schema/yaml-1.1/timestamp.js"(exports2) {
     "use strict";
     var stringifyNumber = require_stringifyNumber();
-    function parseSexagesimal(str33, asBigInt) {
-      const sign = str33[0];
-      const parts = sign === "-" || sign === "+" ? str33.substring(1) : str33;
+    function parseSexagesimal(str34, asBigInt) {
+      const sign = str34[0];
+      const parts = sign === "-" || sign === "+" ? str34.substring(1) : str34;
       const num6 = (n2) => asBigInt ? BigInt(n2) : Number(n2);
       const res = parts.replace(/_/g, "").split(":").reduce((res2, p) => res2 * num6(60) + num6(p), num6(0));
       return sign === "-" ? num6(-1) * res : res;
@@ -17180,7 +17180,7 @@ var require_timestamp = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "TIME",
       test: /^[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+$/,
-      resolve: (str33, _onError, { intAsBigInt }) => parseSexagesimal(str33, intAsBigInt),
+      resolve: (str34, _onError, { intAsBigInt }) => parseSexagesimal(str34, intAsBigInt),
       stringify: stringifySexagesimal
     };
     var floatTime = {
@@ -17189,7 +17189,7 @@ var require_timestamp = __commonJS({
       tag: "tag:yaml.org,2002:float",
       format: "TIME",
       test: /^[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\.[0-9_]*$/,
-      resolve: (str33) => parseSexagesimal(str33, false),
+      resolve: (str34) => parseSexagesimal(str34, false),
       stringify: stringifySexagesimal
     };
     var timestamp = {
@@ -17200,8 +17200,8 @@ var require_timestamp = __commonJS({
       // may be omitted altogether, resulting in a date format. In such a case, the time part is
       // assumed to be 00:00:00Z (start of day, UTC).
       test: RegExp("^([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})(?:(?:t|T|[ \\t]+)([0-9]{1,2}):([0-9]{1,2}):([0-9]{1,2}(\\.[0-9]+)?)(?:[ \\t]*(Z|[-+][012]?[0-9](?::[0-9]{2})?))?)?$"),
-      resolve(str33) {
-        const match = str33.match(timestamp.test);
+      resolve(str34) {
+        const match = str34.match(timestamp.test);
         if (!match)
           throw new Error("!!timestamp expects a date, starting with yyyy-mm-dd");
         const [, year, month, day4, hour, minute, second] = match.map(Number);
@@ -17552,9 +17552,9 @@ var require_Document = __commonJS({
           this.contents.add(value4);
       }
       /** Adds a value to the document. */
-      addIn(path24, value4) {
+      addIn(path25, value4) {
         if (assertCollection(this.contents))
-          this.contents.addIn(path24, value4);
+          this.contents.addIn(path25, value4);
       }
       /**
        * Create a new `Alias` node, ensuring that the target `node` has the required anchor.
@@ -17629,14 +17629,14 @@ var require_Document = __commonJS({
        * Removes a value from the document.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path24) {
-        if (Collection.isEmptyPath(path24)) {
+      deleteIn(path25) {
+        if (Collection.isEmptyPath(path25)) {
           if (this.contents == null)
             return false;
           this.contents = null;
           return true;
         }
-        return assertCollection(this.contents) ? this.contents.deleteIn(path24) : false;
+        return assertCollection(this.contents) ? this.contents.deleteIn(path25) : false;
       }
       /**
        * Returns item at `key`, or `undefined` if not found. By default unwraps
@@ -17651,10 +17651,10 @@ var require_Document = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path24, keepScalar) {
-        if (Collection.isEmptyPath(path24))
+      getIn(path25, keepScalar) {
+        if (Collection.isEmptyPath(path25))
           return !keepScalar && identity.isScalar(this.contents) ? this.contents.value : this.contents;
-        return identity.isCollection(this.contents) ? this.contents.getIn(path24, keepScalar) : void 0;
+        return identity.isCollection(this.contents) ? this.contents.getIn(path25, keepScalar) : void 0;
       }
       /**
        * Checks if the document includes a value with the key `key`.
@@ -17665,10 +17665,10 @@ var require_Document = __commonJS({
       /**
        * Checks if the document includes a value at `path`.
        */
-      hasIn(path24) {
-        if (Collection.isEmptyPath(path24))
+      hasIn(path25) {
+        if (Collection.isEmptyPath(path25))
           return this.contents !== void 0;
-        return identity.isCollection(this.contents) ? this.contents.hasIn(path24) : false;
+        return identity.isCollection(this.contents) ? this.contents.hasIn(path25) : false;
       }
       /**
        * Sets a value in this document. For `!!set`, `value` needs to be a
@@ -17685,13 +17685,13 @@ var require_Document = __commonJS({
        * Sets a value in this document. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path24, value4) {
-        if (Collection.isEmptyPath(path24)) {
+      setIn(path25, value4) {
+        if (Collection.isEmptyPath(path25)) {
           this.contents = value4;
         } else if (this.contents == null) {
-          this.contents = Collection.collectionFromPath(this.schema, Array.from(path24), value4);
+          this.contents = Collection.collectionFromPath(this.schema, Array.from(path25), value4);
         } else if (assertCollection(this.contents)) {
-          this.contents.setIn(path24, value4);
+          this.contents.setIn(path25, value4);
         }
       }
       /**
@@ -19638,9 +19638,9 @@ var require_cst_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP;
     visit.REMOVE = REMOVE;
-    visit.itemAtPath = (cst, path24) => {
+    visit.itemAtPath = (cst, path25) => {
       let item2 = cst;
-      for (const [field3, index] of path24) {
+      for (const [field3, index] of path25) {
         const tok = item2?.[field3];
         if (tok && "items" in tok) {
           item2 = tok.items[index];
@@ -19649,23 +19649,23 @@ var require_cst_visit = __commonJS({
       }
       return item2;
     };
-    visit.parentCollection = (cst, path24) => {
-      const parent = visit.itemAtPath(cst, path24.slice(0, -1));
-      const field3 = path24[path24.length - 1][0];
+    visit.parentCollection = (cst, path25) => {
+      const parent = visit.itemAtPath(cst, path25.slice(0, -1));
+      const field3 = path25[path25.length - 1][0];
       const coll = parent?.[field3];
       if (coll && "items" in coll)
         return coll;
       throw new Error("Parent collection not found");
     };
-    function _visit(path24, item2, visitor) {
-      let ctrl = visitor(item2, path24);
+    function _visit(path25, item2, visitor) {
+      let ctrl = visitor(item2, path25);
       if (typeof ctrl === "symbol")
         return ctrl;
       for (const field3 of ["key", "value"]) {
         const token = item2[field3];
         if (token && "items" in token) {
           for (let i = 0; i < token.items.length; ++i) {
-            const ci2 = _visit(Object.freeze(path24.concat([[field3, i]])), token.items[i], visitor);
+            const ci2 = _visit(Object.freeze(path25.concat([[field3, i]])), token.items[i], visitor);
             if (typeof ci2 === "number")
               i = ci2 - 1;
             else if (ci2 === BREAK)
@@ -19676,10 +19676,10 @@ var require_cst_visit = __commonJS({
             }
           }
           if (typeof ctrl === "function" && field3 === "key")
-            ctrl = ctrl(item2, path24);
+            ctrl = ctrl(item2, path25);
         }
       }
-      return typeof ctrl === "function" ? ctrl(item2, path24) : ctrl;
+      return typeof ctrl === "function" ? ctrl(item2, path25) : ctrl;
     }
     exports2.visit = visit;
   }
@@ -20956,14 +20956,14 @@ var require_parser = __commonJS({
             case "scalar":
             case "single-quoted-scalar":
             case "double-quoted-scalar": {
-              const fs24 = this.flowScalar(this.type);
+              const fs25 = this.flowScalar(this.type);
               if (atNextItem || it.value) {
-                map.items.push({ start, key: fs24, sep: [] });
+                map.items.push({ start, key: fs25, sep: [] });
                 this.onKeyLine = true;
               } else if (it.sep) {
-                this.stack.push(fs24);
+                this.stack.push(fs25);
               } else {
-                Object.assign(it, { key: fs24, sep: [] });
+                Object.assign(it, { key: fs25, sep: [] });
                 this.onKeyLine = true;
               }
               return;
@@ -21091,13 +21091,13 @@ var require_parser = __commonJS({
             case "scalar":
             case "single-quoted-scalar":
             case "double-quoted-scalar": {
-              const fs24 = this.flowScalar(this.type);
+              const fs25 = this.flowScalar(this.type);
               if (!it || it.value)
-                fc.items.push({ start: [], key: fs24, sep: [] });
+                fc.items.push({ start: [], key: fs25, sep: [] });
               else if (it.sep)
-                this.stack.push(fs24);
+                this.stack.push(fs25);
               else
-                Object.assign(it, { key: fs24, sep: [] });
+                Object.assign(it, { key: fs25, sep: [] });
               return;
             }
             case "flow-map-end":
@@ -21485,9 +21485,9 @@ async function collectCategoryRecords(org, catQuery, options2 = {}) {
   }
 }
 async function loadCategoryRows(org, catQuery, options2) {
-  const fail = failer(options2);
+  const fail2 = failer(options2);
   const catResult = await runToolingQuery(catQuery, org);
-  if (!catResult.success) fail("categories", catResult.error);
+  if (!catResult.success) fail2("categories", catResult.error);
   if (!catResult.success || !catResult.data?.records?.length) return [];
   const cats = catResult.data.records;
   if (cats.length > 1) {
@@ -21499,9 +21499,9 @@ async function loadCategoryRows(org, catQuery, options2) {
       const catName = categoryName(cat);
       const recQuery = `SELECT Id, DeveloperName, MasterLabel, IsActive, IsOrgLevel FROM LifeSciConfigRecord WHERE LifeSciConfigCategoryId = '${cat.Id}' ORDER BY DeveloperName`;
       const recResult = await runToolingQuery(recQuery, org);
-      if (!recResult.success) fail(`${catName} records`, recResult.error);
+      if (!recResult.success) fail2(`${catName} records`, recResult.error);
       if (recResult.success && recResult.data?.truncated)
-        fail(`${catName} records`, "too many records to read");
+        fail2(`${catName} records`, "too many records to read");
       if (!recResult.success || !recResult.data?.records?.length) return [];
       return recResult.data.records.map((rec) => ({
         catName,
@@ -21533,19 +21533,19 @@ async function readRecordsTogether(org, cats) {
     (cat) => (byCategory3.get(cat.Id) ?? []).map((rec) => ({ catName: categoryName(cat), rec }))
   );
 }
-async function hydrateRows(org, rows3, options2) {
-  if (rows3.length === 0) return [];
-  const recordIds = rows3.map((r) => r.rec.Id);
+async function hydrateRows(org, rows4, options2) {
+  if (rows4.length === 0) return [];
+  const recordIds = rows4.map((r) => r.rec.Id);
   const [{ fieldValuesByRecord, queryError }, assignmentMap] = await Promise.all([
     queryFieldValues(recordIds, org, true),
     queryAssignments(recordIds, org, options2.strict)
   ]);
   if (queryError)
     failer(options2)(
-      [...new Set(rows3.map((r) => r.catName))].join(", ") + " field values",
+      [...new Set(rows4.map((r) => r.catName))].join(", ") + " field values",
       queryError
     );
-  return rows3.map(({ catName, rec }) => {
+  return rows4.map(({ catName, rec }) => {
     const recId = rec.Id;
     const { fields, fieldTypes } = buildFields(fieldValuesByRecord.get(recId) || []);
     const assignments = (assignmentMap.get(recId) || []).map((a) => ({
@@ -21568,7 +21568,7 @@ async function loadCategoryRecords(org, catQuery, options2) {
   return hydrateRows(org, await loadCategoryRows(org, catQuery, options2), options2);
 }
 async function collectCategoryRecordsWhere(org, catQuery, probe2) {
-  const rows3 = await sharedRead(
+  const rows4 = await sharedRead(
     org,
     `config:rows:${catQuery}`,
     () => loadCategoryRows(org, catQuery, { strict: true })
@@ -21576,18 +21576,18 @@ async function collectCategoryRecordsWhere(org, catQuery, probe2) {
   const values = await sharedRead(
     org,
     `config:probe:${catQuery}:${probe2.field}`,
-    () => readFieldOf(org, probe2.field, rows3)
+    () => readFieldOf(org, probe2.field, rows4)
   );
-  const matching = rows3.filter((r) => probe2.keep(values.get(r.rec.Id)));
+  const matching = rows4.filter((r) => probe2.keep(values.get(r.rec.Id)));
   return {
-    developerNames: rows3.map((r) => r.rec.DeveloperName),
+    developerNames: rows4.map((r) => r.rec.DeveloperName),
     records: await hydrateRows(org, matching, { strict: true })
   };
 }
-async function readFieldOf(org, field3, rows3) {
+async function readFieldOf(org, field3, rows4) {
   const out = /* @__PURE__ */ new Map();
   const results = await Promise.all(
-    chunkIds(rows3.map((r) => r.rec.Id)).map(
+    chunkIds(rows4.map((r) => r.rec.Id)).map(
       (chunk2) => runToolingQuery(
         `SELECT Id, FieldName, DataType, ${FV_VALUE_COLUMNS.join(", ")}, LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = '${field3.replace(/'/g, "\\'")}' AND LifeSciConfigRecordId IN (${chunk2.map((id2) => `'${id2}'`).join(",")}) ORDER BY FieldName`,
         org
@@ -21716,28 +21716,28 @@ var init_map_progress = __esm({
 });
 
 // src/studio/helpers.ts
-async function query(soql5, org, tooling2 = false, options2 = {}) {
-  return (await queryResult(soql5, org, tooling2, options2)).records;
+async function query(soql6, org, tooling3 = false, options2 = {}) {
+  return (await queryResult(soql6, org, tooling3, options2)).records;
 }
-async function queryResult(soql5, org, tooling2 = false, options2 = {}) {
+async function queryResult(soql6, org, tooling3 = false, options2 = {}) {
   const t0 = TRACE ? Date.now() : 0;
-  const result2 = tooling2 ? await runToolingQuery(soql5, org, { maxRows: options2.maxRows }) : await runSoqlQuery(soql5, org, { maxRows: options2.maxRows });
+  const result2 = tooling3 ? await runToolingQuery(soql6, org, { maxRows: options2.maxRows }) : await runSoqlQuery(soql6, org, { maxRows: options2.maxRows });
   if (TRACE)
-    console.error(`[query ${Date.now() - t0}ms${tooling2 ? " tooling" : ""}] ${soql5.slice(0, 110)}`);
+    console.error(`[query ${Date.now() - t0}ms${tooling3 ? " tooling" : ""}] ${soql6.slice(0, 110)}`);
   if (!result2.success) throw new Error(result2.error || "Query failed");
   const data2 = result2.data ?? { totalSize: 0, done: true, records: [] };
   if (data2.truncated && !options2.allowTruncated)
     throw new QueryTruncatedError(data2.records.length, data2.totalSize);
   return { ...data2, records: data2.records ?? [] };
 }
-async function count(soql5, org) {
-  const result2 = await runSoqlQuery(soql5, org);
+async function count(soql6, org) {
+  const result2 = await runSoqlQuery(soql6, org);
   if (!result2.success) throw new Error(result2.error || "Query failed");
   return result2.data?.totalSize ?? 0;
 }
 async function countGroupedBy(object3, key5, ids, org, where3) {
   const out = /* @__PURE__ */ new Map();
-  const chunks7 = await Promise.all(
+  const chunks8 = await Promise.all(
     chunkIds(ids).map(
       (chunk2) => query(
         `SELECT ${key5}, COUNT(Id) cnt FROM ${object3} WHERE ${key5} IN (${inList(chunk2)})${where3 ? ` AND ${where3}` : ""} GROUP BY ${key5}`,
@@ -21745,11 +21745,11 @@ async function countGroupedBy(object3, key5, ids, org, where3) {
       )
     )
   );
-  for (const r of chunks7.flat()) out.set(String(r[key5]), Number(r.cnt ?? r.expr0 ?? 0));
+  for (const r of chunks8.flat()) out.set(String(r[key5]), Number(r.cnt ?? r.expr0 ?? 0));
   return out;
 }
 async function queryByIds(fields, object3, key5, ids, org, where3) {
-  const chunks7 = await Promise.all(
+  const chunks8 = await Promise.all(
     chunkIds(ids).map(
       (chunk2) => query(
         `SELECT ${fields} FROM ${object3} WHERE ${key5} IN (${inList(chunk2)})${where3 ? ` AND ${where3}` : ""}`,
@@ -21757,7 +21757,7 @@ async function queryByIds(fields, object3, key5, ids, org, where3) {
       )
     )
   );
-  return chunks7.flat();
+  return chunks8.flat();
 }
 async function recordCounts(objects, org) {
   const out = /* @__PURE__ */ new Map();
@@ -22272,9 +22272,9 @@ function substituteIdTag(conditional, tag, ids) {
   return conditional.replace(quoted, () => list2).replace(bare2, () => list2);
 }
 function splitChunks(items, size) {
-  const chunks7 = [];
-  for (let i = 0; i < items.length; i += size) chunks7.push(items.slice(i, i + size));
-  return chunks7;
+  const chunks8 = [];
+  for (let i = 0; i < items.length; i += size) chunks8.push(items.slice(i, i + size));
+  return chunks8;
 }
 function estimateDeviceRequests(table, resolvedConditional, tag, idCount) {
   const template = `SELECT id FROM ${table} WHERE ${resolvedConditional}`;
@@ -22359,9 +22359,9 @@ function idChunks(selectClause, sobject2, conditional, tag, ids, max) {
 }
 async function countWithIdTag(org, sobject2, conditional, tag, ids, options2) {
   if (ids.length === 0) return 0;
-  const chunks7 = idChunks("SELECT COUNT()", sobject2, conditional, tag, ids, options2.idsPerQuery);
+  const chunks8 = idChunks("SELECT COUNT()", sobject2, conditional, tag, ids, options2.idsPerQuery);
   const counts2 = await mapWithConcurrency(
-    chunks7,
+    chunks8,
     options2.concurrency,
     (chunk2) => countQuery(org, sobject2, substituteIdTag(conditional, tag, chunk2))
   );
@@ -22369,9 +22369,9 @@ async function countWithIdTag(org, sobject2, conditional, tag, ids, options2) {
 }
 async function fetchIdsWithIdTag(org, sobject2, idField, conditional, tag, ids, options2) {
   if (ids.length === 0) return { ids: [], rows: 0, truncated: false };
-  const chunks7 = idChunks(`SELECT ${idField}`, sobject2, conditional, tag, ids, options2.idsPerQuery);
+  const chunks8 = idChunks(`SELECT ${idField}`, sobject2, conditional, tag, ids, options2.idsPerQuery);
   const parts = await mapWithConcurrency(
-    chunks7,
+    chunks8,
     options2.concurrency,
     (chunk2) => fetchIdsUncached(org, sobject2, idField, substituteIdTag(conditional, tag, chunk2))
   );
@@ -22709,8 +22709,8 @@ async function loadUserContext(org, userRef) {
 }
 async function territoryAccountCounts(org, territories) {
   const sizes = /* @__PURE__ */ new Map();
-  const chunks7 = splitChunks(territories, TERRITORY_RANK_CHUNK);
-  await mapWithConcurrency(chunks7, DEFAULT_PROFILE_OPTIONS.concurrency, async (chunk2) => {
+  const chunks8 = splitChunks(territories, TERRITORY_RANK_CHUNK);
+  await mapWithConcurrency(chunks8, DEFAULT_PROFILE_OPTIONS.concurrency, async (chunk2) => {
     const list2 = chunk2.map((t) => `'${soqlString2(t.id)}'`).join(",");
     const result2 = await org.soql(
       `SELECT Territory2Id, COUNT(Id) cnt FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2Id IN (${list2}) GROUP BY Territory2Id`
@@ -22865,14 +22865,14 @@ async function heldMembers(ctx, from, object3, where3, what) {
   const sub = `SELECT AccountId FROM ${object3} WHERE ${where3}`;
   if (!/\bSELECT\b/i.test(where3)) {
     try {
-      const [n2, rows3] = await Promise.all([
+      const [n2, rows4] = await Promise.all([
         count(`SELECT COUNT() ${from(`Id IN (${sub})`)}`, ctx.org),
         query(
           `SELECT Id ${from(`Id IN (${sub})`)} ORDER BY Name ASC NULLS LAST LIMIT ${MEMBER_IDS}`,
           ctx.org
         )
       ]);
-      return { ids: rows3.map((r) => str(r.Id)), count: n2 };
+      return { ids: rows4.map((r) => str(r.Id)), count: n2 };
     } catch (err) {
       if (isScaleError(err)) throw err;
     }
@@ -23002,16 +23002,16 @@ async function sidebarLists(ctx, from) {
     otherRows.map((l) => str(l.Id)),
     ctx
   ).catch(softFail(ctx, "Account lists shared with the viewer", /* @__PURE__ */ new Set()));
-  const rows3 = [
+  const rows4 = [
     ...own?.records ?? [],
     ...otherRows.filter((l) => visible.has(str(l.Id)))
   ];
-  if (rows3.length > LISTS_COUNTED)
+  if (rows4.length > LISTS_COUNTED)
     ctx.note(
-      `Account lists: members counted for the first ${LISTS_COUNTED} of ${rows3.length.toLocaleString("en-US")} lists; the rest show "Not counted".`
+      `Account lists: members counted for the first ${LISTS_COUNTED} of ${rows4.length.toLocaleString("en-US")} lists; the rest show "Not counted".`
     );
   const out = [];
-  const counting = rows3.slice(0, LISTS_COUNTED);
+  const counting = rows4.slice(0, LISTS_COUNTED);
   for (let i = 0; i < counting.length; i += 4) {
     out.push(
       ...await Promise.all(
@@ -23034,7 +23034,7 @@ async function sidebarLists(ctx, from) {
       )
     );
   }
-  for (const l of rows3.slice(LISTS_COUNTED))
+  for (const l of rows4.slice(LISTS_COUNTED))
     out.push({
       id: str(l.Id),
       name: str(l.Name),
@@ -23113,7 +23113,7 @@ async function collectAccounts(ctx) {
   ]);
   const cards = accounts.map((a) => {
     const id2 = str(a.Id);
-    const mine = (rows3, key5 = "AccountId") => rows3.filter((r) => str(r[key5]) === id2);
+    const mine = (rows4, key5 = "AccountId") => rows4.filter((r) => str(r[key5]) === id2);
     const ati = mine(atis);
     const last = ati.map((r) => str(r.LastProviderVisitDate)).filter(Boolean).sort().pop();
     const addrs = mine(addresses, "ParentId");
@@ -23376,17 +23376,17 @@ async function collectAccounts2(ctx, showLastVisit) {
       maxRows: CALENDAR_ACCOUNTS
     }
   ).catch(softFail(ctx, "Calendar accounts pane", null));
-  const rows3 = result2?.records ?? [];
+  const rows4 = result2?.records ?? [];
   if (result2?.truncated) {
     ctx.note(
-      `Calendar accounts pane: showing the first ${rows3.length.toLocaleString("en-US")} of ${result2.totalSize.toLocaleString("en-US")} accounts by name.`
+      `Calendar accounts pane: showing the first ${rows4.length.toLocaleString("en-US")} of ${result2.totalSize.toLocaleString("en-US")} accounts by name.`
     );
   }
   const last = /* @__PURE__ */ new Map();
   const terrs = ctx.territories.map((t) => t.id);
   if (showLastVisit && terrs.length) {
     const parts = chunks2(
-      rows3.map((r) => text2(r.Id)),
+      rows4.map((r) => text2(r.Id)),
       200
     );
     const batches = [];
@@ -23411,7 +23411,7 @@ async function collectAccounts2(ctx, showLastVisit) {
     }
   }
   const collator = new Intl.Collator(ctx.format.locale.replace(/_/g, "-"));
-  return rows3.map((r) => ({
+  return rows4.map((r) => ({
     id: text2(r.Id),
     name: text2(r.Name),
     person: r.IsPersonAccount === true,
@@ -23443,44 +23443,44 @@ async function collectSegments(ctx, a) {
   };
   const inBatches2 = async (ids, run5) => {
     const parts = chunks2(ids, 200);
-    const rows3 = [];
+    const rows4 = [];
     for (let i = 0; i < parts.length; i += 4)
-      rows3.push(...(await Promise.all(parts.slice(i, i + 4).map(run5))).flat());
-    return rows3;
+      rows4.push(...(await Promise.all(parts.slice(i, i + 4).map(run5))).flat());
+    return rows4;
   };
   const readable3 = async (ids) => {
-    const rows3 = await inBatches2(
+    const rows4 = await inBatches2(
       ids,
       (part) => query(
         `SELECT RecordId, HasReadAccess FROM UserRecordAccess WHERE UserId = '${userId}' AND RecordId IN (${inList(part)})`,
         org
       ).catch(softFail(ctx, "Calendar", []))
     );
-    return new Set(rows3.filter((r) => r.HasReadAccess === true).map((r) => text2(r.RecordId)));
+    return new Set(rows4.filter((r) => r.HasReadAccess === true).map((r) => text2(r.RecordId)));
   };
   const providerVisits = async (ids) => {
-    const rows3 = await inBatches2(
+    const rows4 = await inBatches2(
       ids,
       (part) => query(
         `SELECT VisitId, Status, VisitSubmitDateTime, Channel, IsConfirmed FROM ProviderVisit WHERE VisitId IN (${inList(part)})`,
         org
       ).catch(softFail(ctx, "Calendar", []))
     );
-    return new Map(rows3.map((r) => [text2(r.VisitId), r]));
+    return new Map(rows4.map((r) => [text2(r.VisitId), r]));
   };
   await Promise.all([
     (async () => {
       const w = scoped2("Visit");
       if (w === null || !a.territories.length) return;
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT Id, Name, Status, PlannedVisitStartTime, PlannedVisitEndTime, Account.Name FROM Visit
          WHERE ParentVisitId = null AND PlannedVisitStartTime < ${to} AND PlannedVisitEndTime > ${from}
          AND Id IN (SELECT VisitId FROM ProviderVisit WHERE TerritoryId IN (${inList(a.territories)}))${w} LIMIT 4000`,
         org
       ).catch(softFail(ctx, "Calendar", []));
-      const ids = rows3.map((r) => text2(r.Id));
+      const ids = rows4.map((r) => text2(r.Id));
       const [ok, pvs] = await Promise.all([readable3(ids), providerVisits(ids)]);
-      for (const r of rows3.filter((r2) => ok.has(text2(r2.Id)))) {
+      for (const r of rows4.filter((r2) => ok.has(text2(r2.Id)))) {
         const pv = pvs.get(text2(r.Id));
         const done = Boolean(pv?.VisitSubmitDateTime) || text2(pv?.Status).toLowerCase() === "completed" || text2(r.Status).toLowerCase() === "completed";
         const title = text2(r.Account?.Name) || text2(r.Name);
@@ -23500,13 +23500,13 @@ async function collectSegments(ctx, a) {
     (async () => {
       const w = scoped2("Event");
       if (w === null) return;
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT Id, Subject, StartDateTime, EndDateTime, IsAllDayEvent FROM Event
          WHERE OwnerId = '${userId}' AND StartDateTime < ${to} AND EndDateTime > ${from}${w} LIMIT 4000`,
         org
       ).catch(softFail(ctx, "Calendar", []));
-      const ok = await readable3(rows3.map((r) => text2(r.Id)));
-      for (const r of rows3.filter((r2) => ok.has(text2(r2.Id)))) {
+      const ok = await readable3(rows4.map((r) => text2(r.Id)));
+      for (const r of rows4.filter((r2) => ok.has(text2(r2.Id)))) {
         add(
           text2(r.Id),
           "event",
@@ -23522,12 +23522,12 @@ async function collectSegments(ctx, a) {
     (async () => {
       const w = scoped2("TerritoryUserDowntime");
       if (w === null || !a.territories.length) return;
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT Id, Name, StartDate, EndDate FROM TerritoryUserDowntime
          WHERE TerritoryId IN (${inList(a.territories)}) AND StartDate < ${to} AND EndDate > ${from}${w} LIMIT 4000`,
         org
       ).catch(softFail(ctx, "Calendar", []));
-      for (const r of rows3)
+      for (const r of rows4)
         add(
           text2(r.Id),
           "tot",
@@ -23542,13 +23542,13 @@ async function collectSegments(ctx, a) {
     (async () => {
       const w = scoped2("AssessmentTask");
       if (w === null) return;
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT Id, Name, Status, DueDate FROM AssessmentTask
          WHERE IsVisibleInPlanner = true AND DueDate >= ${a.days[0].date} AND DueDate <= ${a.days[a.days.length - 1].date}${w} LIMIT 2000`,
         org
       ).catch(softFail(ctx, "Calendar", []));
-      const ok = await readable3(rows3.map((r) => text2(r.Id)));
-      for (const r of rows3.filter((r2) => ok.has(text2(r2.Id)))) {
+      const ok = await readable3(rows4.map((r) => text2(r.Id)));
+      for (const r of rows4.filter((r2) => ok.has(text2(r2.Id)))) {
         const [y, m, d] = text2(r.DueDate).slice(0, 10).split("-").map(Number);
         if (!y) continue;
         const start = zonedInstant(y, m, d, format.timeZone);
@@ -23561,11 +23561,11 @@ async function collectSegments(ctx, a) {
     (async () => {
       const w = scoped2("Holiday");
       if (w === null) return;
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT Id, Name, ActivityDate FROM Holiday WHERE ActivityDate >= ${a.days[0].date} AND ActivityDate <= ${a.days[a.days.length - 1].date}${w} LIMIT 500`,
         org
       ).catch(softFail(ctx, "Calendar", []));
-      for (const r of rows3) {
+      for (const r of rows4) {
         const [y, m, d] = text2(r.ActivityDate).slice(0, 10).split("-").map(Number);
         const start = zonedInstant(y, m, d, format.timeZone);
         add(text2(r.Id), "holiday", text2(r.Name), start, start + 864e5, true, a.colors.holiday);
@@ -23618,12 +23618,12 @@ async function collectOrder(ctx) {
     return { pricebooks: [], products: {}, cut: [], currency: "USD" };
   }
   const today4 = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-  const rows3 = await query(
+  const rows4 = await query(
     "SELECT Id, Name, Description, IsStandard, IsActive, ValidFrom, ValidTo FROM Pricebook2 WHERE IsActive = true",
     ctx.org
   ).catch(softFail(ctx, "Order price books", []));
   const books = sortPricebooks(
-    rows3.filter((r) => pricebookActiveOn(r, today4)).map((r) => ({
+    rows4.filter((r) => pricebookActiveOn(r, today4)).map((r) => ({
       id: str2(r.Id),
       name: str2(r.Name),
       description: str2(r.Description) || void 0,
@@ -23930,9 +23930,9 @@ async function collectVisitCreate(ctx) {
   }
   return result2;
 }
-function emailTemplateList(rows3, assignedToTerritory) {
+function emailTemplateList(rows4, assignedToTerritory) {
   const assigned = new Set(assignedToTerritory);
-  return rows3.filter((r) => str3(r.Name) !== "" && (assigned.size === 0 || assigned.has(str3(r.Id)))).sort((a, b) => str3(a.Name).toLowerCase().localeCompare(str3(b.Name).toLowerCase())).map((r) => ({
+  return rows4.filter((r) => str3(r.Name) !== "" && (assigned.size === 0 || assigned.has(str3(r.Id)))).sort((a, b) => str3(a.Name).toLowerCase().localeCompare(str3(b.Name).toLowerCase())).map((r) => ({
     id: str3(r.Id),
     name: str3(r.Name),
     product: str3(r.Product?.Name) || void 0,
@@ -24144,13 +24144,13 @@ function toRow(r) {
 }
 async function collectAlerts(ctx, now) {
   const iso2 = now.toISOString();
-  const rows3 = (await query(
+  const rows4 = (await query(
     `SELECT Id, Subject, Message, AdditionalMessage, Type, IsSilent, EffectiveDate, ValidUntilDate, DisplayContextType, DisplayContextName FROM AppAlert WHERE EffectiveDate < ${iso2} AND (ValidUntilDate = null OR ValidUntilDate > ${iso2}) ORDER BY EffectiveDate DESC LIMIT 2000`,
     ctx.org
   )).map(toRow).filter((a) => isAlertShown(a, now));
   const readable3 = /* @__PURE__ */ new Set();
   const parts = [];
-  for (let i = 0; i < rows3.length; i += 200) parts.push(rows3.slice(i, i + 200).map((a) => a.id));
+  for (let i = 0; i < rows4.length; i += 200) parts.push(rows4.slice(i, i + 200).map((a) => a.id));
   for (const access of await Promise.all(
     parts.map(
       (ids) => query(
@@ -24161,7 +24161,7 @@ async function collectAlerts(ctx, now) {
   )) {
     for (const r of access) readable3.add(str4(r.RecordId));
   }
-  return rows3.filter((a) => readable3.has(a.id)).map((a) => ({
+  return rows4.filter((a) => readable3.has(a.id)).map((a) => ({
     id: a.id,
     title: a.subject,
     body: alertBody(a.additional, a.message),
@@ -24170,11 +24170,11 @@ async function collectAlerts(ctx, now) {
   }));
 }
 async function lastSync(ctx) {
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT DownloadStart FROM DeviceSyncSummary WHERE CreatedById = '${ctx.userId}' AND DownloadEnd != null AND DownloadStart != null ORDER BY CreatedDate DESC LIMIT 1`,
     ctx.org
   );
-  const start = rows3[0]?.DownloadStart;
+  const start = rows4[0]?.DownloadStart;
   return typeof start === "string" ? start : null;
 }
 function searchCardActions(all, profile) {
@@ -24187,9 +24187,9 @@ function searchCardActions(all, profile) {
   }));
 }
 async function collectCardActions(ctx) {
-  const rows3 = await configRecords("QuickAction", ctx.adminOrg);
+  const rows4 = await configRecords("QuickAction", ctx.adminOrg);
   return searchCardActions(
-    rows3.map((r) => ({
+    rows4.map((r) => ({
       label: r.label,
       actionName: str4(r.fields.ActionName),
       location: str4(r.fields.Location),
@@ -24359,11 +24359,11 @@ async function topicsByPresentation(ids, org) {
   try {
     const out = /* @__PURE__ */ new Map();
     for (const c of chunks3(ids, 200)) {
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT EntityId, Topic.Name FROM TopicAssignment WHERE EntityId IN (${inList(c)})`,
         org
       );
-      for (const r of rows3) {
+      for (const r of rows4) {
         const name = s(r.Topic?.Name);
         if (name) out.set(s(r.EntityId), [...out.get(s(r.EntityId)) ?? [], name]);
       }
@@ -24375,12 +24375,12 @@ async function topicsByPresentation(ids, org) {
 }
 async function canCreatePresentation(userId, org) {
   try {
-    const rows3 = await query(
+    const rows4 = await query(
       `SELECT Id FROM ObjectPermissions WHERE SobjectType = 'Presentation' AND PermissionsCreate = true
        AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = '${userId}')`,
       org
     );
-    return rows3.length > 0;
+    return rows4.length > 0;
   } catch {
     return false;
   }
@@ -24511,7 +24511,7 @@ function sourceFile(org, version3, type) {
     dir,
     `${createHash2("sha1").update(key5).digest("hex")}.${type === "PDF" ? "pdf" : "zip"}`
   );
-  const fetched = dataPath2(org, `/sobjects/ContentVersion/${version3}/VersionData`).then((path24) => downloadToFile(path24, file, org, 12e4)).then((res) => {
+  const fetched = dataPath2(org, `/sobjects/ContentVersion/${version3}/VersionData`).then((path25) => downloadToFile(path25, file, org, 12e4)).then((res) => {
     if (!res.success) throw new Error(res.error || "Download failed");
     return file;
   });
@@ -24633,8 +24633,8 @@ function lastRefreshedText(sync, now, f) {
   const days = Math.floor((now.getTime() - sync.getTime()) / 864e5);
   return days <= 1 ? "Last Refreshed: 1 day ago" : `Last Refreshed: ${days} days ago`;
 }
-function sortNbc(rows3) {
-  return [...rows3].sort(
+function sortNbc(rows4) {
+  return [...rows4].sort(
     (a, b) => (b.score ?? -1) - (a.score ?? -1) || a.rank - b.rank || a.name.localeCompare(b.name, void 0, { sensitivity: "base" })
   );
 }
@@ -24682,25 +24682,25 @@ function paceAxis(start, end, now, f) {
     ticks: [...ticks].sort((a, b) => a[0] - b[0]).map(([index, l]) => ({ index, label: l }))
   };
 }
-function firstActivityType(rows3) {
-  return [...rows3].sort((a, b) => a.order - b.order || a.label.localeCompare(b.label))[0]?.label;
+function firstActivityType(rows4) {
+  return [...rows4].sort((a, b) => a.order - b.order || a.label.localeCompare(b.label))[0]?.label;
 }
 async function inBatches(ids, run5) {
   const parts = chunks4(ids, 200);
-  const rows3 = [];
+  const rows4 = [];
   for (let i = 0; i < parts.length; i += 4)
-    rows3.push(...(await Promise.all(parts.slice(i, i + 4).map(run5))).flat());
-  return rows3;
+    rows4.push(...(await Promise.all(parts.slice(i, i + 4).map(run5))).flat());
+  return rows4;
 }
 async function readable2(ids, ctx) {
-  const rows3 = await inBatches(
+  const rows4 = await inBatches(
     ids,
     (part) => query(
       `SELECT RecordId FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND HasReadAccess = true AND RecordId IN (${inList(part)})`,
       ctx.org
     ).catch(softFail(ctx, "Home", []))
   );
-  return new Set(rows3.map((r) => str5(r.RecordId)));
+  return new Set(rows4.map((r) => str5(r.RecordId)));
 }
 function nbcProps(ctx) {
   const comp = ctx.core.home?.regions.flatMap((r) => r.components).find((c) => c.supported && /nbctopcards$/i.test(c.name));
@@ -24712,7 +24712,7 @@ async function collectNbc(ctx, now) {
   const w = scoped(ctx, "TerritoryAccountScore");
   if (!props || !terr.length || w === null) return void 0;
   const today4 = new Date(now.getTime()).toISOString().slice(0, 10);
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT AccountId, Account.Name, TerritoryId, TotalScore, Rank, LastModifiedDate, LSDO_Score_Summary__c FROM TerritoryAccountScore
      WHERE TerritoryId IN (${inList(terr)}) AND AccountId != null AND (SnoozeUntilDate = null OR SnoozeUntilDate < ${today4}T00:00:00Z)${w} ORDER BY Rank ASC, Account.Name ASC LIMIT 400`,
     ctx.org
@@ -24724,7 +24724,7 @@ async function collectNbc(ctx, now) {
     )
   );
   const picked = /* @__PURE__ */ new Map();
-  for (const r of rows3) {
+  for (const r of rows4) {
     const id2 = str5(r.AccountId);
     const cur = picked.get(id2);
     if (!cur || str5(r.TerritoryId) === terr[0] && str5(cur.TerritoryId) !== terr[0])
@@ -24757,9 +24757,9 @@ async function collectNbc(ctx, now) {
   );
   const top = candidates.filter((r) => ok.has(str5(r.AccountId))).slice(0, props.maxCards);
   const topIds = top.map((r) => str5(r.AccountId));
-  const q2 = (soql5) => inBatches(
+  const q2 = (soql6) => inBatches(
     topIds,
-    (part) => query(soql5(inList(part)), ctx.org).catch(softFail(ctx, "Home", []))
+    (part) => query(soql6(inList(part)), ctx.org).catch(softFail(ctx, "Home", []))
   );
   const [specs, addrs, patis, goals, sync] = await Promise.all([
     q2(
@@ -24779,9 +24779,9 @@ async function collectNbc(ctx, now) {
       ctx.adminOrg
     ).catch(softFail(ctx, "Home", []))
   ]);
-  const first2 = (rows4, key5) => {
+  const first2 = (rows5, key5) => {
     const m = /* @__PURE__ */ new Map();
-    for (const r of rows4) if (!m.has(str5(r[key5]))) m.set(str5(r[key5]), r);
+    for (const r of rows5) if (!m.has(str5(r[key5]))) m.set(str5(r[key5]), r);
     return m;
   };
   const spec = first2(specs, "AccountId");
@@ -24823,7 +24823,7 @@ async function collectVisits(ctx, now) {
   const w = scoped(ctx, "Visit");
   if (!terr || w === null) return void 0;
   const me = ctx.userId;
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, PlannedVisitStartTime, PlannedVisitEndTime, Account.Name, PlaceId, Channel FROM Visit
      WHERE Status != 'Completed' AND TerritoryId = '${terr}' AND PlannedVisitStartTime != null
      AND (PlannedVisitEndTime = null OR PlannedVisitEndTime < ${now.toISOString().replace(/\.\d+Z$/, "Z")})
@@ -24831,10 +24831,10 @@ async function collectVisits(ctx, now) {
     ctx.org
   );
   const ok = await readable2(
-    rows3.map((r) => str5(r.Id)),
+    rows4.map((r) => str5(r.Id)),
     ctx
   );
-  const shown2 = rows3.filter((r) => ok.has(str5(r.Id)));
+  const shown2 = rows4.filter((r) => ok.has(str5(r.Id)));
   const places = [...new Set(shown2.map((r) => str5(r.PlaceId)).filter((p) => p.startsWith("8lW")))];
   const addrRows = await inBatches(
     places,
@@ -25025,8 +25025,8 @@ function firstOfThisMonth(now, timeZone) {
   const get2 = (t) => parts.find((p) => p.type === t)?.value ?? "01";
   return `${get2("year")}-${get2("month")}-01`;
 }
-function shiftSeries(rows3, firstOfMonth) {
-  const sorted3 = rows3.filter(([d, v]) => /^\d{4}-\d{2}-\d{2}/.test(d) && Number.isFinite(v)).map(([d, v]) => [d.slice(0, 10), v]).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+function shiftSeries(rows4, firstOfMonth) {
+  const sorted3 = rows4.filter(([d, v]) => /^\d{4}-\d{2}-\d{2}/.test(d) && Number.isFinite(v)).map(([d, v]) => [d.slice(0, 10), v]).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
   if (!sorted3.length || !firstOfMonth) return sorted3;
   const shift = dayDiff(sorted3[sorted3.length - 1][0], firstOfMonth);
   return sorted3.map(([d, v]) => [addDays(d, shift), v]);
@@ -25103,8 +25103,8 @@ function parsePopc(bundle, allTime) {
     comparison: `(${absolute}) vs. ${period}`
   };
 }
-async function get(org, path24) {
-  const res = await apiRequest(path24, "GET", void 0, org);
+async function get(org, path25) {
+  const res = await apiRequest(path25, "GET", void 0, org);
   return res.success && res.data && typeof res.data === "object" ? res.data : void 0;
 }
 async function loadFollows(ctx) {
@@ -25115,8 +25115,8 @@ async function loadFollows(ctx) {
       `/tableau/follow/followers/${ctx.userId}/followed-assets?followedAssetType=SemanticSubMetric`
     )
   );
-  const rows3 = data2?.followedAssets ?? [];
-  return rows3.map((r) => ({
+  const rows4 = data2?.followedAssets ?? [];
+  return rows4.map((r) => ({
     id: String(r.id),
     label: String(r.label ?? ""),
     modelId: String(r.modelId ?? ""),
@@ -25282,10 +25282,10 @@ async function computeDetail(org, sub, model, timeZone) {
     },
     org
   );
-  const rows3 = res.data?.data;
-  if (!res.success || !Array.isArray(rows3)) return void 0;
+  const rows4 = res.data?.data;
+  if (!res.success || !Array.isArray(rows4)) return void 0;
   const percent = calc.dataType === "Percentage";
-  const points = rows3.flatMap((r) => {
+  const points = rows4.flatMap((r) => {
     const n2 = typeof r[1] === "number" ? r[1] : typeof r[1] === "string" && r[1] !== "" ? Number(r[1]) : NaN;
     return typeof r[0] === "string" && Number.isFinite(n2) ? [[r[0], percent ? Number((n2 * 100).toPrecision(12)) : n2]] : [];
   });
@@ -25505,8 +25505,8 @@ async function collectVisitChecks(ctx) {
       "SELECT IsActive FROM LifeScienceTriggerHandler WHERE DeveloperName = 'VisitHolidayValidationHandler' LIMIT 1",
       adminOrg,
       true
-    ).then((rows3) => {
-      result2.holidayRuleOn = rows3[0]?.IsActive === true;
+    ).then((rows4) => {
+      result2.holidayRuleOn = rows4[0]?.IsActive === true;
     }).catch(softFail(ctx, "Visit checks", void 0)),
     // HolidayWeekendValidationPlugin: holidays the device holds (it syncs the Holiday object when DB Schema says so).
     (async () => {
@@ -25514,11 +25514,11 @@ async function collectVisitChecks(ctx) {
       if (w === null) return;
       const from = day(now - 400 * 864e5);
       const to = day(now + 400 * 864e5);
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT ActivityDate FROM Holiday WHERE ActivityDate >= ${from} AND ActivityDate <= ${to}${w} LIMIT 500`,
         org
       ).catch(softFail(ctx, "Visit checks", []));
-      result2.holidays = rows3.map((r) => text3(r.ActivityDate).slice(0, 10)).filter(Boolean);
+      result2.holidays = rows4.map((r) => text3(r.ActivityDate).slice(0, 10)).filter(Boolean);
       result2.holidaysFrom = from;
       result2.holidaysTo = to;
     })(),
@@ -25526,12 +25526,12 @@ async function collectVisitChecks(ctx) {
     (async () => {
       const w = scoped2("ComplianceStatementDef");
       if (w === null) return;
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT Id, StatementText, StatementRequirementLevel FROM ComplianceStatementDef
          WHERE StatementType = 'ComplianceAgreement' AND ModuleType = 'Visit'${w} ORDER BY DisplayOrder LIMIT 200`,
         org
       ).catch(softFail(ctx, "Visit checks", []));
-      result2.requiredStatements = rows3.filter((r) => text3(r.StatementRequirementLevel) === "Required").map((r) => ({ id: text3(r.Id), text: text3(r.StatementText) }));
+      result2.requiredStatements = rows4.filter((r) => text3(r.StatementRequirementLevel) === "Required").map((r) => ({ id: text3(r.Id), text: text3(r.StatementText) }));
     })(),
     // DelayReasonPlugin: the picklist the sheet offers (valuesForPicklistField of ProviderVisit.SubmitDelayReasonType).
     (async () => {
@@ -25555,13 +25555,13 @@ async function collectVisitChecks(ctx) {
       if (w === null) return;
       const from = day(now - 120 * 864e5);
       const to = day(now + 120 * 864e5);
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT Id, AccountId, Account.Name, Owner.Name, PlannedVisitStartTime, PlannedVisitEndTime FROM Visit
          WHERE AccountId != null AND PlannedVisitStartTime >= ${from}T00:00:00Z AND PlannedVisitStartTime <= ${to}T00:00:00Z${w}
          ORDER BY PlannedVisitStartTime LIMIT 2000`,
         org
       ).catch(softFail(ctx, "Visit checks", []));
-      result2.visits = rows3.map((r) => ({
+      result2.visits = rows4.map((r) => ({
         id: text3(r.Id),
         accountId: text3(r.AccountId),
         accountName: text3(r.Account?.Name),
@@ -25581,7 +25581,7 @@ async function collectVisitChecks(ctx) {
         sample.limitsUnavailable = ctx.scope("ProviderSampleLimit") === void 0 ? "The device doesn't sync Sample Limits." : "The Sample Limit sync filter can't be reproduced here.";
         return;
       }
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT AccountId, ProductId, PrvdSampleLmtTemplateName, Rule FROM ProviderSampleLimit
          WHERE AccountId != null${w} ORDER BY LastModifiedDate DESC LIMIT ${LIMIT_ROWS + 1}`,
         org
@@ -25589,30 +25589,30 @@ async function collectVisitChecks(ctx) {
         sample.limitsUnavailable = "Sample limits couldn't be read.";
         return softFail(ctx, "Visit checks", [])(err);
       });
-      sample.limitsTruncated = rows3.length > LIMIT_ROWS;
-      sample.limits = rows3.slice(0, LIMIT_ROWS).map(trimSampleLimit).filter((r) => !!r);
+      sample.limitsTruncated = rows4.length > LIMIT_ROWS;
+      sample.limits = rows4.slice(0, LIMIT_ROWS).map(trimSampleLimit).filter((r) => !!r);
     })(),
     // SampleInventoryValidationPlugin.fetchLatestSampleInventory: the rep's latest completed count.
     (async () => {
       if (!ID.test(ctx.userId)) return;
       const w = scoped2("InventoryCountAssessment");
       if (w === null) return;
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT ActualStartDateTime FROM InventoryCountAssessment
          WHERE LocationPrimaryUserId = '${ctx.userId}' AND Status = 'Complete'${w} ORDER BY LastModifiedDate DESC LIMIT 1`,
         org
       ).catch(softFail(ctx, "Visit checks", void 0));
-      if (!rows3) return;
+      if (!rows4) return;
       sample.inventoryCountRead = true;
-      sample.lastInventoryAt = text3(rows3[0]?.ActualStartDateTime) || void 0;
+      sample.lastInventoryAt = text3(rows4[0]?.ActualStartDateTime) || void 0;
     })(),
     // TimeOffTerritoryValidationPlugin: the trigger handler, the rep's downtime events and the rule set.
     query(
       "SELECT IsActive FROM LifeScienceTriggerHandler WHERE DeveloperName = 'VisitTimeOffValidationHandler' LIMIT 1",
       adminOrg,
       true
-    ).then((rows3) => {
-      tot.on = rows3[0]?.IsActive === true;
+    ).then((rows4) => {
+      tot.on = rows4[0]?.IsActive === true;
     }).catch(softFail(ctx, "Visit checks", void 0)),
     (async () => {
       const w = scoped2("TerritoryUserDowntime");
@@ -25622,7 +25622,7 @@ async function collectVisitChecks(ctx) {
       }
       const from = day(now - 400 * 864e5);
       const to = day(now + 400 * 864e5);
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT StartDate, EndDate, DownTimeType FROM TerritoryUserDowntime
          WHERE UserId = '${ctx.userId}' AND EndDate >= ${from}T00:00:00Z AND StartDate <= ${to}T23:59:59Z${w}
          ORDER BY StartDate LIMIT 500`,
@@ -25631,7 +25631,7 @@ async function collectVisitChecks(ctx) {
         tot.unavailable = "Time Off Territory couldn't be read.";
         return softFail(ctx, "Visit checks", [])(err);
       });
-      tot.events = rows3.map((r) => ({
+      tot.events = rows4.map((r) => ({
         start: text3(r.StartDate),
         end: text3(r.EndDate) || text3(r.StartDate),
         type: text3(r.DownTimeType)
@@ -25663,8 +25663,8 @@ async function collectVisitChecks(ctx) {
     query(
       "SELECT Id, Name FROM LifeScienceCustomScript WHERE Type = 'VisitActionValidation' ORDER BY CreatedDate, Id LIMIT 1",
       adminOrg
-    ).then((rows3) => {
-      if (rows3[0]) result2.script = { id: text3(rows3[0].Id), name: text3(rows3[0].Name) };
+    ).then((rows4) => {
+      if (rows4[0]) result2.script = { id: text3(rows4[0].Id), name: text3(rows4[0].Name) };
     }).catch(softFail(ctx, "Visit checks", void 0))
   ]);
   return result2;
@@ -25702,9 +25702,9 @@ function readSettings(row) {
     nextVisitObjectives: str6(configKey2(row, "NextVisitProductObjectivesFieldsType")) || "None"
   };
 }
-function mergePermissions(rows3) {
+function mergePermissions(rows4) {
   const out = {};
-  for (const r of rows3) {
+  for (const r of rows4) {
     const o = str6(r.SobjectType);
     if (!o) continue;
     const cur = out[o] ?? { create: false, edit: false };
@@ -25748,19 +25748,19 @@ async function collectVisitSections(ctx) {
   };
 }
 async function readPermissions(ctx) {
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT SobjectType, PermissionsCreate, PermissionsEdit FROM ObjectPermissions
      WHERE SobjectType IN (${inList([...SECTION_OBJECTS])})
      AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = '${ctx.userId}') LIMIT 200`,
     ctx.adminOrg
   ).catch(softFail(ctx, "Visit object permissions", []));
-  return mergePermissions(rows3);
+  return mergePermissions(rows4);
 }
 async function readProducts(ctx) {
   const scope2 = ctx.scope("LifeSciMarketableProduct");
   if (scope2 === void 0) return [];
   const where3 = ["IsActive = true", scope2 || ""].filter(Boolean).join(" AND ");
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, ProductId, Product.Name, Type, ProductSpecificationType, DistributionMethod, SignatureRequirementLevel,
             DefaultDistributionQuantity, ParentBrandProductId, ParentIndicationId, ParentTherapeuticAreaId
      FROM LifeSciMarketableProduct WHERE ${where3} LIMIT ${CAP.products}`,
@@ -25769,7 +25769,7 @@ async function readProducts(ctx) {
   const names5 = /* @__PURE__ */ new Map();
   const parents = [
     ...new Set(
-      rows3.flatMap((r) => [r.ParentIndicationId, r.ParentTherapeuticAreaId]).map(str6).filter(Boolean)
+      rows4.flatMap((r) => [r.ParentIndicationId, r.ParentTherapeuticAreaId]).map(str6).filter(Boolean)
     )
   ];
   if (parents.length)
@@ -25781,7 +25781,7 @@ async function readProducts(ctx) {
       ctx.org
     ).catch(softFail(ctx, "Product parents", [])))
       names5.set(str6(p.Id), str6(p.Product?.Name));
-  return rows3.map((r) => ({
+  return rows4.map((r) => ({
     id: str6(r.ProductId),
     name: str6(r.Product?.Name),
     type: str6(r.Type) || void 0,
@@ -25800,11 +25800,11 @@ async function readMessages(ctx) {
   const scope2 = ctx.scope("ProductGuidance");
   if (scope2 === void 0) return [];
   const where3 = ["IsActive = true", scope2 || ""].filter(Boolean).join(" AND ");
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, ProductReferenceRecordId, ContentText, GroupName FROM ProductGuidance WHERE ${where3} ORDER BY Priority ASC LIMIT ${CAP.messages}`,
     ctx.org
   ).catch(softFail(ctx, "Product messages", []));
-  return rows3.map((r) => ({
+  return rows4.map((r) => ({
     id: str6(r.Id),
     productId: str6(r.ProductReferenceRecordId),
     text: str6(r.ContentText),
@@ -25854,7 +25854,7 @@ async function readAttendeePool(ctx) {
   const ids = accounts.map((a) => str6(a.Id));
   const aff = /* @__PURE__ */ new Map();
   if (ids.length) {
-    const rows3 = await queryByIds(
+    const rows4 = await queryByIds(
       "AccountId, RelatedAccountId",
       "ProviderAffiliation",
       "AccountId",
@@ -25862,7 +25862,7 @@ async function readAttendeePool(ctx) {
       ctx.org
     ).catch(softFail(ctx, "Attendee affiliations", []));
     const held = new Set(ids);
-    for (const r of rows3) {
+    for (const r of rows4) {
       const a = str6(r.AccountId);
       const b = str6(r.RelatedAccountId);
       if (!held.has(b)) continue;
@@ -25893,14 +25893,14 @@ async function readChildren(ctx, me) {
   const detailVisit = /* @__PURE__ */ new Map();
   await Promise.all(
     Object.entries(CHILD_FIELDS).map(async ([object3, { fields, key: key5 }]) => {
-      const rows3 = await queryByIds(
+      const rows4 = await queryByIds(
         ["Id", key5, ...fields].join(", "),
         object3,
         key5,
         ids,
         ctx.org
       ).catch(softFail(ctx, `${object3} rows`, []));
-      for (const r of rows3.slice(0, CAP.rows)) {
+      for (const r of rows4.slice(0, CAP.rows)) {
         const v = str6(r[key5]);
         if (object3 === "ProviderVisitProdDetailing") detailVisit.set(str6(r.Id), v);
         add(v, object3, seed(r, fields));
@@ -25914,14 +25914,14 @@ async function readChildren(ctx, me) {
         ["ProviderVisitDtlProductMsg", ["MessageRecordId", "ReactionType", "CapturedReaction"]],
         ["ProviderVisitProdDiscussion", ["RecordTypeId"]]
       ].map(async ([object3, fields]) => {
-        const rows3 = await queryByIds(
+        const rows4 = await queryByIds(
           ["Id", "ProviderVisitProductDtlId", ...fields].join(", "),
           object3,
           "ProviderVisitProductDtlId",
           detailIds,
           ctx.org
         ).catch(softFail(ctx, `${object3} rows`, []));
-        for (const r of rows3.slice(0, CAP.rows))
+        for (const r of rows4.slice(0, CAP.rows))
           add(
             detailVisit.get(str6(r.ProviderVisitProductDtlId)) ?? "",
             object3,
@@ -26314,11 +26314,11 @@ var init_planReview = __esm({
 });
 
 // src/studio/screens/manager/salesData.ts
-function pivotSales(rows3, measure, productNames2) {
+function pivotSales(rows4, measure, productNames2) {
   const col = `Measure${measure}Total__c`;
   const products = /* @__PURE__ */ new Set();
   const byAccount = /* @__PURE__ */ new Map();
-  for (const r of rows3) {
+  for (const r of rows4) {
     const account = str8(r.AccountFullName__c) || str8(r.Account__c);
     if (!account) continue;
     const product = productNames2.get(str8(r.Product__c)) || str8(r.Product__c);
@@ -26339,16 +26339,16 @@ async function collectSalesData(ctx) {
   const tables = [];
   const notes = [];
   for (const s11 of synced) {
-    const rows3 = await query(
+    const rows4 = await query(
       `SELECT Account__c, AccountFullName__c, Product__c, DataPeriod__c, Measure1Total__c FROM ${s11.object} LIMIT ${ROW_CAP2 + 1}`,
       ctx.org
     ).catch(softFail(ctx, `Sales data (${s11.type})`, null));
-    if (!rows3) {
+    if (!rows4) {
       notes.push(`the ${s11.type} sales table couldn't be read`);
       continue;
     }
-    const cut = rows3.length > ROW_CAP2;
-    const used2 = rows3.slice(0, ROW_CAP2);
+    const cut = rows4.length > ROW_CAP2;
+    const used2 = rows4.slice(0, ROW_CAP2);
     const ids = [
       ...new Set(
         used2.map((r) => str8(r.Product__c)).filter((id2) => /^[a-zA-Z0-9]{15,18}$/.test(id2))
@@ -26450,11 +26450,11 @@ async function collectDashboards(ctx) {
   const ids = folders.map((f) => str9(f.Id)).filter((id2) => ID_PATTERN.test(id2));
   const readable3 = /* @__PURE__ */ new Set();
   for (let i = 0; i < ids.length; i += 200) {
-    const rows3 = await query(
+    const rows4 = await query(
       `SELECT RecordId, HasReadAccess FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND RecordId IN (${inList(ids.slice(i, i + 200))})`,
       ctx.org
     );
-    for (const r of rows3) if (r.HasReadAccess === true) readable3.add(str9(r.RecordId));
+    for (const r of rows4) if (r.HasReadAccess === true) readable3.add(str9(r.RecordId));
   }
   const visibleFolders = folders.filter((f) => readable3.has(str9(f.Id)));
   const visible = dashboards.filter(
@@ -26902,16 +26902,16 @@ async function collectInsights(ctx) {
     }
   });
   if (!res) return void 0;
-  const rows3 = res.records;
-  if (res.totalSize > rows3.length)
-    ctx.note(`Medical Insights shows the newest ${rows3.length} of ${res.totalSize} insights.`);
+  const rows4 = res.records;
+  if (res.totalSize > rows4.length)
+    ctx.note(`Medical Insights shows the newest ${rows4.length} of ${res.totalSize} insights.`);
   const cfg = await ctx.config(["InsightSettings"]).catch(() => ({}));
   const settings = cfg.InsightSettings;
   const draftStatus = s3(field2(settings, "DraftStatus")).trim() || null;
   const finalStatus = s3(field2(settings, "FinalStatus")).trim() || null;
   const inProgressStatuses = splitStatuses(field2(settings, "InProgressStatuses"));
-  const ids = rows3.map((r) => s3(r.Id));
-  const userIds = [...new Set(rows3.map((r) => s3(r.CreatedById)).filter(Boolean))];
+  const ids = rows4.map((r) => s3(r.Id));
+  const userIds = [...new Set(rows4.map((r) => s3(r.CreatedById)).filter(Boolean))];
   const [users, productRows] = await Promise.all([
     queryByIds("Id, Name", "User", "Id", userIds, org).catch(
       softFail(ctx, "Medical Insights people", [])
@@ -26946,7 +26946,7 @@ async function collectInsights(ctx) {
       return d.toISOString();
     }
   };
-  const items = rows3.filter((r) => s3(r.Name)).map((r) => {
+  const items = rows4.filter((r) => s3(r.Name)).map((r) => {
     const full = s3(r.Content);
     const status = hasStatus ? s3(r.Status).trim() || null : null;
     return {
@@ -27030,8 +27030,8 @@ function nomenclatureOf(setting) {
 function dueDay(raw) {
   return typeof raw === "string" && /^\d{4}-\d{2}-\d{2}/.test(raw) ? raw.slice(0, 10) : null;
 }
-function newestFirst(rows3) {
-  return [...rows3].sort((a, b) => a.modified < b.modified ? 1 : a.modified > b.modified ? -1 : 0);
+function newestFirst(rows4) {
+  return [...rows4].sort((a, b) => a.modified < b.modified ? 1 : a.modified > b.modified ? -1 : 0);
 }
 var NOMENCLATURE_KEYS;
 var init_logic3 = __esm({
@@ -27152,15 +27152,15 @@ async function readPlans(ctx, apIds, tpIds, where3, sync) {
   let taskRows = [];
   if (planIds.length && sync("AssessmentTask")) {
     const w = where3("AssessmentTask");
-    const chunks7 = chunkIds(planIds);
+    const chunks8 = chunkIds(planIds);
     const out = [];
-    for (const chunk2 of chunks7) {
+    for (const chunk2 of chunks8) {
       if (out.length >= MAX_TASKS) break;
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT Id, Name, Status, OwnerId, AssignedToId, DueDate, ReferenceRecordId FROM AssessmentTask WHERE ReferenceRecordId IN (${inList(chunk2)})${w} LIMIT ${MAX_TASKS - out.length}`,
         ctx.org
       ).catch(softFail(ctx, "Tactics", []));
-      out.push(...rows3);
+      out.push(...rows4);
     }
     taskRows = out;
     if (taskRows.length >= MAX_TASKS)
@@ -27325,21 +27325,21 @@ async function readPlans(ctx, apIds, tpIds, where3, sync) {
 async function readSetting(ctx) {
   const fields = "ProgressDisplayMode, NomenclatureObjective, NomenclatureObjectivePlural, NomenclatureActionPlan, NomenclatureActionPlanPlural, NomenclatureTactic, NomenclatureTacticPlural";
   for (const name of ["KAMConfigurations__c", "KAMConfigurations"]) {
-    const rows3 = await query(
+    const rows4 = await query(
       `SELECT ${fields.split(", ").map((f) => name.endsWith("__c") ? `${f}__c` : f).join(", ")} FROM ${name} LIMIT 1`,
       ctx.org
     ).catch(() => void 0);
-    if (rows3?.[0]) {
+    if (rows4?.[0]) {
       return Object.fromEntries(
-        Object.entries(rows3[0]).map(([k, v]) => [k.replace(/__c$/, ""), v])
+        Object.entries(rows4[0]).map(([k, v]) => [k.replace(/__c$/, ""), v])
       );
     }
   }
   return void 0;
 }
-function group(rows3, key5) {
+function group(rows4, key5) {
   const out = /* @__PURE__ */ new Map();
-  for (const r of rows3) {
+  for (const r of rows4) {
     const k = str10(r[key5]);
     if (k) out.set(k, [...out.get(k) ?? [], r]);
   }
@@ -27348,10 +27348,10 @@ function group(rows3, key5) {
 async function names(object3, ids, ctx) {
   const out = /* @__PURE__ */ new Map();
   if (!ids.length) return out;
-  const rows3 = await queryByIds("Id, Name", object3, "Id", ids.slice(0, MAX_ROWS), ctx.org).catch(
+  const rows4 = await queryByIds("Id, Name", object3, "Id", ids.slice(0, MAX_ROWS), ctx.org).catch(
     softFail(ctx, `${object3} names`, [])
   );
-  for (const r of rows3) out.set(String(r.Id), String(r.Name ?? ""));
+  for (const r of rows4) out.set(String(r.Id), String(r.Name ?? ""));
   return out;
 }
 async function productNames(ids, ctx) {
@@ -27364,10 +27364,10 @@ async function productNames(ids, ctx) {
 async function roleLabels(ids, ctx) {
   const out = /* @__PURE__ */ new Map();
   if (!ids.length) return out;
-  const rows3 = await queryByIds("Id, MasterLabel", "ParticipantRole", "Id", ids, ctx.org).catch(
+  const rows4 = await queryByIds("Id, MasterLabel", "ParticipantRole", "Id", ids, ctx.org).catch(
     softFail(ctx, "Participant roles", [])
   );
-  for (const r of rows3) out.set(String(r.Id), String(r.MasterLabel ?? ""));
+  for (const r of rows4) out.set(String(r.Id), String(r.MasterLabel ?? ""));
   return out;
 }
 var KAM_TABLES, MAX_PLANS, MAX_TASKS, MAX_ROWS, str10, num2;
@@ -27488,12 +27488,12 @@ function evalProfileFormula(formula, profileName3) {
     /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\$Profile\.Name|<>|!=|=|\(|\)|,|[A-Za-z_][A-Za-z0-9_]*|\S/g
   ) ?? [];
   let pos = 0;
-  const fail = () => {
+  const fail2 = () => {
     throw new Error("unsupported");
   };
   const eat2 = (t) => {
     const x = tokens2[pos++];
-    if (x === void 0 || t !== void 0 && x !== t) return fail();
+    if (x === void 0 || t !== void 0 && x !== t) return fail2();
     return x;
   };
   const truthy = (v) => v === true;
@@ -27517,12 +27517,12 @@ function evalProfileFormula(formula, profileName3) {
       while (tokens2[pos] !== ")") {
         results.push(expr());
         if (tokens2[pos] === ",") pos++;
-        else if (tokens2[pos] !== ")") fail();
+        else if (tokens2[pos] !== ")") fail2();
       }
       eat2(")");
       switch (t.toUpperCase()) {
         case "IF":
-          return results.length === 3 ? truthy(results[0]) ? results[1] : results[2] : fail();
+          return results.length === 3 ? truthy(results[0]) ? results[1] : results[2] : fail2();
         case "OR":
           return results.some(truthy);
         case "AND":
@@ -27530,12 +27530,12 @@ function evalProfileFormula(formula, profileName3) {
         case "NOT":
           return !truthy(results[0] ?? false);
         default:
-          return fail();
+          return fail2();
       }
     }
     if (/^TRUE$/i.test(t)) return true;
     if (/^FALSE$/i.test(t)) return false;
-    return fail();
+    return fail2();
   };
   try {
     const v = expr();
@@ -27631,11 +27631,11 @@ async function readRatingSources(ctx, items, accountIds) {
       out.fields.territory = await describeFields(ctx, "ProviderAcctTerritoryInfo");
       const cols = selectList(terrItems, out.fields.territory);
       if (!cols.length) return;
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT Id, AccountId, Territory2Id, LastModifiedDate${cols.map((c) => `, ${c}`).join("")} FROM ProviderAcctTerritoryInfo WHERE AccountId IN (${inList(accountIds)}) AND Territory2Id IN (${inList(terrIds)}) LIMIT 2000`,
         ctx.org
       ).catch(softFail(ctx, "Ratings (Territory)", []));
-      for (const r of [...rows3].sort((a, b) => byTerritory(a, b, "Territory2Id"))) {
+      for (const r of [...rows4].sort((a, b) => byTerritory(a, b, "Territory2Id"))) {
         if (!out.territory.has(str12(r.AccountId))) out.territory.set(str12(r.AccountId), { row: r });
       }
     })(),
@@ -27644,12 +27644,12 @@ async function readRatingSources(ctx, items, accountIds) {
       out.fields.product = await describeFields(ctx, "ProviderAcctProductInfo");
       const cols = selectList(prodItems, out.fields.product);
       if (!cols.length) return;
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT Id, AccountId, ProductId, Product.Name, TerritoryId, LastModifiedDate${cols.map((c) => `, ${c}`).join("")} FROM ProviderAcctProductInfo WHERE AccountId IN (${inList(accountIds)}) AND TerritoryId IN (${inList(terrIds)}) AND Product.IsActive = true LIMIT 2000`,
         ctx.org
       ).catch(softFail(ctx, "Ratings (Product)", []));
       const seen = /* @__PURE__ */ new Set();
-      for (const r of [...rows3].sort((a, b) => byTerritory(a, b, "TerritoryId"))) {
+      for (const r of [...rows4].sort((a, b) => byTerritory(a, b, "TerritoryId"))) {
         const k = `${str12(r.AccountId)}:${str12(r.ProductId)}`;
         if (seen.has(k)) continue;
         seen.add(k);
@@ -27847,7 +27847,7 @@ async function collectDashboards2(ctx, ids) {
   const licensesOn = cfg.StateLicenseNumberSettings?.IsEnabledOnLightningPages === true;
   const slnField = /^\w+$/.test(str13(cfg.StateLicenseNumberSettings?.SlnValFormulaField)) ? str13(cfg.StateLicenseNumberSettings?.SlnValFormulaField) : "";
   const synced = (table) => ctx.scope(table) !== void 0;
-  const run5 = (table, soql5) => synced(table) ? query(soql5, ctx.org).catch(() => none) : Promise.resolve(none);
+  const run5 = (table, soql6) => synced(table) ? query(soql6, ctx.org).catch(() => none) : Promise.resolve(none);
   const [summaries, specialties, atis, addresses, nba, licenses] = await Promise.all([
     territoryIds.length ? run5(
       "PrvdAccountTerritorySummary",
@@ -27891,7 +27891,7 @@ async function collectDashboards2(ctx, ids) {
   }
   const territoryRank = new Map(territoryIds.map((t, i) => [t, i]));
   for (const id2 of accounts) {
-    const mine = (rows3, key5 = "AccountId") => rows3.filter((r) => str13(r[key5]) === id2);
+    const mine = (rows4, key5 = "AccountId") => rows4.filter((r) => str13(r[key5]) === id2);
     const row = mine(summaries).sort(
       (a, b) => (territoryRank.get(str13(a.Territory2Id)) ?? 99) - (territoryRank.get(str13(b.Territory2Id)) ?? 99)
     )[0];
@@ -27899,7 +27899,7 @@ async function collectDashboards2(ctx, ids) {
     const ati = mine(atis);
     const addrs = mine(addresses, "ParentId");
     const preferred = ati.map((r) => str13(r.PreferredAddressId)).filter(Boolean);
-    const newest2 = (rows3) => [...rows3].sort((a, b) => str13(b.LastModifiedDate).localeCompare(str13(a.LastModifiedDate)));
+    const newest2 = (rows4) => [...rows4].sort((a, b) => str13(b.LastModifiedDate).localeCompare(str13(a.LastModifiedDate)));
     const addr = addrs.find((x) => preferred.includes(str13(x.Id))) ?? newest2(addrs).find((x) => x.IsPrimary === true) ?? newest2(addrs)[0];
     let license = "disabled";
     if (licensesOn && addr) {
@@ -28135,10 +28135,10 @@ async function fieldReadPermissions(ctx, object3, shared) {
   try {
     const together = shared ? await shared : null;
     const types3 = new Set(permissionTypes(object3).map((t) => t.toLowerCase()));
-    const rows3 = together ? together.filter((r) => types3.has(str14(r.Field).split(".")[0].toLowerCase())) : await query(PERMISSION_SOQL(permissionTypes(object3), ctx.userId), ctx.adminOrg);
+    const rows4 = together ? together.filter((r) => types3.has(str14(r.Field).split(".")[0].toLowerCase())) : await query(PERMISSION_SOQL(permissionTypes(object3), ctx.userId), ctx.adminOrg);
     const out = /* @__PURE__ */ new Map();
     const set = (name, read2) => out.set(name, out.get(name) === true || read2);
-    for (const r of rows3) {
+    for (const r of rows4) {
       const [sobject2, field3 = ""] = str14(r.Field).split(".");
       const read2 = r.PermissionsRead === true;
       if (!field3) continue;
@@ -28312,7 +28312,7 @@ async function relatedLists(ctx, object3, ids, d) {
         object: child,
         columns
       };
-      const add = (id2, count3, rows3) => out.get(id2)?.push({ ...base2, count: count3, rows: rows3 });
+      const add = (id2, count3, rows4) => out.get(id2)?.push({ ...base2, count: count3, rows: rows4 });
       if (condition2 === void 0) return ids.forEach((id2) => add(id2, 0, []));
       const scoped2 = condition2 ? ` AND (${condition2})` : "";
       const viaContact = object3 === "Account" && arr2(cd.fields.get(field3.toLowerCase())?.referenceTo).map(str14).join() === "Contact" && d.fields.has("personcontactid");
@@ -28387,7 +28387,7 @@ async function activityHistory(ctx, ids) {
   const out = /* @__PURE__ */ new Map();
   const cond = ctx.scope("Visit");
   if (cond === void 0) return out;
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, AccountId, PlannedVisitStartTime FROM Visit WHERE AccountId IN (${inList(ids)}) AND PlannedVisitStartTime != null${cond ? ` AND (${cond})` : ""} ORDER BY PlannedVisitStartTime DESC LIMIT 200`,
     ctx.org
   );
@@ -28397,7 +28397,7 @@ async function activityHistory(ctx, ids) {
     timeZone: ctx.format.timeZone
   });
   for (const id2 of ids) {
-    const mine = rows3.filter((r) => str14(r.AccountId) === id2);
+    const mine = rows4.filter((r) => str14(r.AccountId) === id2);
     out.set(id2, {
       key: "Visit.AccountId.history",
       api: "ActivityHistory",
@@ -28427,12 +28427,12 @@ async function affiliations(ctx, ids) {
   const accountCond = ctx.scope("Account");
   if (cond === void 0 || accountCond === void 0) return out;
   const inIds = inList(ids);
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, AccountId, RelatedAccountId, AccountName, AffiliationStrengthType, Role, InfluenceType, Account.Name, RelatedAccount.Name FROM ProviderAffiliation WHERE (AccountId IN (${inIds}) OR RelatedAccountId IN (${inIds}))${cond ? ` AND (${cond})` : ""} ORDER BY Id ASC LIMIT 500`,
     ctx.org
   );
   const other = (r, id2) => str14(r.AccountId) === id2 ? str14(r.RelatedAccountId) : str14(r.AccountId);
-  const wanted = [...new Set(rows3.flatMap((r) => ids.map((id2) => other(r, id2))))].filter(
+  const wanted = [...new Set(rows4.flatMap((r) => ids.map((id2) => other(r, id2))))].filter(
     (x) => ID_PATTERN.test(x)
   );
   if (!wanted.length) return out;
@@ -28450,7 +28450,7 @@ async function affiliations(ctx, ids) {
     { label: "Influence Type", type: "picklist" }
   ];
   for (const id2 of ids) {
-    const mine = rows3.filter(
+    const mine = rows4.filter(
       (r) => (str14(r.AccountId) === id2 || str14(r.RelatedAccountId) === id2) && held.has(other(r, id2))
     );
     const cells = (r) => [
@@ -28494,12 +28494,12 @@ async function inlineCards(ctx, objects) {
   const load = async (bundles) => {
     const valid = bundles.filter((b) => /^\w+$/.test(b));
     if (!valid.length) return [];
-    const rows3 = await query(
+    const rows4 = await query(
       `SELECT LightningComponentBundle.DeveloperName, FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName IN (${inList(valid)})`,
       ctx.adminOrg,
       true
     ).catch(softFail(ctx, "Record page", []));
-    return rows3.map((r) => ({
+    return rows4.map((r) => ({
       bundle: str14(obj3(r.LightningComponentBundle).DeveloperName),
       path: str14(r.FilePath),
       source: str14(r.Source)
@@ -28658,9 +28658,9 @@ async function collectRecords(ctx, lists, extra = {}) {
                   false
                 )
               ];
-            const rows3 = ratingSources.product.get(id2) ?? [];
+            const rows4 = ratingSources.product.get(id2) ?? [];
             const f = ratingSources.fields.product.get(i.field.toLowerCase());
-            return rows3.length ? rows3.map((r) => card(r, f, false)) : [card(void 0, f, false)];
+            return rows4.length ? rows4.map((r) => card(r, f, false)) : [card(void 0, f, false)];
           })
         };
       };
@@ -28728,12 +28728,12 @@ async function readExpenses(ctx, ids) {
   ).catch(softFail(ctx, "Record page", []));
   const iso2 = str14(corporate[0]?.IsoCode);
   out.currency = /^[A-Z]{3}$/.test(iso2) ? iso2 : "USD";
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT ExpenseOriginId, Amount FROM Expense WHERE ExpenseOriginId IN (${inList(ids)})`,
     ctx.org
   ).catch(softFail(ctx, "Record page (Expenses tab)", []));
   const sums = /* @__PURE__ */ new Map();
-  for (const r of rows3) {
+  for (const r of rows4) {
     const s11 = sums.get(str14(r.ExpenseOriginId)) ?? { count: 0, sum: 0 };
     s11.count++;
     s11.sum += Number(r.Amount) || 0;
@@ -30013,7 +30013,7 @@ function applyListViewSharing(core, viewer) {
   return { ...core, objects };
 }
 async function latestCache(profile, org) {
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, Name, Status, Profile.Name, LastModifiedDate, MetadataDocument.LatestPublishedVersionId, MetadataDocument.ContentSize
      FROM LifeSciMobileMetadataRecord
      WHERE ParentMobileMetadataRecId != null AND MetadataDocumentId != null AND Profile.Name = ${soqlString3(profile)}
@@ -30022,7 +30022,7 @@ async function latestCache(profile, org) {
     false,
     { allowTruncated: true }
   );
-  const mine = rows3.filter((r) => ieq(str17(obj5(r.Profile).Name), profile));
+  const mine = rows4.filter((r) => ieq(str17(obj5(r.Profile).Name), profile));
   const pick2 = mine.find((r) => r.Status === "Active") ?? mine[0];
   if (!pick2) return null;
   const doc = obj5(pick2.MetadataDocument);
@@ -30111,12 +30111,12 @@ async function assignedSets(userIds, org) {
   const sets = /* @__PURE__ */ new Map();
   const ids = userIds.filter((id2) => ID_PATTERN.test(id2));
   for (let i = 0; i < ids.length; i += 200) {
-    const rows3 = await query(
+    const rows4 = await query(
       `SELECT AssigneeId, PermissionSet.Name, PermissionSet.NamespacePrefix FROM PermissionSetAssignment
        WHERE PermissionSet.IsOwnedByProfile = false AND AssigneeId IN (${inList(ids.slice(i, i + 200))})`,
       org
     );
-    for (const a of rows3) {
+    for (const a of rows4) {
       const ps = obj5(a.PermissionSet);
       const ns3 = str17(ps.NamespacePrefix);
       const list2 = sets.get(str17(a.AssigneeId)) ?? [];
@@ -30143,32 +30143,32 @@ async function profileUsers(profile, org) {
     false,
     { allowTruncated: true }
   );
-  const rows3 = result2.records;
-  const total = Math.max(result2.totalSize ?? rows3.length, rows3.length);
+  const rows4 = result2.records;
+  const total = Math.max(result2.totalSize ?? rows4.length, rows4.length);
   const sets = await assignedSets(
-    rows3.map((u) => str17(u.Id)),
+    rows4.map((u) => str17(u.Id)),
     org
   );
-  return { users: rows3.map((u) => toProfileUser(u, sets)), total, truncated: total > rows3.length };
+  return { users: rows4.map((u) => toProfileUser(u, sets)), total, truncated: total > rows4.length };
 }
 async function profileUserById(profile, id2, org) {
   if (!ID_PATTERN.test(id2)) return void 0;
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, Name, LastLoginDate, LanguageLocaleKey FROM User WHERE Id = '${id2}' AND IsActive = true AND Profile.Name = ${soqlString3(profile)}`,
     org
   );
-  return rows3[0] ? toProfileUser(rows3[0], await assignedSets([id2], org)) : void 0;
+  return rows4[0] ? toProfileUser(rows4[0], await assignedSets([id2], org)) : void 0;
 }
 async function searchProfileUsers(profile, text12, org, limit = 50) {
   const term = text12.trim();
   if (!term) return [];
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, Name FROM User WHERE IsActive = true AND Profile.Name = ${soqlString3(profile)} AND Name LIKE '%${likeEscape(term)}%' ORDER BY Name LIMIT ${Math.max(1, Math.min(limit, 200))}`,
     org,
     false,
     { allowTruncated: true }
   );
-  return rows3.map((u) => ({ id: str17(u.Id), name: str17(u.Name) }));
+  return rows4.map((u) => ({ id: str17(u.Id), name: str17(u.Name) }));
 }
 function defaultUser(users) {
   const counts2 = /* @__PURE__ */ new Map();
@@ -30231,13 +30231,13 @@ async function ancestors(sobject2, parentField, fields, ids, org) {
   const seen = /* @__PURE__ */ new Map();
   let frontier = ids.filter((id2) => ID_PATTERN.test(id2));
   for (let depth = 0; frontier.length && depth < 20; depth++) {
-    const rows3 = await query(
+    const rows4 = await query(
       `SELECT Id, ${parentField}, ${fields} FROM ${sobject2} WHERE Id IN (${inList(frontier)})`,
       org
     );
-    for (const r of rows3) seen.set(str17(r.Id), r);
+    for (const r of rows4) seen.set(str17(r.Id), r);
     frontier = [
-      ...new Set(rows3.map((r) => str17(r[parentField])).filter((id2) => id2 && !seen.has(id2)))
+      ...new Set(rows4.map((r) => str17(r[parentField])).filter((id2) => id2 && !seen.has(id2)))
     ];
   }
   return [...seen.values()];
@@ -30272,17 +30272,17 @@ async function viewerReports(userId, salesChart, org, note) {
     }
     const readable3 = /* @__PURE__ */ new Set();
     const ids = folders.map((f) => str17(f.Id)).filter((id2) => ID_PATTERN.test(id2));
-    const chunks7 = [];
-    for (let i = 0; i < ids.length; i += 200) chunks7.push(ids.slice(i, i + 200));
-    for (const rows3 of await Promise.all(
-      chunks7.map(
+    const chunks8 = [];
+    for (let i = 0; i < ids.length; i += 200) chunks8.push(ids.slice(i, i + 200));
+    for (const rows4 of await Promise.all(
+      chunks8.map(
         (c) => query(
           `SELECT RecordId, HasReadAccess FROM UserRecordAccess WHERE UserId = '${userId}' AND RecordId IN (${inList(c)})`,
           org
         )
       )
     )) {
-      for (const r of rows3) if (r.HasReadAccess === true) readable3.add(str17(r.RecordId));
+      for (const r of rows4) if (r.HasReadAccess === true) readable3.add(str17(r.RecordId));
     }
     const visibleFolders = folders.filter((f) => readable3.has(str17(f.Id)));
     const visibleReports = reports.filter((r) => {
@@ -30326,12 +30326,12 @@ async function viewerSharing(userId, org) {
     const seen = /* @__PURE__ */ new Set([userId, ...implicit.map((g) => str17(g.Id))]);
     let frontier = [...seen];
     for (let depth = 0; frontier.length && depth < 10; depth++) {
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT GroupId, Group.DeveloperName, Group.Type FROM GroupMember WHERE UserOrGroupId IN (${inList(frontier)})`,
         org
       );
       frontier = [];
-      for (const m of rows3) {
+      for (const m of rows4) {
         const g = obj5(m.Group);
         if (g.Type === "Regular" && str17(g.DeveloperName)) groups.add(str17(g.DeveloperName));
         if (!seen.has(str17(m.GroupId))) {
@@ -30603,7 +30603,7 @@ async function viewerLists(core, userId, org, track, readOrg = org) {
   const urlsFor = (name) => {
     let p = describeUrls.get(name);
     if (!p) {
-      p = dataPath2(readOrg, `/sobjects/${name}/listviews`).then((path24) => apiRequest(path24, "GET", void 0, readOrg)).then(
+      p = dataPath2(readOrg, `/sobjects/${name}/listviews`).then((path25) => apiRequest(path25, "GET", void 0, readOrg)).then(
         (res) => new Map(
           arr4(res.success ? res.data?.listviews : []).map((l) => [
             str17(l.developerName),
@@ -30630,12 +30630,12 @@ async function viewerLists(core, userId, org, track, readOrg = org) {
     const url = (await urlsFor(name)).get(lv.name);
     if (url?.startsWith("/services/data/")) {
       const d = await apiRequest(url, "GET", void 0, readOrg);
-      const soql5 = d.success ? str17(d.data?.query) : "";
-      if (soql5) {
+      const soql6 = d.success ? str17(d.data?.query) : "";
+      if (soql6) {
         const m = /\sWHERE\s([\s\S]*?)(?:\sORDER BY\s([\s\S]*))?$/i.exec(
-          soql5.replace(/\sUSING SCOPE \w+/i, "")
+          soql6.replace(/\sUSING SCOPE \w+/i, "")
         );
-        const o = /\sORDER BY\s([\s\S]*)$/i.exec(soql5);
+        const o = /\sORDER BY\s([\s\S]*)$/i.exec(soql6);
         where3 = m?.[1]?.trim() ?? "";
         orderBy = o?.[1]?.trim() ?? "";
         mine = str17(d.data?.scope).toLowerCase() === "mine";
@@ -30735,8 +30735,8 @@ async function unsyncedReferences(records, fields, scope2, org) {
   );
   return unsynced;
 }
-function pathValue(record2, path24) {
-  const field3 = /^toLabel\((.+)\)$/.exec(path24)?.[1] ?? path24;
+function pathValue(record2, path25) {
+  const field3 = /^toLabel\((.+)\)$/.exec(path25)?.[1] ?? path25;
   return field3.split(".").reduce((v, k) => v && typeof v === "object" ? v[k] : void 0, record2);
 }
 function listCell(value4, type, format) {
@@ -31422,6 +31422,392 @@ var init_ipad_page_lint = __esm({
   }
 });
 
+// src/validation/om-builtin-checks.ts
+import fs8 from "fs";
+import path7 from "path";
+function guarded(run5) {
+  return async (org) => {
+    try {
+      return await run5(org);
+    } catch (e) {
+      return {
+        passed: false,
+        message: e instanceof ReadError ? e.message : `Couldn't run the check: ${String(e)}`,
+        unavailable: true
+      };
+    }
+  };
+}
+async function rows(what, result2) {
+  if (!result2.success || !result2.data)
+    throw new ReadError(`Couldn't read ${what}: ${result2.error ?? "no result"}`);
+  return result2.data.records;
+}
+function chunks5(list2, size) {
+  const out = [];
+  for (let i = 0; i < list2.length; i += size) out.push(list2.slice(i, i + size));
+  return out;
+}
+async function inChunks(what, ids, org, build2) {
+  const out = [];
+  for (const part of chunks5(ids, 200)) out.push(...await soql2(what, build2(quoteList(part)), org));
+  return out;
+}
+async function retrieveFiles(org, members) {
+  const r = await retrieveMetadata("", members, org);
+  if (!r.success || !r.data)
+    throw new ReadError(`Couldn't retrieve ${members.join(", ")}: ${r.error ?? "no result"}`);
+  const dir = r.data.outputDir;
+  const files = /* @__PURE__ */ new Map();
+  const walk5 = (d) => {
+    for (const e of fs8.readdirSync(d, { withFileTypes: true })) {
+      const p = path7.join(d, e.name);
+      if (e.isDirectory()) walk5(p);
+      else files.set(e.name, fs8.readFileSync(p, "utf-8"));
+    }
+  };
+  try {
+    walk5(dir);
+  } finally {
+    fs8.rmSync(dir, { recursive: true, force: true });
+  }
+  return files;
+}
+async function quoteOwners(org) {
+  return soql2(
+    "quote owners",
+    "SELECT Id, Name FROM User WHERE IsActive = true AND Id IN (SELECT OwnerId FROM Quote WHERE CreatedDate = LAST_N_DAYS:365)",
+    org
+  );
+}
+async function permissionSetsOf(org, userIds) {
+  const assigned = await inChunks(
+    "permission set assignments",
+    userIds,
+    org,
+    (list2) => `SELECT AssigneeId, PermissionSetId, PermissionSetGroupId FROM PermissionSetAssignment WHERE AssigneeId IN (${list2})`
+  );
+  const groupIds = [...new Set(assigned.map((a) => str19(a.PermissionSetGroupId)).filter(Boolean))];
+  const inGroup = /* @__PURE__ */ new Map();
+  if (groupIds.length) {
+    const comps = await inChunks(
+      "permission set group members",
+      groupIds,
+      org,
+      (list2) => `SELECT PermissionSetGroupId, PermissionSetId FROM PermissionSetGroupComponent WHERE PermissionSetGroupId IN (${list2})`
+    );
+    for (const c of comps) {
+      const g = str19(c.PermissionSetGroupId);
+      inGroup.set(g, [...inGroup.get(g) ?? [], str19(c.PermissionSetId)]);
+    }
+  }
+  const out = /* @__PURE__ */ new Map();
+  for (const a of assigned) {
+    const set = out.get(str19(a.AssigneeId)) ?? /* @__PURE__ */ new Set();
+    if (a.PermissionSetId) set.add(str19(a.PermissionSetId));
+    for (const id2 of inGroup.get(str19(a.PermissionSetGroupId)) ?? []) set.add(id2);
+    out.set(str19(a.AssigneeId), set);
+  }
+  return out;
+}
+async function ownersWithout(org, grantQuery, what, lack) {
+  const owners = await quoteOwners(org);
+  if (!owners.length)
+    return pass("No quotes were created in the last year, so there are no owners to check.");
+  const held = await permissionSetsOf(
+    org,
+    owners.map((o) => str19(o.Id))
+  );
+  const all = [...new Set([...held.values()].flatMap((s11) => [...s11]))];
+  const granting = new Set(
+    (await inChunks(what, all, org, grantQuery)).map((r) => str19(r.ParentId))
+  );
+  const lacking = owners.filter(
+    (o) => ![...held.get(str19(o.Id)) ?? []].some((id2) => granting.has(id2))
+  );
+  return lacking.length ? fail(
+    `${lacking.length} of ${owners.length} quote owners ${lack}.`,
+    lacking.map((o) => str19(o.Name || o.Id))
+  ) : pass(`All ${owners.length} quote owners get it through a permission set.`);
+}
+function settingFlag(settings, flag2, label2) {
+  return guarded(async (org) => {
+    const files = await retrieveFiles(org, [`Settings:${settings}`]);
+    const text12 = files.get(`${settings}.settings-meta.xml`);
+    if (!text12)
+      throw new ReadError(`Couldn't read the ${settings} settings: the retrieve returned no file.`);
+    const root2 = Object.values(xml.parse(text12)).find((v) => v && typeof v === "object");
+    return str19(root2?.[flag2]) === "true" ? pass(`${label2} is on.`) : fail(`${label2} is off.`, [`${label2} (${settings} settings, ${flag2})`]);
+  });
+}
+async function activeProcedureSteps(org) {
+  const list2 = await soql2(
+    "pricing procedures",
+    "SELECT ApiName FROM ExpressionSet WHERE UsageSubtype = 'LifeSciencesCommercial' AND Id IN (SELECT ExpressionSetId FROM ExpressionSetVersion WHERE IsActive = true)",
+    org
+  );
+  const names5 = list2.map((r) => str19(r.ApiName)).filter(Boolean);
+  const read2 = names5.slice(0, PROCEDURE_LIMIT);
+  const note = names5.length > read2.length ? ` Only the first ${read2.length} of ${names5.length} procedures were read.` : "";
+  if (!read2.length) return { steps: [], note };
+  const files = await retrieveFiles(
+    org,
+    read2.map((n2) => `ExpressionSetDefinition:${n2}`)
+  );
+  const steps = [];
+  for (const name of read2) {
+    const text12 = files.get(`${name}.expressionSetDefinition-meta.xml`);
+    if (!text12) continue;
+    const def = xml.parse(text12).ExpressionSetDefinition;
+    for (const v of asList(def?.versions))
+      if (v.status === "Active")
+        for (const step2 of asList(v.steps)) steps.push({ procedure: name, step: step2 });
+  }
+  return { steps, note };
+}
+var ReadError, pass, fail, soql2, tooling, str19, quoteList, xml, asList, quoteOwnerStatusEdit, quoteOwnerQuoteDocumentCreate, PROCEDURE_LIMIT, stepName, pricingRoundingStep, pamEffectiveDates, pricingProcedureSelectors, quoteApprovalRunAs, ENTRY_LIMIT, standardPriceFirst, OM_BUILTIN;
+var init_om_builtin_checks = __esm({
+  "src/validation/om-builtin-checks.ts"() {
+    "use strict";
+    init_fxp();
+    init_cli();
+    ReadError = class extends Error {
+    };
+    pass = (message) => ({ passed: true, message });
+    fail = (message, names5) => ({
+      passed: false,
+      message,
+      details: { records: names5.map((Name) => ({ Name })) }
+    });
+    soql2 = async (what, query2, org) => rows(what, await runSoqlQuery(query2, org));
+    tooling = async (what, query2, org) => rows(what, await runToolingQuery(query2, org));
+    str19 = (v) => v == null ? "" : String(v);
+    quoteList = (ids) => ids.map((i) => `'${i.replace(/'/g, "\\'")}'`).join(",");
+    xml = new XMLParser({
+      ignoreAttributes: true,
+      parseTagValue: false,
+      isArray: (name) => ["versions", "steps", "parameters", "orchestratedStages", "stageSteps"].includes(name)
+    });
+    asList = (v) => v == null ? [] : Array.isArray(v) ? v : [v];
+    quoteOwnerStatusEdit = guarded(
+      (org) => ownersWithout(
+        org,
+        (list2) => `SELECT ParentId FROM FieldPermissions WHERE Field = 'Quote.Status' AND PermissionsEdit = true AND ParentId IN (${list2})`,
+        "Quote.Status field permissions",
+        "can't edit Quote.Status through any permission set"
+      )
+    );
+    quoteOwnerQuoteDocumentCreate = guarded(
+      (org) => ownersWithout(
+        org,
+        (list2) => `SELECT ParentId FROM ObjectPermissions WHERE SobjectType = 'QuoteDocumentCreationEvent' AND PermissionsCreate = true AND ParentId IN (${list2})`,
+        "QuoteDocumentCreationEvent object permissions",
+        "can't create QuoteDocumentCreationEvent through any permission set"
+      )
+    );
+    PROCEDURE_LIMIT = 15;
+    stepName = (s11) => `${s11.procedure}: ${s11.step.label ?? s11.step.name ?? s11.step.actionType}`;
+    pricingRoundingStep = guarded(async (org) => {
+      const { steps, note } = await activeProcedureSteps(org);
+      const found = steps.filter((s11) => /round/i.test(str19(s11.step.actionType)));
+      return found.length ? fail(
+        `${found.length} active pricing procedure steps round values.${note}`,
+        found.map(stepName)
+      ) : pass(`No active pricing procedure step rounds values.${note}`);
+    });
+    pamEffectiveDates = guarded(async (org) => {
+      const { steps, note } = await activeProcedureSteps(org);
+      const tables = /* @__PURE__ */ new Map();
+      for (const s11 of steps) {
+        if (s11.step.actionType !== "PriceAdjustmentMatrix") continue;
+        for (const p of asList(s11.step.customElement?.parameters))
+          if (p.name === "LookUpApiName" && p.type === "Literal" && p.value)
+            tables.set(p.value, (tables.get(p.value) ?? /* @__PURE__ */ new Set()).add(s11.procedure));
+      }
+      if (!tables.size) return pass(`No active procedure has a Price Adjustment Matrix step.${note}`);
+      const params = await soql2(
+        "decision table parameters",
+        `SELECT DecisionTable.DeveloperName, DecisionTable.SourceObject, FieldName FROM DecisionTableParameter WHERE DecisionTable.DeveloperName IN (${quoteList([...tables.keys()])}) AND FieldName IN ('EffectiveFrom','EffectiveTo')`,
+        org
+      );
+      const flagged = params.filter(
+        (p) => str19(p.DecisionTable?.SourceObject) !== "PriceAdjustmentTier"
+      );
+      return flagged.length ? fail(
+        `${flagged.length} Price Adjustment Matrix lookups use effective dates.${note}`,
+        flagged.map((p) => {
+          const t = str19(p.DecisionTable?.DeveloperName);
+          return `${t} (${[...tables.get(t) ?? []].join(", ")}): ${str19(p.FieldName)}`;
+        })
+      ) : pass(`${tables.size} Price Adjustment Matrix lookup tables use no effective dates.${note}`);
+    });
+    pricingProcedureSelectors = guarded(async (org) => {
+      const named2 = [];
+      const views = await tooling(
+        "Product Views pricing procedures",
+        "SELECT LifeSciConfigRecord.DeveloperName, PicklistValue FROM LifeSciConfigFieldValue WHERE FieldName = 'PricingProcedure' AND LifeSciConfigRecord.IsActive = true AND LifeSciConfigRecord.LifeSciConfigCategory.DeveloperName = 'OrderProductViewsSettings'",
+        org
+      );
+      for (const v of views)
+        named2.push({
+          selector: `Product Views ${str19(v.LifeSciConfigRecord?.DeveloperName)}`,
+          procedure: str19(v.PicklistValue) || null
+        });
+      const stts = await soql2(
+        "Sales Transaction Types used by quotes",
+        "SELECT SalesTransactionType.Name, SalesTransactionType.PricingProcedureId FROM Quote WHERE CreatedDate = LAST_N_DAYS:365 AND SalesTransactionTypeId != null GROUP BY SalesTransactionType.Name, SalesTransactionType.PricingProcedureId",
+        org
+      );
+      const defIds = [
+        ...new Set(
+          stts.map(
+            (r) => str19(
+              r.SalesTransactionType?.PricingProcedureId ?? r.PricingProcedureId
+            )
+          ).filter(Boolean)
+        )
+      ];
+      const defs = /* @__PURE__ */ new Map();
+      if (defIds.length)
+        for (const d of await soql2(
+          "pricing procedure definitions",
+          `SELECT Id, DeveloperName FROM ExpressionSetDefinition WHERE Id IN (${quoteList(defIds)})`,
+          org
+        ))
+          defs.set(str19(d.Id), str19(d.DeveloperName));
+      for (const r of stts) {
+        const t = r.SalesTransactionType ?? r;
+        const id2 = str19(t.PricingProcedureId);
+        named2.push({
+          selector: `Sales Transaction Type ${str19(t.Name)}`,
+          procedure: id2 ? defs.get(id2) ?? `(unknown ${id2})` : null
+        });
+      }
+      if (!named2.length) return pass("No Product Views setting or quote names a pricing procedure.");
+      const apiNames = [...new Set(named2.map((n2) => n2.procedure).filter((n2) => !!n2))];
+      const sets = /* @__PURE__ */ new Map();
+      const active2 = /* @__PURE__ */ new Set();
+      if (apiNames.length) {
+        for (const s11 of await soql2(
+          "pricing procedures",
+          `SELECT ApiName, UsageSubtype FROM ExpressionSet WHERE ApiName IN (${quoteList(apiNames)})`,
+          org
+        ))
+          sets.set(str19(s11.ApiName), str19(s11.UsageSubtype));
+        for (const v of await soql2(
+          "pricing procedure versions",
+          `SELECT ExpressionSet.ApiName FROM ExpressionSetVersion WHERE IsActive = true AND ExpressionSet.ApiName IN (${quoteList(apiNames)})`,
+          org
+        ))
+          active2.add(str19(v.ExpressionSet?.ApiName));
+      }
+      const problems = [];
+      for (const n2 of named2) {
+        if (!n2.procedure) problems.push(`${n2.selector}: no procedure chosen`);
+        else if (!sets.has(n2.procedure)) problems.push(`${n2.selector}: ${n2.procedure} (not found)`);
+        else if (sets.get(n2.procedure) !== "LifeSciencesCommercial")
+          problems.push(`${n2.selector}: ${n2.procedure} (not a Life Sciences Commercial procedure)`);
+        else if (!active2.has(n2.procedure))
+          problems.push(`${n2.selector}: ${n2.procedure} (no active version)`);
+      }
+      return problems.length ? fail(`${problems.length} pricing procedure choices don't line up.`, problems) : pass(
+        `All ${named2.length} pricing procedure choices are active Life Sciences Commercial procedures.`
+      );
+    });
+    quoteApprovalRunAs = guarded(async (org) => {
+      const flows = await soql2(
+        "Quote approval flows",
+        "SELECT ApiName FROM FlowDefinitionView WHERE ProcessType = 'ApprovalWorkflow' AND IsActive = true AND TriggerObjectOrEventId = 'Quote'",
+        org
+      );
+      const names5 = flows.map((f) => str19(f.ApiName)).filter(Boolean);
+      if (!names5.length) return pass("No active approval flow on Quote.");
+      const files = await retrieveFiles(
+        org,
+        names5.map((n2) => `Flow:${n2}`)
+      );
+      const found = [];
+      let read2 = 0;
+      for (const name of names5) {
+        const text12 = files.get(`${name}.flow-meta.xml`);
+        if (!text12) continue;
+        read2++;
+        const flow = xml.parse(text12).Flow;
+        for (const stage of asList(flow?.orchestratedStages))
+          for (const step2 of asList(stage.stageSteps))
+            if (step2.stepSubtype === "BackgroundStep" && str19(step2.runAsUser) !== "true")
+              found.push(`${name}: ${str19(step2.label || step2.name)}`);
+      }
+      if (!read2)
+        throw new ReadError("Couldn't read the Quote approval flow: the retrieve returned no file.");
+      return found.length ? fail(`${found.length} background steps run as the Automated Process user.`, found) : pass(`${read2} Quote approval flows read; every background step runs as a named user.`);
+    });
+    ENTRY_LIMIT = { custom: 2e3, standard: 5e3 };
+    standardPriceFirst = guarded(async (org) => {
+      const fields = ["Id", "Name", "Product2Id", "CurrencyIsoCode", "ProductSellingModelId"];
+      const read2 = async (standard2, limit) => {
+        const cols = [...fields];
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const r = await runSoqlQuery(
+            `SELECT ${cols.join(", ")} FROM PricebookEntry WHERE IsActive = true AND Pricebook2.IsStandard = ${standard2} LIMIT ${limit}`,
+            org
+          );
+          if (r.success && r.data) return r.data.records;
+          const missing2 = cols.find(
+            (c) => c !== "Id" && c !== "Name" && c !== "Product2Id" && r.error?.includes(c)
+          );
+          if (!missing2)
+            throw new ReadError(`Couldn't read price book entries: ${r.error ?? "no result"}`);
+          cols.splice(cols.indexOf(missing2), 1);
+        }
+        throw new ReadError("Couldn't read price book entries.");
+      };
+      const [custom3, standard] = await Promise.all([
+        read2(false, ENTRY_LIMIT.custom),
+        read2(true, ENTRY_LIMIT.standard)
+      ]);
+      const key5 = (r) => [str19(r.Product2Id), str19(r.CurrencyIsoCode), str19(r.ProductSellingModelId)].join("|");
+      const have = new Set(standard.map(key5));
+      const missing = custom3.filter((r) => !have.has(key5(r)));
+      const cut = [
+        custom3.length >= ENTRY_LIMIT.custom ? `custom entries stopped at ${ENTRY_LIMIT.custom}` : "",
+        standard.length >= ENTRY_LIMIT.standard ? `standard entries stopped at ${ENTRY_LIMIT.standard}` : ""
+      ].filter(Boolean);
+      const note = cut.length ? ` Not every entry was read (${cut.join("; ")}).` : "";
+      return missing.length ? fail(
+        `${missing.length} of ${custom3.length} custom price book entries have no active standard entry.${note}`,
+        missing.map((r) => str19(r.Name || r.Id))
+      ) : pass(
+        `All ${custom3.length} custom price book entries read have an active standard entry.${note}`
+      );
+    });
+    OM_BUILTIN = {
+      "quote-owner-status-edit": quoteOwnerStatusEdit,
+      "quote-owner-quote-document-create": quoteOwnerQuoteDocumentCreate,
+      "setting-revenue-adjustment": settingFlag(
+        "RevenueManagement",
+        "enableRevenueAdjustment",
+        "Revenue Adjustment"
+      ),
+      "setting-product-configurator": settingFlag(
+        "ProductConfigurator",
+        "enableProductConfigurator",
+        "Product Configurator"
+      ),
+      "setting-translation-workbench": settingFlag(
+        "Language",
+        "enableTranslationWorkbench",
+        "Translation Workbench"
+      ),
+      "pricing-rounding-step": pricingRoundingStep,
+      "pam-effective-dates": pamEffectiveDates,
+      "pricing-procedure-selectors": pricingProcedureSelectors,
+      "quote-approval-run-as": quoteApprovalRunAs,
+      "standard-price-first": standardPriceFirst
+    };
+  }
+});
+
 // src/validation/builtin-checks.ts
 var builtin_checks_exports = {};
 __export(builtin_checks_exports, {
@@ -31641,6 +32027,7 @@ var init_builtin_checks = __esm({
     init_cli();
     init_shared();
     init_ipad_page_lint();
+    init_om_builtin_checks();
     IPAD_PAGES_LIMIT = 40;
     NOT_TAB_NAMES = /* @__PURE__ */ new Set([
       "the",
@@ -31662,7 +32049,8 @@ var init_builtin_checks = __esm({
     BUILTIN = {
       "ipad-pages": ipadPages,
       "named-tab": namedTab,
-      "named-tab-object": namedTabObject
+      "named-tab-object": namedTabObject,
+      ...OM_BUILTIN
     };
     BUILTIN_CHECKS = Object.keys(BUILTIN);
   }
@@ -32095,10 +32483,10 @@ var require_strings = __commonJS({
       }
       return padding + value4;
     };
-    exports2.copyStringIntoBuffer = function(str33, buffer, offset2) {
-      var length = str33.length;
+    exports2.copyStringIntoBuffer = function(str34, buffer, offset2) {
+      var length = str34.length;
       for (var idx = 0; idx < length; idx++) {
-        buffer[offset2++] = str33.charCodeAt(idx);
+        buffer[offset2++] = str34.charCodeAt(idx);
       }
       return length;
     };
@@ -32108,8 +32496,8 @@ var require_strings = __commonJS({
       }
       return prefix + "-" + Math.floor(Math.random() * Math.pow(10, suffixLength));
     };
-    exports2.escapeRegExp = function(str33) {
-      return str33.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    exports2.escapeRegExp = function(str34) {
+      return str34.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     };
     exports2.cleanText = function(text12) {
       return text12.replace(/\t|\u0085|\u2028|\u2029/g, "    ").replace(/[\b\v]/g, "");
@@ -32277,11 +32665,11 @@ var require_arrays = __commonJS({
       return mergedBuffer;
     };
     exports2.arrayAsString = function(array2) {
-      var str33 = "";
+      var str34 = "";
       for (var idx = 0, len = array2.length; idx < len; idx++) {
-        str33 += strings_1.charFromCode(array2[idx]);
+        str34 += strings_1.charFromCode(array2[idx]);
       }
-      return str33;
+      return str34;
     };
     exports2.byAscendingId = function(a, b) {
       return a.id - b.id;
@@ -32605,16 +32993,16 @@ var require_common = __commonJS({
         }
       },
       // Join array of chunks to single array.
-      flattenChunks: function(chunks7) {
+      flattenChunks: function(chunks8) {
         var i, l, len, pos, chunk2, result2;
         len = 0;
-        for (i = 0, l = chunks7.length; i < l; i++) {
-          len += chunks7[i].length;
+        for (i = 0, l = chunks8.length; i < l; i++) {
+          len += chunks8[i].length;
         }
         result2 = new Uint8Array(len);
         pos = 0;
-        for (i = 0, l = chunks7.length; i < l; i++) {
-          chunk2 = chunks7[i];
+        for (i = 0, l = chunks8.length; i < l; i++) {
+          chunk2 = chunks8[i];
           result2.set(chunk2, pos);
           pos += chunk2.length;
         }
@@ -32628,8 +33016,8 @@ var require_common = __commonJS({
         }
       },
       // Join array of chunks to single array.
-      flattenChunks: function(chunks7) {
-        return [].concat.apply([], chunks7);
+      flattenChunks: function(chunks8) {
+        return [].concat.apply([], chunks8);
       }
     };
     exports2.setTyped = function(on) {
@@ -33532,7 +33920,7 @@ var require_deflate = __commonJS({
     }
     function fill_window(s11) {
       var _w_size = s11.w_size;
-      var p, n2, m, more, str33;
+      var p, n2, m, more, str34;
       do {
         more = s11.window_size - s11.lookahead - s11.strstart;
         if (s11.strstart >= _w_size + (_w_size - MIN_LOOKAHEAD)) {
@@ -33560,14 +33948,14 @@ var require_deflate = __commonJS({
         n2 = read_buf(s11.strm, s11.window, s11.strstart + s11.lookahead, more);
         s11.lookahead += n2;
         if (s11.lookahead + s11.insert >= MIN_MATCH) {
-          str33 = s11.strstart - s11.insert;
-          s11.ins_h = s11.window[str33];
-          s11.ins_h = (s11.ins_h << s11.hash_shift ^ s11.window[str33 + 1]) & s11.hash_mask;
+          str34 = s11.strstart - s11.insert;
+          s11.ins_h = s11.window[str34];
+          s11.ins_h = (s11.ins_h << s11.hash_shift ^ s11.window[str34 + 1]) & s11.hash_mask;
           while (s11.insert) {
-            s11.ins_h = (s11.ins_h << s11.hash_shift ^ s11.window[str33 + MIN_MATCH - 1]) & s11.hash_mask;
-            s11.prev[str33 & s11.w_mask] = s11.head[s11.ins_h];
-            s11.head[s11.ins_h] = str33;
-            str33++;
+            s11.ins_h = (s11.ins_h << s11.hash_shift ^ s11.window[str34 + MIN_MATCH - 1]) & s11.hash_mask;
+            s11.prev[str34 & s11.w_mask] = s11.head[s11.ins_h];
+            s11.head[s11.ins_h] = str34;
+            str34++;
             s11.insert--;
             if (s11.lookahead + s11.insert < MIN_MATCH) {
               break;
@@ -34343,7 +34731,7 @@ var require_deflate = __commonJS({
     function deflateSetDictionary(strm, dictionary) {
       var dictLength = dictionary.length;
       var s11;
-      var str33, n2;
+      var str34, n2;
       var wrap;
       var avail;
       var next;
@@ -34381,15 +34769,15 @@ var require_deflate = __commonJS({
       strm.input = dictionary;
       fill_window(s11);
       while (s11.lookahead >= MIN_MATCH) {
-        str33 = s11.strstart;
+        str34 = s11.strstart;
         n2 = s11.lookahead - (MIN_MATCH - 1);
         do {
-          s11.ins_h = (s11.ins_h << s11.hash_shift ^ s11.window[str33 + MIN_MATCH - 1]) & s11.hash_mask;
-          s11.prev[str33 & s11.w_mask] = s11.head[s11.ins_h];
-          s11.head[s11.ins_h] = str33;
-          str33++;
+          s11.ins_h = (s11.ins_h << s11.hash_shift ^ s11.window[str34 + MIN_MATCH - 1]) & s11.hash_mask;
+          s11.prev[str34 & s11.w_mask] = s11.head[s11.ins_h];
+          s11.head[s11.ins_h] = str34;
+          str34++;
         } while (--n2);
-        s11.strstart = str33;
+        s11.strstart = str34;
         s11.lookahead = MIN_MATCH - 1;
         fill_window(s11);
       }
@@ -34440,12 +34828,12 @@ var require_strings2 = __commonJS({
     }
     var q2;
     _utf8len[254] = _utf8len[254] = 1;
-    exports2.string2buf = function(str33) {
-      var buf, c, c2, m_pos, i, str_len = str33.length, buf_len = 0;
+    exports2.string2buf = function(str34) {
+      var buf, c, c2, m_pos, i, str_len = str34.length, buf_len = 0;
       for (m_pos = 0; m_pos < str_len; m_pos++) {
-        c = str33.charCodeAt(m_pos);
+        c = str34.charCodeAt(m_pos);
         if ((c & 64512) === 55296 && m_pos + 1 < str_len) {
-          c2 = str33.charCodeAt(m_pos + 1);
+          c2 = str34.charCodeAt(m_pos + 1);
           if ((c2 & 64512) === 56320) {
             c = 65536 + (c - 55296 << 10) + (c2 - 56320);
             m_pos++;
@@ -34455,9 +34843,9 @@ var require_strings2 = __commonJS({
       }
       buf = new utils.Buf8(buf_len);
       for (i = 0, m_pos = 0; i < buf_len; m_pos++) {
-        c = str33.charCodeAt(m_pos);
+        c = str34.charCodeAt(m_pos);
         if ((c & 64512) === 55296 && m_pos + 1 < str_len) {
-          c2 = str33.charCodeAt(m_pos + 1);
+          c2 = str34.charCodeAt(m_pos + 1);
           if ((c2 & 64512) === 56320) {
             c = 65536 + (c - 55296 << 10) + (c2 - 56320);
             m_pos++;
@@ -34496,10 +34884,10 @@ var require_strings2 = __commonJS({
     exports2.buf2binstring = function(buf) {
       return buf2binstring(buf, buf.length);
     };
-    exports2.binstring2buf = function(str33) {
-      var buf = new utils.Buf8(str33.length);
+    exports2.binstring2buf = function(str34) {
+      var buf = new utils.Buf8(str34.length);
       for (var i = 0, len = buf.length; i < len; i++) {
-        buf[i] = str33.charCodeAt(i);
+        buf[i] = str34.charCodeAt(i);
       }
       return buf;
     };
@@ -36801,11 +37189,11 @@ var require_utils2 = __commonJS({
       return bytes;
     };
     var arrayToString = function(array2) {
-      var str33 = "";
+      var str34 = "";
       for (var i2 = 0; i2 < array2.length; i2++) {
-        str33 += String.fromCharCode(array2[i2]);
+        str34 += String.fromCharCode(array2[i2]);
       }
-      return str33;
+      return str34;
     };
     exports2.decompressJson = function(compressedJson) {
       return arrayToString(pako_1.default.inflate(exports2.decodeFromBase64(compressedJson)));
@@ -37044,9 +37432,9 @@ var require_Encoding = __commonJS({
           this.encodeUnicodeCodePoint = function(codePoint) {
             var mapped = _this.unicodeMappings[codePoint];
             if (!mapped) {
-              var str33 = String.fromCharCode(codePoint);
+              var str34 = String.fromCharCode(codePoint);
               var hexCode = "0x" + utils_1.padStart(codePoint.toString(16), 4, "0");
-              var msg = _this.name + ' cannot encode "' + str33 + '" (' + hexCode + ")";
+              var msg = _this.name + ' cannot encode "' + str34 + '" (' + hexCode + ")";
               throw new Error(msg);
             }
             return { code: mapped[0], name: mapped[1] };
@@ -41854,25 +42242,25 @@ var require_UPNG = __commonJS({
       var starting_col = [0, 4, 0, 2, 0, 1, 0];
       var row_increment = [8, 8, 8, 4, 4, 2, 2];
       var col_increment = [8, 8, 4, 4, 2, 2, 1];
-      var pass = 0;
-      while (pass < 7) {
-        var ri = row_increment[pass], ci2 = col_increment[pass];
+      var pass2 = 0;
+      while (pass2 < 7) {
+        var ri = row_increment[pass2], ci2 = col_increment[pass2];
         var sw = 0, sh = 0;
-        var cr = starting_row[pass];
+        var cr = starting_row[pass2];
         while (cr < h) {
           cr += ri;
           sh++;
         }
-        var cc = starting_col[pass];
+        var cc = starting_col[pass2];
         while (cc < w) {
           cc += ci2;
           sw++;
         }
         var bpll = Math.ceil(sw * bpp / 8);
         UPNG.decode._filterZero(data2, out, di, sw, sh);
-        var y = 0, row = starting_row[pass];
+        var y = 0, row = starting_row[pass2];
         while (row < h) {
-          var col = starting_col[pass];
+          var col = starting_col[pass2];
           var cdi = di + y * bpll << 3;
           while (col < w) {
             if (bpp == 1) {
@@ -41901,7 +42289,7 @@ var require_UPNG = __commonJS({
           row += ri;
         }
         if (sw * sh != 0) di += sh * (1 + bpll);
-        pass = pass + 1;
+        pass2 = pass2 + 1;
       }
       return img;
     };
@@ -43982,7 +44370,7 @@ var require_FlateStream = __commonJS({
         FlateStream2.prototype.readBlock = function() {
           var buffer;
           var len;
-          var str33 = this.stream;
+          var str34 = this.stream;
           var hdr = this.getBits(3);
           if (hdr & 1) {
             this.eof = true;
@@ -43990,19 +44378,19 @@ var require_FlateStream = __commonJS({
           hdr >>= 1;
           if (hdr === 0) {
             var b = void 0;
-            if ((b = str33.getByte()) === -1) {
+            if ((b = str34.getByte()) === -1) {
               throw new Error("Bad block header in flate stream");
             }
             var blockLen = b;
-            if ((b = str33.getByte()) === -1) {
+            if ((b = str34.getByte()) === -1) {
               throw new Error("Bad block header in flate stream");
             }
             blockLen |= b << 8;
-            if ((b = str33.getByte()) === -1) {
+            if ((b = str34.getByte()) === -1) {
               throw new Error("Bad block header in flate stream");
             }
             var check2 = b;
-            if ((b = str33.getByte()) === -1) {
+            if ((b = str34.getByte()) === -1) {
               throw new Error("Bad block header in flate stream");
             }
             check2 |= b << 8;
@@ -44016,12 +44404,12 @@ var require_FlateStream = __commonJS({
             var end = bufferLength + blockLen;
             this.bufferLength = end;
             if (blockLen === 0) {
-              if (str33.peekByte() === -1) {
+              if (str34.peekByte() === -1) {
                 this.eof = true;
               }
             } else {
               for (var n2 = bufferLength; n2 < end; ++n2) {
-                if ((b = str33.getByte()) === -1) {
+                if ((b = str34.getByte()) === -1) {
                   this.eof = true;
                   break;
                 }
@@ -44121,12 +44509,12 @@ var require_FlateStream = __commonJS({
           }
         };
         FlateStream2.prototype.getBits = function(bits) {
-          var str33 = this.stream;
+          var str34 = this.stream;
           var codeSize = this.codeSize;
           var codeBuf = this.codeBuf;
           var b;
           while (codeSize < bits) {
-            if ((b = str33.getByte()) === -1) {
+            if ((b = str34.getByte()) === -1) {
               throw new Error("Bad encoding in flate stream");
             }
             codeBuf |= b << codeSize;
@@ -44138,14 +44526,14 @@ var require_FlateStream = __commonJS({
           return b;
         };
         FlateStream2.prototype.getCode = function(table) {
-          var str33 = this.stream;
+          var str34 = this.stream;
           var codes = table[0];
           var maxLen = table[1];
           var codeSize = this.codeSize;
           var codeBuf = this.codeBuf;
           var b;
           while (codeSize < maxLen) {
-            if ((b = str33.getByte()) === -1) {
+            if ((b = str34.getByte()) === -1) {
               break;
             }
             codeBuf |= b << codeSize;
@@ -48282,14 +48670,14 @@ var require_svgPath = __commonJS({
       ["Z", 0],
       ["z", 0]
     ]);
-    var parse6 = function(path24) {
+    var parse6 = function(path25) {
       var cmd;
       var ret = [];
       var args = [];
       var curArg = "";
       var foundDecimal = false;
       var params = 0;
-      for (var _i = 0, path_1 = path24; _i < path_1.length; _i++) {
+      for (var _i = 0, path_1 = path25; _i < path_1.length; _i++) {
         var c = path_1[_i];
         if (parameters.has(c)) {
           params = parameters.get(c);
@@ -48603,8 +48991,8 @@ var require_svgPath = __commonJS({
       ];
       return result2;
     };
-    exports2.svgPathToOperators = function(path24) {
-      return apply(parse6(path24));
+    exports2.svgPathToOperators = function(path25) {
+      return apply(parse6(path25));
     };
   }
 });
@@ -48787,7 +49175,7 @@ var require_operations = __commonJS({
         operators_1.popGraphicsState()
       ]).filter(Boolean);
     };
-    exports2.drawSvgPath = function(path24, options2) {
+    exports2.drawSvgPath = function(path25, options2) {
       var _a, _b, _c;
       return tslib_1.__spreadArrays([
         operators_1.pushGraphicsState(),
@@ -48801,7 +49189,7 @@ var require_operations = __commonJS({
         options2.borderWidth && operators_1.setLineWidth(options2.borderWidth),
         options2.borderLineCap && operators_1.setLineCap(options2.borderLineCap),
         operators_1.setDashPattern((_b = options2.borderDashArray) !== null && _b !== void 0 ? _b : [], (_c = options2.borderDashPhase) !== null && _c !== void 0 ? _c : 0)
-      ], svgPath_1.svgPathToOperators(path24), [
+      ], svgPath_1.svgPathToOperators(path25), [
         // prettier-ignore
         options2.color && options2.borderWidth ? operators_1.fillAndStroke() : options2.color ? operators_1.fill() : options2.borderColor ? operators_1.stroke() : operators_1.closePath(),
         operators_1.popGraphicsState()
@@ -53099,12 +53487,12 @@ var require_PDFPage = __commonJS({
             graphicsState: graphicsStateKey
           }));
         };
-        PDFPage2.prototype.drawSvgPath = function(path24, options2) {
+        PDFPage2.prototype.drawSvgPath = function(path25, options2) {
           var _a, _b, _c, _d, _e, _f, _g, _h, _j;
           if (options2 === void 0) {
             options2 = {};
           }
-          utils_1.assertIs(path24, "path", ["string"]);
+          utils_1.assertIs(path25, "path", ["string"]);
           utils_1.assertOrUndefined(options2.x, "options.x", ["number"]);
           utils_1.assertOrUndefined(options2.y, "options.y", ["number"]);
           utils_1.assertOrUndefined(options2.scale, "options.scale", ["number"]);
@@ -53133,7 +53521,7 @@ var require_PDFPage = __commonJS({
             options2.borderColor = colors_1.rgb(0, 0, 0);
           }
           var contentStream = this.getContentStream();
-          contentStream.push.apply(contentStream, operations_1.drawSvgPath(path24, {
+          contentStream.push.apply(contentStream, operations_1.drawSvgPath(path25, {
             x: (_a = options2.x) !== null && _a !== void 0 ? _a : this.x,
             y: (_b = options2.y) !== null && _b !== void 0 ? _b : this.y,
             scale: options2.scale,
@@ -53639,38 +54027,38 @@ var require_balanced_match = __commonJS({
   "node_modules/balanced-match/index.js"(exports2, module) {
     "use strict";
     module.exports = balanced;
-    function balanced(a, b, str33) {
-      if (a instanceof RegExp) a = maybeMatch(a, str33);
-      if (b instanceof RegExp) b = maybeMatch(b, str33);
-      var r = range2(a, b, str33);
+    function balanced(a, b, str34) {
+      if (a instanceof RegExp) a = maybeMatch(a, str34);
+      if (b instanceof RegExp) b = maybeMatch(b, str34);
+      var r = range2(a, b, str34);
       return r && {
         start: r[0],
         end: r[1],
-        pre: str33.slice(0, r[0]),
-        body: str33.slice(r[0] + a.length, r[1]),
-        post: str33.slice(r[1] + b.length)
+        pre: str34.slice(0, r[0]),
+        body: str34.slice(r[0] + a.length, r[1]),
+        post: str34.slice(r[1] + b.length)
       };
     }
-    function maybeMatch(reg, str33) {
-      var m = str33.match(reg);
+    function maybeMatch(reg, str34) {
+      var m = str34.match(reg);
       return m ? m[0] : null;
     }
     balanced.range = range2;
-    function range2(a, b, str33) {
+    function range2(a, b, str34) {
       var begs, beg, left, right, result2;
-      var ai = str33.indexOf(a);
-      var bi = str33.indexOf(b, ai + 1);
+      var ai = str34.indexOf(a);
+      var bi = str34.indexOf(b, ai + 1);
       var i = ai;
       if (ai >= 0 && bi > 0) {
         if (a === b) {
           return [ai, bi];
         }
         begs = [];
-        left = str33.length;
+        left = str34.length;
         while (i >= 0 && !result2) {
           if (i == ai) {
             begs.push(i);
-            ai = str33.indexOf(a, i + 1);
+            ai = str34.indexOf(a, i + 1);
           } else if (begs.length == 1) {
             result2 = [begs.pop(), bi];
           } else {
@@ -53679,7 +54067,7 @@ var require_balanced_match = __commonJS({
               left = beg;
               right = bi;
             }
-            bi = str33.indexOf(b, i + 1);
+            bi = str34.indexOf(b, i + 1);
           }
           i = ai < bi && ai >= 0 ? ai : bi;
         }
@@ -53702,22 +54090,22 @@ var require_brace_expansion = __commonJS({
     var escClose = "\0CLOSE" + Math.random() + "\0";
     var escComma = "\0COMMA" + Math.random() + "\0";
     var escPeriod = "\0PERIOD" + Math.random() + "\0";
-    function numeric(str33) {
-      return parseInt(str33, 10) == str33 ? parseInt(str33, 10) : str33.charCodeAt(0);
+    function numeric(str34) {
+      return parseInt(str34, 10) == str34 ? parseInt(str34, 10) : str34.charCodeAt(0);
     }
-    function escapeBraces(str33) {
-      return str33.split("\\\\").join(escSlash).split("\\{").join(escOpen).split("\\}").join(escClose).split("\\,").join(escComma).split("\\.").join(escPeriod);
+    function escapeBraces(str34) {
+      return str34.split("\\\\").join(escSlash).split("\\{").join(escOpen).split("\\}").join(escClose).split("\\,").join(escComma).split("\\.").join(escPeriod);
     }
-    function unescapeBraces(str33) {
-      return str33.split(escSlash).join("\\").split(escOpen).join("{").split(escClose).join("}").split(escComma).join(",").split(escPeriod).join(".");
+    function unescapeBraces(str34) {
+      return str34.split(escSlash).join("\\").split(escOpen).join("{").split(escClose).join("}").split(escComma).join(",").split(escPeriod).join(".");
     }
-    function parseCommaParts(str33) {
-      if (!str33)
+    function parseCommaParts(str34) {
+      if (!str34)
         return [""];
       var parts = [];
-      var m = balanced("{", "}", str33);
+      var m = balanced("{", "}", str34);
       if (!m)
-        return str33.split(",");
+        return str34.split(",");
       var pre = m.pre;
       var body = m.body;
       var post = m.post;
@@ -53731,16 +54119,16 @@ var require_brace_expansion = __commonJS({
       parts.push.apply(parts, p);
       return parts;
     }
-    function expandTop(str33) {
-      if (!str33)
+    function expandTop(str34) {
+      if (!str34)
         return [];
-      if (str33.substr(0, 2) === "{}") {
-        str33 = "\\{\\}" + str33.substr(2);
+      if (str34.substr(0, 2) === "{}") {
+        str34 = "\\{\\}" + str34.substr(2);
       }
-      return expand(escapeBraces(str33), true).map(unescapeBraces);
+      return expand(escapeBraces(str34), true).map(unescapeBraces);
     }
-    function embrace(str33) {
-      return "{" + str33 + "}";
+    function embrace(str34) {
+      return "{" + str34 + "}";
     }
     function isPadded(el) {
       return /^-?0\d/.test(el);
@@ -53751,10 +54139,10 @@ var require_brace_expansion = __commonJS({
     function gte(i, y) {
       return i >= y;
     }
-    function expand(str33, isTop) {
+    function expand(str34, isTop) {
       var expansions = [];
-      var m = balanced("{", "}", str33);
-      if (!m) return [str33];
+      var m = balanced("{", "}", str34);
+      if (!m) return [str34];
       var pre = m.pre;
       var post = m.post.length ? expand(m.post, false) : [""];
       if (/\$$/.test(m.pre)) {
@@ -53769,10 +54157,10 @@ var require_brace_expansion = __commonJS({
         var isOptions = m.body.indexOf(",") >= 0;
         if (!isSequence && !isOptions) {
           if (m.post.match(/,(?!,).*\}/)) {
-            str33 = m.pre + "{" + m.body + escClose + m.post;
-            return expand(str33);
+            str34 = m.pre + "{" + m.body + escClose + m.post;
+            return expand(str34);
           }
-          return [str33];
+          return [str34];
         }
         var n2;
         if (isSequence) {
@@ -53853,8 +54241,8 @@ var require_minimatch = __commonJS({
       return new Minimatch(pattern, options2).match(p);
     };
     module.exports = minimatch;
-    var path24 = require_path();
-    minimatch.sep = path24.sep;
+    var path25 = require_path();
+    minimatch.sep = path25.sep;
     var GLOBSTAR = Symbol("globstar **");
     minimatch.GLOBSTAR = GLOBSTAR;
     var expand = require_brace_expansion();
@@ -54359,8 +54747,8 @@ var require_minimatch = __commonJS({
         if (this.empty) return f === "";
         if (f === "/" && partial2) return true;
         const options2 = this.options;
-        if (path24.sep !== "/") {
-          f = f.split(path24.sep).join("/");
+        if (path25.sep !== "/") {
+          f = f.split(path25.sep).join("/");
         }
         f = f.split(slashSplit);
         this.debug(this.pattern, "split", f);
@@ -54398,13 +54786,13 @@ var require_minimatch = __commonJS({
 var require_readdir_glob = __commonJS({
   "node_modules/readdir-glob/index.js"(exports2, module) {
     module.exports = readdirGlob;
-    var fs24 = __require("fs");
+    var fs25 = __require("fs");
     var { EventEmitter } = __require("events");
     var { Minimatch } = require_minimatch();
     var { resolve: resolve4 } = __require("path");
     function readdir(dir, strict) {
       return new Promise((resolve5, reject) => {
-        fs24.readdir(dir, { withFileTypes: true }, (err, files) => {
+        fs25.readdir(dir, { withFileTypes: true }, (err, files) => {
           if (err) {
             switch (err.code) {
               case "ENOTDIR":
@@ -54433,7 +54821,7 @@ var require_readdir_glob = __commonJS({
     }
     function stat(file, followSymlinks) {
       return new Promise((resolve5, reject) => {
-        const statFunc = followSymlinks ? fs24.stat : fs24.lstat;
+        const statFunc = followSymlinks ? fs25.stat : fs25.lstat;
         statFunc(file, (err, stats) => {
           if (err) {
             switch (err.code) {
@@ -54454,8 +54842,8 @@ var require_readdir_glob = __commonJS({
         });
       });
     }
-    async function* exploreWalkAsync(dir, path24, followSymlinks, useStat, shouldSkip, strict) {
-      let files = await readdir(path24 + dir, strict);
+    async function* exploreWalkAsync(dir, path25, followSymlinks, useStat, shouldSkip, strict) {
+      let files = await readdir(path25 + dir, strict);
       for (const file of files) {
         let name = file.name;
         if (name === void 0) {
@@ -54464,7 +54852,7 @@ var require_readdir_glob = __commonJS({
         }
         const filename = dir + "/" + name;
         const relative4 = filename.slice(1);
-        const absolute = path24 + "/" + relative4;
+        const absolute = path25 + "/" + relative4;
         let stats = null;
         if (useStat || followSymlinks) {
           stats = await stat(absolute, followSymlinks);
@@ -54478,15 +54866,15 @@ var require_readdir_glob = __commonJS({
         if (stats.isDirectory()) {
           if (!shouldSkip(relative4)) {
             yield { relative: relative4, absolute, stats };
-            yield* exploreWalkAsync(filename, path24, followSymlinks, useStat, shouldSkip, false);
+            yield* exploreWalkAsync(filename, path25, followSymlinks, useStat, shouldSkip, false);
           }
         } else {
           yield { relative: relative4, absolute, stats };
         }
       }
     }
-    async function* explore(path24, followSymlinks, useStat, shouldSkip) {
-      yield* exploreWalkAsync("", path24, followSymlinks, useStat, shouldSkip, true);
+    async function* explore(path25, followSymlinks, useStat, shouldSkip) {
+      yield* exploreWalkAsync("", path25, followSymlinks, useStat, shouldSkip, true);
     }
     function readOptions(options2) {
       return {
@@ -56498,54 +56886,54 @@ var require_polyfills = __commonJS({
     }
     var chdir;
     module.exports = patch;
-    function patch(fs24) {
+    function patch(fs25) {
       if (constants.hasOwnProperty("O_SYMLINK") && process.version.match(/^v0\.6\.[0-2]|^v0\.5\./)) {
-        patchLchmod(fs24);
+        patchLchmod(fs25);
       }
-      if (!fs24.lutimes) {
-        patchLutimes(fs24);
+      if (!fs25.lutimes) {
+        patchLutimes(fs25);
       }
-      fs24.chown = chownFix(fs24.chown);
-      fs24.fchown = chownFix(fs24.fchown);
-      fs24.lchown = chownFix(fs24.lchown);
-      fs24.chmod = chmodFix(fs24.chmod);
-      fs24.fchmod = chmodFix(fs24.fchmod);
-      fs24.lchmod = chmodFix(fs24.lchmod);
-      fs24.chownSync = chownFixSync(fs24.chownSync);
-      fs24.fchownSync = chownFixSync(fs24.fchownSync);
-      fs24.lchownSync = chownFixSync(fs24.lchownSync);
-      fs24.chmodSync = chmodFixSync(fs24.chmodSync);
-      fs24.fchmodSync = chmodFixSync(fs24.fchmodSync);
-      fs24.lchmodSync = chmodFixSync(fs24.lchmodSync);
-      fs24.stat = statFix(fs24.stat);
-      fs24.fstat = statFix(fs24.fstat);
-      fs24.lstat = statFix(fs24.lstat);
-      fs24.statSync = statFixSync(fs24.statSync);
-      fs24.fstatSync = statFixSync(fs24.fstatSync);
-      fs24.lstatSync = statFixSync(fs24.lstatSync);
-      if (fs24.chmod && !fs24.lchmod) {
-        fs24.lchmod = function(path24, mode, cb) {
+      fs25.chown = chownFix(fs25.chown);
+      fs25.fchown = chownFix(fs25.fchown);
+      fs25.lchown = chownFix(fs25.lchown);
+      fs25.chmod = chmodFix(fs25.chmod);
+      fs25.fchmod = chmodFix(fs25.fchmod);
+      fs25.lchmod = chmodFix(fs25.lchmod);
+      fs25.chownSync = chownFixSync(fs25.chownSync);
+      fs25.fchownSync = chownFixSync(fs25.fchownSync);
+      fs25.lchownSync = chownFixSync(fs25.lchownSync);
+      fs25.chmodSync = chmodFixSync(fs25.chmodSync);
+      fs25.fchmodSync = chmodFixSync(fs25.fchmodSync);
+      fs25.lchmodSync = chmodFixSync(fs25.lchmodSync);
+      fs25.stat = statFix(fs25.stat);
+      fs25.fstat = statFix(fs25.fstat);
+      fs25.lstat = statFix(fs25.lstat);
+      fs25.statSync = statFixSync(fs25.statSync);
+      fs25.fstatSync = statFixSync(fs25.fstatSync);
+      fs25.lstatSync = statFixSync(fs25.lstatSync);
+      if (fs25.chmod && !fs25.lchmod) {
+        fs25.lchmod = function(path25, mode, cb) {
           if (cb) process.nextTick(cb);
         };
-        fs24.lchmodSync = function() {
+        fs25.lchmodSync = function() {
         };
       }
-      if (fs24.chown && !fs24.lchown) {
-        fs24.lchown = function(path24, uid, gid, cb) {
+      if (fs25.chown && !fs25.lchown) {
+        fs25.lchown = function(path25, uid, gid, cb) {
           if (cb) process.nextTick(cb);
         };
-        fs24.lchownSync = function() {
+        fs25.lchownSync = function() {
         };
       }
       if (platform === "win32") {
-        fs24.rename = typeof fs24.rename !== "function" ? fs24.rename : function(fs$rename) {
+        fs25.rename = typeof fs25.rename !== "function" ? fs25.rename : function(fs$rename) {
           function rename(from, to, cb) {
             var start = Date.now();
             var backoff = 0;
             fs$rename(from, to, function CB(er) {
               if (er && (er.code === "EACCES" || er.code === "EPERM" || er.code === "EBUSY") && Date.now() - start < 6e4) {
                 setTimeout(function() {
-                  fs24.stat(to, function(stater, st) {
+                  fs25.stat(to, function(stater, st) {
                     if (stater && stater.code === "ENOENT")
                       fs$rename(from, to, CB);
                     else
@@ -56561,9 +56949,9 @@ var require_polyfills = __commonJS({
           }
           if (Object.setPrototypeOf) Object.setPrototypeOf(rename, fs$rename);
           return rename;
-        }(fs24.rename);
+        }(fs25.rename);
       }
-      fs24.read = typeof fs24.read !== "function" ? fs24.read : function(fs$read) {
+      fs25.read = typeof fs25.read !== "function" ? fs25.read : function(fs$read) {
         function read2(fd, buffer, offset2, length, position6, callback_) {
           var callback;
           if (callback_ && typeof callback_ === "function") {
@@ -56571,22 +56959,22 @@ var require_polyfills = __commonJS({
             callback = function(er, _2, __) {
               if (er && er.code === "EAGAIN" && eagCounter < 10) {
                 eagCounter++;
-                return fs$read.call(fs24, fd, buffer, offset2, length, position6, callback);
+                return fs$read.call(fs25, fd, buffer, offset2, length, position6, callback);
               }
               callback_.apply(this, arguments);
             };
           }
-          return fs$read.call(fs24, fd, buffer, offset2, length, position6, callback);
+          return fs$read.call(fs25, fd, buffer, offset2, length, position6, callback);
         }
         if (Object.setPrototypeOf) Object.setPrototypeOf(read2, fs$read);
         return read2;
-      }(fs24.read);
-      fs24.readSync = typeof fs24.readSync !== "function" ? fs24.readSync : /* @__PURE__ */ function(fs$readSync) {
+      }(fs25.read);
+      fs25.readSync = typeof fs25.readSync !== "function" ? fs25.readSync : /* @__PURE__ */ function(fs$readSync) {
         return function(fd, buffer, offset2, length, position6) {
           var eagCounter = 0;
           while (true) {
             try {
-              return fs$readSync.call(fs24, fd, buffer, offset2, length, position6);
+              return fs$readSync.call(fs25, fd, buffer, offset2, length, position6);
             } catch (er) {
               if (er.code === "EAGAIN" && eagCounter < 10) {
                 eagCounter++;
@@ -56596,11 +56984,11 @@ var require_polyfills = __commonJS({
             }
           }
         };
-      }(fs24.readSync);
-      function patchLchmod(fs25) {
-        fs25.lchmod = function(path24, mode, callback) {
-          fs25.open(
-            path24,
+      }(fs25.readSync);
+      function patchLchmod(fs26) {
+        fs26.lchmod = function(path25, mode, callback) {
+          fs26.open(
+            path25,
             constants.O_WRONLY | constants.O_SYMLINK,
             mode,
             function(err, fd) {
@@ -56608,80 +56996,80 @@ var require_polyfills = __commonJS({
                 if (callback) callback(err);
                 return;
               }
-              fs25.fchmod(fd, mode, function(err2) {
-                fs25.close(fd, function(err22) {
+              fs26.fchmod(fd, mode, function(err2) {
+                fs26.close(fd, function(err22) {
                   if (callback) callback(err2 || err22);
                 });
               });
             }
           );
         };
-        fs25.lchmodSync = function(path24, mode) {
-          var fd = fs25.openSync(path24, constants.O_WRONLY | constants.O_SYMLINK, mode);
+        fs26.lchmodSync = function(path25, mode) {
+          var fd = fs26.openSync(path25, constants.O_WRONLY | constants.O_SYMLINK, mode);
           var threw = true;
           var ret;
           try {
-            ret = fs25.fchmodSync(fd, mode);
+            ret = fs26.fchmodSync(fd, mode);
             threw = false;
           } finally {
             if (threw) {
               try {
-                fs25.closeSync(fd);
+                fs26.closeSync(fd);
               } catch (er) {
               }
             } else {
-              fs25.closeSync(fd);
+              fs26.closeSync(fd);
             }
           }
           return ret;
         };
       }
-      function patchLutimes(fs25) {
-        if (constants.hasOwnProperty("O_SYMLINK") && fs25.futimes) {
-          fs25.lutimes = function(path24, at2, mt, cb) {
-            fs25.open(path24, constants.O_SYMLINK, function(er, fd) {
+      function patchLutimes(fs26) {
+        if (constants.hasOwnProperty("O_SYMLINK") && fs26.futimes) {
+          fs26.lutimes = function(path25, at2, mt, cb) {
+            fs26.open(path25, constants.O_SYMLINK, function(er, fd) {
               if (er) {
                 if (cb) cb(er);
                 return;
               }
-              fs25.futimes(fd, at2, mt, function(er2) {
-                fs25.close(fd, function(er22) {
+              fs26.futimes(fd, at2, mt, function(er2) {
+                fs26.close(fd, function(er22) {
                   if (cb) cb(er2 || er22);
                 });
               });
             });
           };
-          fs25.lutimesSync = function(path24, at2, mt) {
-            var fd = fs25.openSync(path24, constants.O_SYMLINK);
+          fs26.lutimesSync = function(path25, at2, mt) {
+            var fd = fs26.openSync(path25, constants.O_SYMLINK);
             var ret;
             var threw = true;
             try {
-              ret = fs25.futimesSync(fd, at2, mt);
+              ret = fs26.futimesSync(fd, at2, mt);
               threw = false;
             } finally {
               if (threw) {
                 try {
-                  fs25.closeSync(fd);
+                  fs26.closeSync(fd);
                 } catch (er) {
                 }
               } else {
-                fs25.closeSync(fd);
+                fs26.closeSync(fd);
               }
             }
             return ret;
           };
-        } else if (fs25.futimes) {
-          fs25.lutimes = function(_a, _b, _c, cb) {
+        } else if (fs26.futimes) {
+          fs26.lutimes = function(_a, _b, _c, cb) {
             if (cb) process.nextTick(cb);
           };
-          fs25.lutimesSync = function() {
+          fs26.lutimesSync = function() {
           };
         }
       }
       function chmodFix(orig) {
         if (!orig) return orig;
         return function(target3, mode, cb) {
-          return orig.call(fs24, target3, mode, function(er) {
+          return orig.call(fs25, target3, mode, function(er) {
             if (chownErOk(er)) er = null;
             if (cb) cb.apply(this, arguments);
           });
@@ -56691,7 +57079,7 @@ var require_polyfills = __commonJS({
         if (!orig) return orig;
         return function(target3, mode) {
           try {
-            return orig.call(fs24, target3, mode);
+            return orig.call(fs25, target3, mode);
           } catch (er) {
             if (!chownErOk(er)) throw er;
           }
@@ -56700,7 +57088,7 @@ var require_polyfills = __commonJS({
       function chownFix(orig) {
         if (!orig) return orig;
         return function(target3, uid, gid, cb) {
-          return orig.call(fs24, target3, uid, gid, function(er) {
+          return orig.call(fs25, target3, uid, gid, function(er) {
             if (chownErOk(er)) er = null;
             if (cb) cb.apply(this, arguments);
           });
@@ -56710,7 +57098,7 @@ var require_polyfills = __commonJS({
         if (!orig) return orig;
         return function(target3, uid, gid) {
           try {
-            return orig.call(fs24, target3, uid, gid);
+            return orig.call(fs25, target3, uid, gid);
           } catch (er) {
             if (!chownErOk(er)) throw er;
           }
@@ -56730,13 +57118,13 @@ var require_polyfills = __commonJS({
             }
             if (cb) cb.apply(this, arguments);
           }
-          return options2 ? orig.call(fs24, target3, options2, callback) : orig.call(fs24, target3, callback);
+          return options2 ? orig.call(fs25, target3, options2, callback) : orig.call(fs25, target3, callback);
         };
       }
       function statFixSync(orig) {
         if (!orig) return orig;
         return function(target3, options2) {
-          var stats = options2 ? orig.call(fs24, target3, options2) : orig.call(fs24, target3);
+          var stats = options2 ? orig.call(fs25, target3, options2) : orig.call(fs25, target3);
           if (stats) {
             if (stats.uid < 0) stats.uid += 4294967296;
             if (stats.gid < 0) stats.gid += 4294967296;
@@ -56765,16 +57153,16 @@ var require_legacy_streams = __commonJS({
   "node_modules/graceful-fs/legacy-streams.js"(exports2, module) {
     var Stream = __require("stream").Stream;
     module.exports = legacy;
-    function legacy(fs24) {
+    function legacy(fs25) {
       return {
         ReadStream,
         WriteStream
       };
-      function ReadStream(path24, options2) {
-        if (!(this instanceof ReadStream)) return new ReadStream(path24, options2);
+      function ReadStream(path25, options2) {
+        if (!(this instanceof ReadStream)) return new ReadStream(path25, options2);
         Stream.call(this);
         var self2 = this;
-        this.path = path24;
+        this.path = path25;
         this.fd = null;
         this.readable = true;
         this.paused = false;
@@ -56808,7 +57196,7 @@ var require_legacy_streams = __commonJS({
           });
           return;
         }
-        fs24.open(this.path, this.flags, this.mode, function(err, fd) {
+        fs25.open(this.path, this.flags, this.mode, function(err, fd) {
           if (err) {
             self2.emit("error", err);
             self2.readable = false;
@@ -56819,10 +57207,10 @@ var require_legacy_streams = __commonJS({
           self2._read();
         });
       }
-      function WriteStream(path24, options2) {
-        if (!(this instanceof WriteStream)) return new WriteStream(path24, options2);
+      function WriteStream(path25, options2) {
+        if (!(this instanceof WriteStream)) return new WriteStream(path25, options2);
         Stream.call(this);
-        this.path = path24;
+        this.path = path25;
         this.fd = null;
         this.writable = true;
         this.flags = "w";
@@ -56847,7 +57235,7 @@ var require_legacy_streams = __commonJS({
         this.busy = false;
         this._queue = [];
         if (this.fd === null) {
-          this._open = fs24.open;
+          this._open = fs25.open;
           this._queue.push([this._open, this.path, this.flags, this.mode, void 0]);
           this.flush();
         }
@@ -56882,7 +57270,7 @@ var require_clone = __commonJS({
 // node_modules/graceful-fs/graceful-fs.js
 var require_graceful_fs = __commonJS({
   "node_modules/graceful-fs/graceful-fs.js"(exports2, module) {
-    var fs24 = __require("fs");
+    var fs25 = __require("fs");
     var polyfills = require_polyfills();
     var legacy = require_legacy_streams();
     var clone2 = require_clone();
@@ -56914,12 +57302,12 @@ var require_graceful_fs = __commonJS({
         m = "GFS4: " + m.split(/\n/).join("\nGFS4: ");
         console.error(m);
       };
-    if (!fs24[gracefulQueue]) {
+    if (!fs25[gracefulQueue]) {
       queue = global[gracefulQueue] || [];
-      publishQueue(fs24, queue);
-      fs24.close = function(fs$close) {
+      publishQueue(fs25, queue);
+      fs25.close = function(fs$close) {
         function close(fd, cb) {
-          return fs$close.call(fs24, fd, function(err) {
+          return fs$close.call(fs25, fd, function(err) {
             if (!err) {
               resetQueue();
             }
@@ -56931,48 +57319,48 @@ var require_graceful_fs = __commonJS({
           value: fs$close
         });
         return close;
-      }(fs24.close);
-      fs24.closeSync = function(fs$closeSync) {
+      }(fs25.close);
+      fs25.closeSync = function(fs$closeSync) {
         function closeSync3(fd) {
-          fs$closeSync.apply(fs24, arguments);
+          fs$closeSync.apply(fs25, arguments);
           resetQueue();
         }
         Object.defineProperty(closeSync3, previousSymbol, {
           value: fs$closeSync
         });
         return closeSync3;
-      }(fs24.closeSync);
+      }(fs25.closeSync);
       if (/\bgfs4\b/i.test(process.env.NODE_DEBUG || "")) {
         process.on("exit", function() {
-          debug(fs24[gracefulQueue]);
-          __require("assert").equal(fs24[gracefulQueue].length, 0);
+          debug(fs25[gracefulQueue]);
+          __require("assert").equal(fs25[gracefulQueue].length, 0);
         });
       }
     }
     var queue;
     if (!global[gracefulQueue]) {
-      publishQueue(global, fs24[gracefulQueue]);
+      publishQueue(global, fs25[gracefulQueue]);
     }
-    module.exports = patch(clone2(fs24));
-    if (process.env.TEST_GRACEFUL_FS_GLOBAL_PATCH && !fs24.__patched) {
-      module.exports = patch(fs24);
-      fs24.__patched = true;
+    module.exports = patch(clone2(fs25));
+    if (process.env.TEST_GRACEFUL_FS_GLOBAL_PATCH && !fs25.__patched) {
+      module.exports = patch(fs25);
+      fs25.__patched = true;
     }
-    function patch(fs25) {
-      polyfills(fs25);
-      fs25.gracefulify = patch;
-      fs25.createReadStream = createReadStream;
-      fs25.createWriteStream = createWriteStream4;
-      var fs$readFile = fs25.readFile;
-      fs25.readFile = readFile2;
-      function readFile2(path24, options2, cb) {
+    function patch(fs26) {
+      polyfills(fs26);
+      fs26.gracefulify = patch;
+      fs26.createReadStream = createReadStream;
+      fs26.createWriteStream = createWriteStream4;
+      var fs$readFile = fs26.readFile;
+      fs26.readFile = readFile2;
+      function readFile2(path25, options2, cb) {
         if (typeof options2 === "function")
           cb = options2, options2 = null;
-        return go$readFile(path24, options2, cb);
-        function go$readFile(path25, options3, cb2, startTime) {
-          return fs$readFile(path25, options3, function(err) {
+        return go$readFile(path25, options2, cb);
+        function go$readFile(path26, options3, cb2, startTime) {
+          return fs$readFile(path26, options3, function(err) {
             if (err && (err.code === "EMFILE" || err.code === "ENFILE"))
-              enqueue([go$readFile, [path25, options3, cb2], err, startTime || Date.now(), Date.now()]);
+              enqueue([go$readFile, [path26, options3, cb2], err, startTime || Date.now(), Date.now()]);
             else {
               if (typeof cb2 === "function")
                 cb2.apply(this, arguments);
@@ -56980,16 +57368,16 @@ var require_graceful_fs = __commonJS({
           });
         }
       }
-      var fs$writeFile = fs25.writeFile;
-      fs25.writeFile = writeFile3;
-      function writeFile3(path24, data2, options2, cb) {
+      var fs$writeFile = fs26.writeFile;
+      fs26.writeFile = writeFile3;
+      function writeFile3(path25, data2, options2, cb) {
         if (typeof options2 === "function")
           cb = options2, options2 = null;
-        return go$writeFile(path24, data2, options2, cb);
-        function go$writeFile(path25, data3, options3, cb2, startTime) {
-          return fs$writeFile(path25, data3, options3, function(err) {
+        return go$writeFile(path25, data2, options2, cb);
+        function go$writeFile(path26, data3, options3, cb2, startTime) {
+          return fs$writeFile(path26, data3, options3, function(err) {
             if (err && (err.code === "EMFILE" || err.code === "ENFILE"))
-              enqueue([go$writeFile, [path25, data3, options3, cb2], err, startTime || Date.now(), Date.now()]);
+              enqueue([go$writeFile, [path26, data3, options3, cb2], err, startTime || Date.now(), Date.now()]);
             else {
               if (typeof cb2 === "function")
                 cb2.apply(this, arguments);
@@ -56997,17 +57385,17 @@ var require_graceful_fs = __commonJS({
           });
         }
       }
-      var fs$appendFile = fs25.appendFile;
+      var fs$appendFile = fs26.appendFile;
       if (fs$appendFile)
-        fs25.appendFile = appendFile;
-      function appendFile(path24, data2, options2, cb) {
+        fs26.appendFile = appendFile;
+      function appendFile(path25, data2, options2, cb) {
         if (typeof options2 === "function")
           cb = options2, options2 = null;
-        return go$appendFile(path24, data2, options2, cb);
-        function go$appendFile(path25, data3, options3, cb2, startTime) {
-          return fs$appendFile(path25, data3, options3, function(err) {
+        return go$appendFile(path25, data2, options2, cb);
+        function go$appendFile(path26, data3, options3, cb2, startTime) {
+          return fs$appendFile(path26, data3, options3, function(err) {
             if (err && (err.code === "EMFILE" || err.code === "ENFILE"))
-              enqueue([go$appendFile, [path25, data3, options3, cb2], err, startTime || Date.now(), Date.now()]);
+              enqueue([go$appendFile, [path26, data3, options3, cb2], err, startTime || Date.now(), Date.now()]);
             else {
               if (typeof cb2 === "function")
                 cb2.apply(this, arguments);
@@ -57015,9 +57403,9 @@ var require_graceful_fs = __commonJS({
           });
         }
       }
-      var fs$copyFile = fs25.copyFile;
+      var fs$copyFile = fs26.copyFile;
       if (fs$copyFile)
-        fs25.copyFile = copyFile;
+        fs26.copyFile = copyFile;
       function copyFile(src, dest, flags, cb) {
         if (typeof flags === "function") {
           cb = flags;
@@ -57035,34 +57423,34 @@ var require_graceful_fs = __commonJS({
           });
         }
       }
-      var fs$readdir = fs25.readdir;
-      fs25.readdir = readdir;
+      var fs$readdir = fs26.readdir;
+      fs26.readdir = readdir;
       var noReaddirOptionVersions = /^v[0-5]\./;
-      function readdir(path24, options2, cb) {
+      function readdir(path25, options2, cb) {
         if (typeof options2 === "function")
           cb = options2, options2 = null;
-        var go$readdir = noReaddirOptionVersions.test(process.version) ? function go$readdir2(path25, options3, cb2, startTime) {
-          return fs$readdir(path25, fs$readdirCallback(
-            path25,
+        var go$readdir = noReaddirOptionVersions.test(process.version) ? function go$readdir2(path26, options3, cb2, startTime) {
+          return fs$readdir(path26, fs$readdirCallback(
+            path26,
             options3,
             cb2,
             startTime
           ));
-        } : function go$readdir2(path25, options3, cb2, startTime) {
-          return fs$readdir(path25, options3, fs$readdirCallback(
-            path25,
+        } : function go$readdir2(path26, options3, cb2, startTime) {
+          return fs$readdir(path26, options3, fs$readdirCallback(
+            path26,
             options3,
             cb2,
             startTime
           ));
         };
-        return go$readdir(path24, options2, cb);
-        function fs$readdirCallback(path25, options3, cb2, startTime) {
+        return go$readdir(path25, options2, cb);
+        function fs$readdirCallback(path26, options3, cb2, startTime) {
           return function(err, files) {
             if (err && (err.code === "EMFILE" || err.code === "ENFILE"))
               enqueue([
                 go$readdir,
-                [path25, options3, cb2],
+                [path26, options3, cb2],
                 err,
                 startTime || Date.now(),
                 Date.now()
@@ -57077,21 +57465,21 @@ var require_graceful_fs = __commonJS({
         }
       }
       if (process.version.substr(0, 4) === "v0.8") {
-        var legStreams = legacy(fs25);
+        var legStreams = legacy(fs26);
         ReadStream = legStreams.ReadStream;
         WriteStream = legStreams.WriteStream;
       }
-      var fs$ReadStream = fs25.ReadStream;
+      var fs$ReadStream = fs26.ReadStream;
       if (fs$ReadStream) {
         ReadStream.prototype = Object.create(fs$ReadStream.prototype);
         ReadStream.prototype.open = ReadStream$open;
       }
-      var fs$WriteStream = fs25.WriteStream;
+      var fs$WriteStream = fs26.WriteStream;
       if (fs$WriteStream) {
         WriteStream.prototype = Object.create(fs$WriteStream.prototype);
         WriteStream.prototype.open = WriteStream$open;
       }
-      Object.defineProperty(fs25, "ReadStream", {
+      Object.defineProperty(fs26, "ReadStream", {
         get: function() {
           return ReadStream;
         },
@@ -57101,7 +57489,7 @@ var require_graceful_fs = __commonJS({
         enumerable: true,
         configurable: true
       });
-      Object.defineProperty(fs25, "WriteStream", {
+      Object.defineProperty(fs26, "WriteStream", {
         get: function() {
           return WriteStream;
         },
@@ -57112,7 +57500,7 @@ var require_graceful_fs = __commonJS({
         configurable: true
       });
       var FileReadStream = ReadStream;
-      Object.defineProperty(fs25, "FileReadStream", {
+      Object.defineProperty(fs26, "FileReadStream", {
         get: function() {
           return FileReadStream;
         },
@@ -57123,7 +57511,7 @@ var require_graceful_fs = __commonJS({
         configurable: true
       });
       var FileWriteStream = WriteStream;
-      Object.defineProperty(fs25, "FileWriteStream", {
+      Object.defineProperty(fs26, "FileWriteStream", {
         get: function() {
           return FileWriteStream;
         },
@@ -57133,7 +57521,7 @@ var require_graceful_fs = __commonJS({
         enumerable: true,
         configurable: true
       });
-      function ReadStream(path24, options2) {
+      function ReadStream(path25, options2) {
         if (this instanceof ReadStream)
           return fs$ReadStream.apply(this, arguments), this;
         else
@@ -57153,7 +57541,7 @@ var require_graceful_fs = __commonJS({
           }
         });
       }
-      function WriteStream(path24, options2) {
+      function WriteStream(path25, options2) {
         if (this instanceof WriteStream)
           return fs$WriteStream.apply(this, arguments), this;
         else
@@ -57171,22 +57559,22 @@ var require_graceful_fs = __commonJS({
           }
         });
       }
-      function createReadStream(path24, options2) {
-        return new fs25.ReadStream(path24, options2);
+      function createReadStream(path25, options2) {
+        return new fs26.ReadStream(path25, options2);
       }
-      function createWriteStream4(path24, options2) {
-        return new fs25.WriteStream(path24, options2);
+      function createWriteStream4(path25, options2) {
+        return new fs26.WriteStream(path25, options2);
       }
-      var fs$open = fs25.open;
-      fs25.open = open;
-      function open(path24, flags, mode, cb) {
+      var fs$open = fs26.open;
+      fs26.open = open;
+      function open(path25, flags, mode, cb) {
         if (typeof mode === "function")
           cb = mode, mode = null;
-        return go$open(path24, flags, mode, cb);
-        function go$open(path25, flags2, mode2, cb2, startTime) {
-          return fs$open(path25, flags2, mode2, function(err, fd) {
+        return go$open(path25, flags, mode, cb);
+        function go$open(path26, flags2, mode2, cb2, startTime) {
+          return fs$open(path26, flags2, mode2, function(err, fd) {
             if (err && (err.code === "EMFILE" || err.code === "ENFILE"))
-              enqueue([go$open, [path25, flags2, mode2, cb2], err, startTime || Date.now(), Date.now()]);
+              enqueue([go$open, [path26, flags2, mode2, cb2], err, startTime || Date.now(), Date.now()]);
             else {
               if (typeof cb2 === "function")
                 cb2.apply(this, arguments);
@@ -57194,20 +57582,20 @@ var require_graceful_fs = __commonJS({
           });
         }
       }
-      return fs25;
+      return fs26;
     }
     function enqueue(elem) {
       debug("ENQUEUE", elem[0].name, elem[1]);
-      fs24[gracefulQueue].push(elem);
+      fs25[gracefulQueue].push(elem);
       retry();
     }
     var retryTimer;
     function resetQueue() {
       var now = Date.now();
-      for (var i = 0; i < fs24[gracefulQueue].length; ++i) {
-        if (fs24[gracefulQueue][i].length > 2) {
-          fs24[gracefulQueue][i][3] = now;
-          fs24[gracefulQueue][i][4] = now;
+      for (var i = 0; i < fs25[gracefulQueue].length; ++i) {
+        if (fs25[gracefulQueue][i].length > 2) {
+          fs25[gracefulQueue][i][3] = now;
+          fs25[gracefulQueue][i][4] = now;
         }
       }
       retry();
@@ -57215,9 +57603,9 @@ var require_graceful_fs = __commonJS({
     function retry() {
       clearTimeout(retryTimer);
       retryTimer = void 0;
-      if (fs24[gracefulQueue].length === 0)
+      if (fs25[gracefulQueue].length === 0)
         return;
-      var elem = fs24[gracefulQueue].shift();
+      var elem = fs25[gracefulQueue].shift();
       var fn = elem[0];
       var args = elem[1];
       var err = elem[2];
@@ -57239,7 +57627,7 @@ var require_graceful_fs = __commonJS({
           debug("RETRY", fn.name, args);
           fn.apply(null, args.concat([startTime]));
         } else {
-          fs24[gracefulQueue].push(elem);
+          fs25[gracefulQueue].push(elem);
         }
       }
       if (retryTimer === void 0) {
@@ -59020,19 +59408,19 @@ var require_stream_readable = __commonJS({
       var ret = p.data;
       n2 -= ret.length;
       while (p = p.next) {
-        var str33 = p.data;
-        var nb = n2 > str33.length ? str33.length : n2;
-        if (nb === str33.length) ret += str33;
-        else ret += str33.slice(0, n2);
+        var str34 = p.data;
+        var nb = n2 > str34.length ? str34.length : n2;
+        if (nb === str34.length) ret += str34;
+        else ret += str34.slice(0, n2);
         n2 -= nb;
         if (n2 === 0) {
-          if (nb === str33.length) {
+          if (nb === str34.length) {
             ++c;
             if (p.next) list2.head = p.next;
             else list2.head = list2.tail = null;
           } else {
             list2.head = p;
-            p.data = str33.slice(nb);
+            p.data = str34.slice(nb);
           }
           break;
         }
@@ -59291,22 +59679,22 @@ var require_lazystream = __commonJS({
 // node_modules/normalize-path/index.js
 var require_normalize_path = __commonJS({
   "node_modules/normalize-path/index.js"(exports2, module) {
-    module.exports = function(path24, stripTrailing) {
-      if (typeof path24 !== "string") {
+    module.exports = function(path25, stripTrailing) {
+      if (typeof path25 !== "string") {
         throw new TypeError("expected path to be a string");
       }
-      if (path24 === "\\" || path24 === "/") return "/";
-      var len = path24.length;
-      if (len <= 1) return path24;
+      if (path25 === "\\" || path25 === "/") return "/";
+      var len = path25.length;
+      if (len <= 1) return path25;
       var prefix = "";
-      if (len > 4 && path24[3] === "\\") {
-        var ch = path24[2];
-        if ((ch === "?" || ch === ".") && path24.slice(0, 2) === "\\\\") {
-          path24 = path24.slice(2);
+      if (len > 4 && path25[3] === "\\") {
+        var ch = path25[2];
+        if ((ch === "?" || ch === ".") && path25.slice(0, 2) === "\\\\") {
+          path25 = path25.slice(2);
           prefix = "//";
         }
       }
-      var segs = path24.split(/[/\\]+/);
+      var segs = path25.split(/[/\\]+/);
       if (stripTrailing !== false && segs[segs.length - 1] === "") {
         segs.pop();
       }
@@ -60499,7 +60887,7 @@ var require_errors6 = __commonJS({
     );
     E(
       "ERR_OUT_OF_RANGE",
-      (str33, range2, input) => {
+      (str34, range2, input) => {
         assert2(range2, 'Missing "range" argument');
         let received;
         if (Number.isInteger(input) && Math.abs(input) > 2 ** 32) {
@@ -60514,7 +60902,7 @@ var require_errors6 = __commonJS({
         } else {
           received = inspect(input);
         }
-        return `The value of "${str33}" is out of range. It must be ${range2}. Received ${received}`;
+        return `The value of "${str34}" is out of range. It must be ${range2}. Received ${received}`;
       },
       RangeError
     );
@@ -62561,20 +62949,20 @@ var require_buffer_list = __commonJS({
         let p = this.head;
         let c = 0;
         do {
-          const str33 = p.data;
-          if (n2 > str33.length) {
-            ret += str33;
-            n2 -= str33.length;
+          const str34 = p.data;
+          if (n2 > str34.length) {
+            ret += str34;
+            n2 -= str34.length;
           } else {
-            if (n2 === str33.length) {
-              ret += str33;
+            if (n2 === str34.length) {
+              ret += str34;
               ++c;
               if (p.next) this.head = p.next;
               else this.head = this.tail = null;
             } else {
-              ret += StringPrototypeSlice(str33, 0, n2);
+              ret += StringPrototypeSlice(str34, 0, n2);
               this.head = p;
-              p.data = StringPrototypeSlice(str33, n2);
+              p.data = StringPrototypeSlice(str34, n2);
             }
             break;
           }
@@ -64356,9 +64744,9 @@ var require_writable = __commonJS({
             buffered[n2].callback(err);
           }
         };
-        const chunks7 = state.allNoop && i === 0 ? buffered : ArrayPrototypeSlice(buffered, i);
-        chunks7.allBuffers = state.allBuffers;
-        doWrite(stream, state, true, state.length, chunks7, "", callback);
+        const chunks8 = state.allNoop && i === 0 ? buffered : ArrayPrototypeSlice(buffered, i);
+        chunks8.allBuffers = state.allBuffers;
+        doWrite(stream, state, true, state.length, chunks8, "", callback);
         resetBuffer(state);
       } else {
         do {
@@ -67587,7 +67975,7 @@ var require_ast = __commonJS({
         }
         return c;
       }
-      static #parseAST(str33, ast, pos, opt) {
+      static #parseAST(str34, ast, pos, opt) {
         let escaping = false;
         let inBrace = false;
         let braceStart = -1;
@@ -67595,8 +67983,8 @@ var require_ast = __commonJS({
         if (ast.type === null) {
           let i2 = pos;
           let acc2 = "";
-          while (i2 < str33.length) {
-            const c = str33.charAt(i2++);
+          while (i2 < str34.length) {
+            const c = str34.charAt(i2++);
             if (escaping || c === "\\") {
               escaping = !escaping;
               acc2 += c;
@@ -67619,11 +68007,11 @@ var require_ast = __commonJS({
               acc2 += c;
               continue;
             }
-            if (!opt.noext && isExtglobType(c) && str33.charAt(i2) === "(") {
+            if (!opt.noext && isExtglobType(c) && str34.charAt(i2) === "(") {
               ast.push(acc2);
               acc2 = "";
               const ext = new _AST(c, ast);
-              i2 = _AST.#parseAST(str33, ext, i2, opt);
+              i2 = _AST.#parseAST(str34, ext, i2, opt);
               ast.push(ext);
               continue;
             }
@@ -67636,8 +68024,8 @@ var require_ast = __commonJS({
         let part = new _AST(null, ast);
         const parts = [];
         let acc = "";
-        while (i < str33.length) {
-          const c = str33.charAt(i++);
+        while (i < str34.length) {
+          const c = str34.charAt(i++);
           if (escaping || c === "\\") {
             escaping = !escaping;
             acc += c;
@@ -67660,12 +68048,12 @@ var require_ast = __commonJS({
             acc += c;
             continue;
           }
-          if (isExtglobType(c) && str33.charAt(i) === "(") {
+          if (isExtglobType(c) && str34.charAt(i) === "(") {
             part.push(acc);
             acc = "";
             const ext = new _AST(c, part);
             part.push(ext);
-            i = _AST.#parseAST(str33, ext, i, opt);
+            i = _AST.#parseAST(str34, ext, i, opt);
             continue;
           }
           if (c === "|") {
@@ -67688,7 +68076,7 @@ var require_ast = __commonJS({
         }
         ast.type = null;
         ast.#hasMagic = void 0;
-        ast.#parts = [str33.substring(pos - 1)];
+        ast.#parts = [str34.substring(pos - 1)];
         return i;
       }
       static fromGlob(pattern, options2 = {}) {
@@ -68007,11 +68395,11 @@ var require_commonjs = __commonJS({
       return (f) => f.length === len && f !== "." && f !== "..";
     };
     var defaultPlatform = typeof process === "object" && process ? typeof process.env === "object" && process.env && process.env.__MINIMATCH_TESTING_PLATFORM__ || process.platform : "posix";
-    var path24 = {
+    var path25 = {
       win32: { sep: "\\" },
       posix: { sep: "/" }
     };
-    exports2.sep = defaultPlatform === "win32" ? path24.win32.sep : path24.posix.sep;
+    exports2.sep = defaultPlatform === "win32" ? path25.win32.sep : path25.posix.sep;
     exports2.minimatch.sep = exports2.sep;
     exports2.GLOBSTAR = Symbol("globstar **");
     exports2.minimatch.GLOBSTAR = exports2.GLOBSTAR;
@@ -71263,12 +71651,12 @@ var require_commonjs4 = __commonJS({
       /**
        * Get the Path object referenced by the string path, resolved from this Path
        */
-      resolve(path24) {
-        if (!path24) {
+      resolve(path25) {
+        if (!path25) {
           return this;
         }
-        const rootPath = this.getRootString(path24);
-        const dir = path24.substring(rootPath.length);
+        const rootPath = this.getRootString(path25);
+        const dir = path25.substring(rootPath.length);
         const dirParts = dir.split(this.splitSep);
         const result2 = rootPath ? this.getRoot(rootPath).#resolveParts(dirParts) : this.#resolveParts(dirParts);
         return result2;
@@ -72021,8 +72409,8 @@ var require_commonjs4 = __commonJS({
       /**
        * @internal
        */
-      getRootString(path24) {
-        return node_path_1.win32.parse(path24).root;
+      getRootString(path25) {
+        return node_path_1.win32.parse(path25).root;
       }
       /**
        * @internal
@@ -72069,8 +72457,8 @@ var require_commonjs4 = __commonJS({
       /**
        * @internal
        */
-      getRootString(path24) {
-        return path24.startsWith("/") ? "/" : "";
+      getRootString(path25) {
+        return path25.startsWith("/") ? "/" : "";
       }
       /**
        * @internal
@@ -72120,8 +72508,8 @@ var require_commonjs4 = __commonJS({
        *
        * @internal
        */
-      constructor(cwd = process.cwd(), pathImpl, sep6, { nocase, childrenCacheSize = 16 * 1024, fs: fs24 = defaultFS } = {}) {
-        this.#fs = fsFromOption(fs24);
+      constructor(cwd = process.cwd(), pathImpl, sep6, { nocase, childrenCacheSize = 16 * 1024, fs: fs25 = defaultFS } = {}) {
+        this.#fs = fsFromOption(fs25);
         if (cwd instanceof URL || cwd.startsWith("file://")) {
           cwd = (0, node_url_1.fileURLToPath)(cwd);
         }
@@ -72160,11 +72548,11 @@ var require_commonjs4 = __commonJS({
       /**
        * Get the depth of a provided path, string, or the cwd
        */
-      depth(path24 = this.cwd) {
-        if (typeof path24 === "string") {
-          path24 = this.cwd.resolve(path24);
+      depth(path25 = this.cwd) {
+        if (typeof path25 === "string") {
+          path25 = this.cwd.resolve(path25);
         }
-        return path24.depth();
+        return path25.depth();
       }
       /**
        * Return the cache of child entries.  Exposed so subclasses can create
@@ -72651,9 +73039,9 @@ var require_commonjs4 = __commonJS({
         process3();
         return results;
       }
-      chdir(path24 = this.cwd) {
+      chdir(path25 = this.cwd) {
         const oldCwd = this.cwd;
-        this.cwd = typeof path24 === "string" ? this.cwd.resolve(path24) : path24;
+        this.cwd = typeof path25 === "string" ? this.cwd.resolve(path25) : path25;
         this.cwd[setAsCwd](oldCwd);
       }
     };
@@ -72680,8 +73068,8 @@ var require_commonjs4 = __commonJS({
       /**
        * @internal
        */
-      newRoot(fs24) {
-        return new PathWin32(this.rootPath, IFDIR, void 0, this.roots, this.nocase, this.childrenCache(), { fs: fs24 });
+      newRoot(fs25) {
+        return new PathWin32(this.rootPath, IFDIR, void 0, this.roots, this.nocase, this.childrenCache(), { fs: fs25 });
       }
       /**
        * Return true if the provided path string is an absolute path
@@ -72710,8 +73098,8 @@ var require_commonjs4 = __commonJS({
       /**
        * @internal
        */
-      newRoot(fs24) {
-        return new PathPosix(this.rootPath, IFDIR, void 0, this.roots, this.nocase, this.childrenCache(), { fs: fs24 });
+      newRoot(fs25) {
+        return new PathPosix(this.rootPath, IFDIR, void 0, this.roots, this.nocase, this.childrenCache(), { fs: fs25 });
       }
       /**
        * Return true if the provided path string is an absolute path
@@ -73041,8 +73429,8 @@ var require_processor = __commonJS({
       }
       // match, absolute, ifdir
       entries() {
-        return [...this.store.entries()].map(([path24, n2]) => [
-          path24,
+        return [...this.store.entries()].map(([path25, n2]) => [
+          path25,
           !!(n2 & 2),
           !!(n2 & 1)
         ]);
@@ -73260,9 +73648,9 @@ var require_walker = __commonJS({
       signal;
       maxDepth;
       includeChildMatches;
-      constructor(patterns, path24, opts) {
+      constructor(patterns, path25, opts) {
         this.patterns = patterns;
-        this.path = path24;
+        this.path = path25;
         this.opts = opts;
         this.#sep = !opts.posix && opts.platform === "win32" ? "\\" : "/";
         this.includeChildMatches = opts.includeChildMatches !== false;
@@ -73281,11 +73669,11 @@ var require_walker = __commonJS({
           });
         }
       }
-      #ignored(path24) {
-        return this.seen.has(path24) || !!this.#ignore?.ignored?.(path24);
+      #ignored(path25) {
+        return this.seen.has(path25) || !!this.#ignore?.ignored?.(path25);
       }
-      #childrenIgnored(path24) {
-        return !!this.#ignore?.childrenIgnored?.(path24);
+      #childrenIgnored(path25) {
+        return !!this.#ignore?.childrenIgnored?.(path25);
       }
       // backpressure mechanism
       pause() {
@@ -73501,8 +73889,8 @@ var require_walker = __commonJS({
     exports2.GlobUtil = GlobUtil;
     var GlobWalker = class extends GlobUtil {
       matches = /* @__PURE__ */ new Set();
-      constructor(patterns, path24, opts) {
-        super(patterns, path24, opts);
+      constructor(patterns, path25, opts) {
+        super(patterns, path25, opts);
       }
       matchEmit(e) {
         this.matches.add(e);
@@ -73540,8 +73928,8 @@ var require_walker = __commonJS({
     exports2.GlobWalker = GlobWalker;
     var GlobStream = class extends GlobUtil {
       results;
-      constructor(patterns, path24, opts) {
-        super(patterns, path24, opts);
+      constructor(patterns, path25, opts) {
+        super(patterns, path25, opts);
         this.results = new minipass_1.Minipass({
           signal: this.signal,
           objectMode: true
@@ -73896,8 +74284,8 @@ var require_commonjs5 = __commonJS({
 // node_modules/archiver-utils/file.js
 var require_file = __commonJS({
   "node_modules/archiver-utils/file.js"(exports2, module) {
-    var fs24 = require_graceful_fs();
-    var path24 = __require("path");
+    var fs25 = require_graceful_fs();
+    var path25 = __require("path");
     var flatten = require_flatten();
     var difference = require_difference();
     var union2 = require_union();
@@ -73922,8 +74310,8 @@ var require_file = __commonJS({
       return result2;
     };
     file.exists = function() {
-      var filepath = path24.join.apply(path24, arguments);
-      return fs24.existsSync(filepath);
+      var filepath = path25.join.apply(path25, arguments);
+      return fs25.existsSync(filepath);
     };
     file.expand = function(...args) {
       var options2 = isPlainObject3(args[0]) ? args.shift() : {};
@@ -73936,12 +74324,12 @@ var require_file = __commonJS({
       });
       if (options2.filter) {
         matches = matches.filter(function(filepath) {
-          filepath = path24.join(options2.cwd || "", filepath);
+          filepath = path25.join(options2.cwd || "", filepath);
           try {
             if (typeof options2.filter === "function") {
               return options2.filter(filepath);
             } else {
-              return fs24.statSync(filepath)[options2.filter]();
+              return fs25.statSync(filepath)[options2.filter]();
             }
           } catch (e) {
             return false;
@@ -73953,7 +74341,7 @@ var require_file = __commonJS({
     file.expandMapping = function(patterns, destBase, options2) {
       options2 = Object.assign({
         rename: function(destBase2, destPath) {
-          return path24.join(destBase2 || "", destPath);
+          return path25.join(destBase2 || "", destPath);
         }
       }, options2);
       var files = [];
@@ -73961,14 +74349,14 @@ var require_file = __commonJS({
       file.expand(options2, patterns).forEach(function(src) {
         var destPath = src;
         if (options2.flatten) {
-          destPath = path24.basename(destPath);
+          destPath = path25.basename(destPath);
         }
         if (options2.ext) {
           destPath = destPath.replace(/(\.[^\/]*)?$/, options2.ext);
         }
         var dest = options2.rename(destBase, destPath, options2);
         if (options2.cwd) {
-          src = path24.join(options2.cwd, src);
+          src = path25.join(options2.cwd, src);
         }
         dest = dest.replace(pathSeparatorRe, "/");
         src = src.replace(pathSeparatorRe, "/");
@@ -74049,8 +74437,8 @@ var require_file = __commonJS({
 // node_modules/archiver-utils/index.js
 var require_archiver_utils = __commonJS({
   "node_modules/archiver-utils/index.js"(exports2, module) {
-    var fs24 = require_graceful_fs();
-    var path24 = __require("path");
+    var fs25 = require_graceful_fs();
+    var path25 = __require("path");
     var isStream = require_is_stream();
     var lazystream = require_lazystream();
     var normalizePath = require_normalize_path();
@@ -74098,7 +74486,7 @@ var require_archiver_utils = __commonJS({
     };
     utils.lazyReadStream = function(filepath) {
       return new lazystream.Readable(function() {
-        return fs24.createReadStream(filepath);
+        return fs25.createReadStream(filepath);
       });
     };
     utils.normalizeInputSource = function(source) {
@@ -74114,8 +74502,8 @@ var require_archiver_utils = __commonJS({
     utils.sanitizePath = function(filepath) {
       return normalizePath(filepath, false).replace(/^\w+:/, "").replace(/^(\.\.\/|\/)+/, "");
     };
-    utils.trailingSlashIt = function(str33) {
-      return str33.slice(-1) !== "/" ? str33 + "/" : str33;
+    utils.trailingSlashIt = function(str34) {
+      return str34.slice(-1) !== "/" ? str34 + "/" : str34;
     };
     utils.unixifyPath = function(filepath) {
       return normalizePath(filepath, false).replace(/^\w+:/, "");
@@ -74126,7 +74514,7 @@ var require_archiver_utils = __commonJS({
         callback = base2;
         base2 = dirpath;
       }
-      fs24.readdir(dirpath, function(err, list2) {
+      fs25.readdir(dirpath, function(err, list2) {
         var i = 0;
         var file;
         var filepath;
@@ -74138,11 +74526,11 @@ var require_archiver_utils = __commonJS({
           if (!file) {
             return callback(null, results);
           }
-          filepath = path24.join(dirpath, file);
-          fs24.stat(filepath, function(err2, stats) {
+          filepath = path25.join(dirpath, file);
+          fs25.stat(filepath, function(err2, stats) {
             results.push({
               path: filepath,
-              relative: path24.relative(base2, filepath).replace(/\\/g, "/"),
+              relative: path25.relative(base2, filepath).replace(/\\/g, "/"),
               stats
             });
             if (stats && stats.isDirectory()) {
@@ -74201,10 +74589,10 @@ var require_error = __commonJS({
 // node_modules/archiver/lib/core.js
 var require_core4 = __commonJS({
   "node_modules/archiver/lib/core.js"(exports2, module) {
-    var fs24 = __require("fs");
+    var fs25 = __require("fs");
     var glob = require_readdir_glob();
     var async = require_async2();
-    var path24 = __require("path");
+    var path25 = __require("path");
     var util2 = require_archiver_utils();
     var inherits = __require("util").inherits;
     var ArchiverError = require_error();
@@ -74265,7 +74653,7 @@ var require_core4 = __commonJS({
       data2.sourcePath = filepath;
       task.data = data2;
       this._entriesCount++;
-      if (data2.stats && data2.stats instanceof fs24.Stats) {
+      if (data2.stats && data2.stats instanceof fs25.Stats) {
         task = this._updateQueueTaskWithStats(task, data2.stats);
         if (task) {
           if (data2.stats.size) {
@@ -74436,7 +74824,7 @@ var require_core4 = __commonJS({
         callback();
         return;
       }
-      fs24.lstat(task.filepath, function(err, stats) {
+      fs25.lstat(task.filepath, function(err, stats) {
         if (this._state.aborted) {
           setImmediate(callback);
           return;
@@ -74479,10 +74867,10 @@ var require_core4 = __commonJS({
         task.data.sourceType = "buffer";
         task.source = Buffer.concat([]);
       } else if (stats.isSymbolicLink() && this._moduleSupports("symlink")) {
-        var linkPath = fs24.readlinkSync(task.filepath);
-        var dirName = path24.dirname(task.filepath);
+        var linkPath = fs25.readlinkSync(task.filepath);
+        var dirName = path25.dirname(task.filepath);
         task.data.type = "symlink";
-        task.data.linkname = path24.relative(dirName, path24.resolve(dirName, linkPath));
+        task.data.linkname = path25.relative(dirName, path25.resolve(dirName, linkPath));
         task.data.sourceType = "buffer";
         task.source = Buffer.concat([]);
       } else {
@@ -75375,10 +75763,10 @@ var require_crc322 = __commonJS({
         while (i < L) C = C >>> 8 ^ T0[(C ^ B[i++]) & 255];
         return ~C;
       }
-      function crc32_str(str33, seed2) {
+      function crc32_str(str34, seed2) {
         var C = seed2 ^ -1;
-        for (var i = 0, L = str33.length, c = 0, d = 0; i < L; ) {
-          c = str33.charCodeAt(i++);
+        for (var i = 0, L = str34.length, c = 0, d = 0; i < L; ) {
+          c = str34.charCodeAt(i++);
           if (c < 128) {
             C = C >>> 8 ^ T0[(C ^ c) & 255];
           } else if (c < 2048) {
@@ -75386,7 +75774,7 @@ var require_crc322 = __commonJS({
             C = C >>> 8 ^ T0[(C ^ (128 | c & 63)) & 255];
           } else if (c >= 55296 && c < 57344) {
             c = (c & 1023) + 64;
-            d = str33.charCodeAt(i++) & 1023;
+            d = str34.charCodeAt(i++) & 1023;
             C = C >>> 8 ^ T0[(C ^ (240 | c >> 8 & 7)) & 255];
             C = C >>> 8 ^ T0[(C ^ (128 | c >> 2 & 63)) & 255];
             C = C >>> 8 ^ T0[(C ^ (128 | d >> 6 & 15 | (c & 3) << 4)) & 255];
@@ -77633,11 +78021,11 @@ var require_headers = __commonJS({
     function decodeStr(val, offset2, length, encoding) {
       return b4a.toString(val.subarray(offset2, indexOf(val, 0, offset2, offset2 + length)), encoding);
     }
-    function addLength(str33) {
-      const len = b4a.byteLength(str33);
+    function addLength(str34) {
+      const len = b4a.byteLength(str34);
       let digits = Math.floor(Math.log(len) / Math.log(10)) + 1;
       if (len + digits >= Math.pow(10, digits)) digits++;
-      return len + digits + str33;
+      return len + digits + str34;
     }
   }
 });
@@ -77669,12 +78057,12 @@ var require_extract = __commonJS({
         if (size === 0) return EMPTY;
         let chunk2 = this._next(size);
         if (size === chunk2.byteLength) return chunk2;
-        const chunks7 = [chunk2];
+        const chunks8 = [chunk2];
         while ((size -= chunk2.byteLength) > 0) {
           chunk2 = this._next(size);
-          chunks7.push(chunk2);
+          chunks8.push(chunk2);
         }
-        return b4a.concat(chunks7);
+        return b4a.concat(chunks8);
       }
       _next(size) {
         const buf = this.queue.peek();
@@ -79199,8 +79587,8 @@ function getErrorMap() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data: data2, path: path24, errorMaps, issueData } = params;
-  const fullPath = [...path24, ...issueData.path || []];
+  const { data: data2, path: path25, errorMaps, issueData } = params;
+  const fullPath = [...path25, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -79316,11 +79704,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value4, path24, key5) {
+  constructor(parent, value4, path25, key5) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value4;
-    this._path = path24;
+    this._path = path25;
     this._key = key5;
   }
   get path() {
@@ -82958,10 +83346,10 @@ function assignProp(target3, prop2, value4) {
     configurable: true
   });
 }
-function getElementAtPath(obj12, path24) {
-  if (!path24)
+function getElementAtPath(obj12, path25) {
+  if (!path25)
     return obj12;
-  return path24.reduce((acc, key5) => acc?.[key5], obj12);
+  return path25.reduce((acc, key5) => acc?.[key5], obj12);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -82976,14 +83364,14 @@ function promiseAllObject(promisesObj) {
 }
 function randomString(length = 10) {
   const chars = "abcdefghijklmnopqrstuvwxyz";
-  let str33 = "";
+  let str34 = "";
   for (let i = 0; i < length; i++) {
-    str33 += chars[Math.floor(Math.random() * chars.length)];
+    str34 += chars[Math.floor(Math.random() * chars.length)];
   }
-  return str33;
+  return str34;
 }
-function esc(str33) {
-  return JSON.stringify(str33);
+function esc(str34) {
+  return JSON.stringify(str34);
 }
 var captureStackTrace = Error.captureStackTrace ? Error.captureStackTrace : (..._args) => {
 };
@@ -83071,8 +83459,8 @@ var getParsedType2 = (data2) => {
 };
 var propertyKeyTypes = /* @__PURE__ */ new Set(["string", "number", "symbol"]);
 var primitiveTypes = /* @__PURE__ */ new Set(["string", "number", "bigint", "boolean", "symbol", "undefined"]);
-function escapeRegex(str33) {
-  return str33.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function escapeRegex(str34) {
+  return str34.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 function clone(inst, def, params) {
   const cl = new inst._zod.constr(def ?? inst._zod.def);
@@ -83281,11 +83669,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path24, issues) {
+function prefixIssues(path25, issues) {
   return issues.map((iss) => {
     var _a;
     (_a = iss).path ?? (_a.path = []);
-    iss.path.unshift(path24);
+    iss.path.unshift(path25);
     return iss;
   });
 }
@@ -94168,9 +94556,9 @@ function buildReportData(run5) {
   };
   let total = 0;
   const rowsOf = (key5, extra) => {
-    const rows3 = asRows(obj(facts[key5]).rows);
+    const rows4 = asRows(obj(facts[key5]).rows);
     const entries2 = [];
-    for (const r of rows3) {
+    for (const r of rows4) {
       if (total >= ROW_CAP) {
         out.truncated = true;
         break;
@@ -99182,14 +99570,14 @@ function assertRelationship(relationshipName) {
   if (!RELATED_LIST_NAME.test(relationshipName))
     throw new Error(`Invalid relationship name: ${relationshipName}`);
 }
-function hasRelatedList(xml, relationshipName) {
-  return xml.includes(`<relatedList>${relationshipName}</relatedList>`);
+function hasRelatedList(xml2, relationshipName) {
+  return xml2.includes(`<relatedList>${relationshipName}</relatedList>`);
 }
-function countRelatedLists(xml) {
-  return (xml.match(/<relatedLists>/g) || []).length;
+function countRelatedLists(xml2) {
+  return (xml2.match(/<relatedLists>/g) || []).length;
 }
-function relatedListNames(xml) {
-  return [...xml.matchAll(/<relatedList>([^<]+)<\/relatedList>/g)].map((m) => m[1]);
+function relatedListNames(xml2) {
+  return [...xml2.matchAll(/<relatedList>([^<]+)<\/relatedList>/g)].map((m) => m[1]);
 }
 async function recordNameField(object3, org) {
   try {
@@ -99209,18 +99597,18 @@ function relatedListBlock(relationshipName, nameField = "NAME") {
     </relatedLists>
 `;
 }
-function insertRelatedList(xml, relationshipName, nameField) {
-  return xml.replace("</Layout>", `${relatedListBlock(relationshipName, nameField)}</Layout>`);
+function insertRelatedList(xml2, relationshipName, nameField) {
+  return xml2.replace("</Layout>", `${relatedListBlock(relationshipName, nameField)}</Layout>`);
 }
-function removeRelatedList(xml, relationshipName) {
+function removeRelatedList(xml2, relationshipName) {
   assertRelationship(relationshipName);
   const block = new RegExp(
     `[ \\t]*<relatedLists>(?:(?!</relatedLists>)[\\s\\S])*?<relatedList>${relationshipName}</relatedList>(?:(?!</relatedLists>)[\\s\\S])*?</relatedLists>[ \\t]*\\r?\\n?`
   );
-  return xml.replace(block, "");
+  return xml2.replace(block, "");
 }
-function writeLayoutXml(layout, xml) {
-  fs6.writeFileSync(layout.filePath, xml, "utf-8");
+function writeLayoutXml(layout, xml2) {
+  fs6.writeFileSync(layout.filePath, xml2, "utf-8");
 }
 function layoutDeployPath(layout) {
   return path5.dirname(layout.filePath);
@@ -99981,6 +100369,9 @@ async function executeSoqlCountCheck(check2, targetOrg, useToolingApi = false) {
     details: { count: count3 }
   };
 }
+function failedRecords(subResults) {
+  return subResults.filter((r) => !r.passed && !r.unavailable).flatMap((r) => r.details?.records ?? []);
+}
 async function executeCompositeCheck(check2, targetOrg, context) {
   if (!check2.checks || check2.checks.length === 0) {
     return {
@@ -99999,8 +100390,9 @@ async function executeCompositeCheck(check2, targetOrg, context) {
   return {
     passed: allPassed,
     unavailable: !definitelyFailed && subResults.some((r) => r.unavailable) ? true : void 0,
-    message: allPassed ? `All ${subResults.length} sub-checks passed` : `${subResults.filter((r) => !r.passed).length} of ${subResults.length} sub-checks failed`,
-    details: { subResults }
+    message: allPassed ? `All ${subResults.length} sub-checks passed` : `${subResults.filter((r) => !r.passed).length} of ${subResults.length} sub-checks failed: ${subResults.filter((r) => !r.passed).map((r) => r.message).join("; ")}`,
+    // The records a failing sub-check found, so a report can name them.
+    details: { subResults, records: failedRecords(subResults) }
   };
 }
 function parseFieldTest(expect) {
@@ -100691,7 +101083,7 @@ async function focusTerritoryIds(org) {
   focus.territories ??= query(
     `SELECT Territory2Id FROM UserTerritory2Association WHERE IsActive = true AND User.IsActive = true AND User.Profile.Name = ${inList([focus.profile])} AND Territory2.Territory2Model.State = 'Active' GROUP BY Territory2Id`,
     org
-  ).then((rows3) => rows3.map((r) => String(r.Territory2Id)).filter(Boolean));
+  ).then((rows4) => rows4.map((r) => String(r.Territory2Id)).filter(Boolean));
   return focus.territories;
 }
 function spread(ids, max) {
@@ -100818,9 +101210,9 @@ var TERRITORY_DISPLAY_LIMIT = 500;
 var OT2A_COUNT_LIMIT = 1e6;
 var UNSCOPED_TERRITORY_LIMIT = 2e3;
 var LSC_PSL2 = /LSC4CE|LifeScienceCommercial/i;
-async function optionalQuery(soql5, org) {
+async function optionalQuery(soql6, org) {
   try {
-    return await query(soql5, org);
+    return await query(soql6, org);
   } catch (err) {
     if (/is not supported|INVALID_TYPE/i.test(String(err instanceof Error ? err.message : err)))
       return null;
@@ -100832,15 +101224,15 @@ var NOT_AVAILABLE = {
   title: "Not available in this org",
   detail: "The object doesn't exist here \u2014 the feature isn't enabled or licensed."
 };
-function rel(r, path24) {
-  return path24.split(".").reduce((v, k) => v?.[k], r);
+function rel(r, path25) {
+  return path25.split(".").reduce((v, k) => v?.[k], r);
 }
 var TooManyAssignments = class extends Error {
-  constructor(rows3) {
+  constructor(rows4) {
     super(
-      `About ${rows3.toLocaleString("en-US")} territory assignments \u2014 too many to count by territory here.`
+      `About ${rows4.toLocaleString("en-US")} territory assignments \u2014 too many to count by territory here.`
     );
-    this.rows = rows3;
+    this.rows = rows4;
   }
 };
 function uncountedAccounts(err) {
@@ -100854,9 +101246,9 @@ function uncountedAccounts(err) {
     detail: err instanceof Error ? err.message : String(err)
   };
 }
-async function countBy(soql5, key5, org) {
-  const rows3 = await query(soql5, org);
-  return new Map(rows3.map((r) => [String(r[key5]), Number(r.cnt ?? r.expr0 ?? 0)]));
+async function countBy(soql6, key5, org) {
+  const rows4 = await query(soql6, org);
+  return new Map(rows4.map((r) => [String(r[key5]), Number(r.cnt ?? r.expr0 ?? 0)]));
 }
 function activeTerritories(org) {
   return sharedRead(org, "studio:territories", async () => {
@@ -100867,11 +101259,11 @@ function activeTerritories(org) {
     const model = models.find((m) => m.State === "Active");
     const fields = `Id, Name, DeveloperName, Territory2ModelId, Territory2Model.State, Territory2Type.MasterLabel, ParentTerritory2Id, ParentTerritory2.Name`;
     if (model) {
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT ${fields} FROM Territory2 WHERE Territory2ModelId = '${model.Id}' ORDER BY Name`,
         org
       );
-      return { rows: rows3, model, capped: false };
+      return { rows: rows4, model, capped: false };
     }
     const r = await queryResult(
       `SELECT ${fields} FROM Territory2 ORDER BY Name LIMIT ${UNSCOPED_TERRITORY_LIMIT}`,
@@ -100899,11 +101291,11 @@ async function fieldProfiles(org) {
     if (names5.length) return names5;
   } catch {
   }
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Name FROM Profile WHERE Name LIKE '%Life Science%' OR Name LIKE 'LS %' OR Name LIKE '%LSC%'`,
     org
   );
-  return rows3.map((r) => String(r.Name));
+  return rows4.map((r) => String(r.Name));
 }
 var collectTerritoryUsers = async (org) => {
   const models = settle(
@@ -100923,8 +101315,8 @@ var collectTerritoryUsers = async (org) => {
     (m) => m.get("objectterritory2association")
   );
   const accountsPerTerritory = settle(
-    Promise.all([territoryIds(), ot2aRows]).then(([ids, rows3]) => {
-      if (rows3 && rows3 > OT2A_COUNT_LIMIT) throw new TooManyAssignments(rows3);
+    Promise.all([territoryIds(), ot2aRows]).then(([ids, rows4]) => {
+      if (rows4 && rows4 > OT2A_COUNT_LIMIT) throw new TooManyAssignments(rows4);
       return countGroupedBy(
         "ObjectTerritory2Association",
         "Territory2Id",
@@ -100981,9 +101373,9 @@ var collectTerritoryUsers = async (org) => {
         description: "Enterprise Territory Management models. Only one can be active."
       },
       async () => {
-        const rows3 = await unwrap(models);
+        const rows4 = await unwrap(models);
         const findings = [];
-        if (!rows3.some((m) => m.State === "Active")) {
+        if (!rows4.some((m) => m.State === "Active")) {
           findings.push({
             severity: "error",
             title: "No active territory model",
@@ -100991,7 +101383,7 @@ var collectTerritoryUsers = async (org) => {
           });
         }
         return {
-          items: rows3.map(
+          items: rows4.map(
             (m) => item(String(m.Id), String(m.Name), {
               sublabel: String(m.State),
               active: m.State === "Active",
@@ -101080,14 +101472,14 @@ var collectTerritoryUsers = async (org) => {
         description: "ObjectTerritory2Association \u2014 accounts assigned to territories, by territory."
       },
       async () => {
-        const [{ rows: rows3 }, accountsResult] = await Promise.all([
+        const [{ rows: rows4 }, accountsResult] = await Promise.all([
           unwrap(territories),
           accountsPerTerritory
         ]);
         if (!accountsResult.ok)
           return { items: [], findings: [uncountedAccounts(accountsResult.error)] };
         const accounts = accountsResult.value;
-        const names5 = new Map(rows3.map((t) => [String(t.Id), String(t.Name)]));
+        const names5 = new Map(rows4.map((t) => [String(t.Id), String(t.Name)]));
         const sorted3 = [...accounts.entries()].filter(([, n2]) => n2 > 0).sort((a, b) => b[1] - a[1]);
         const items = sorted3.slice(0, TERRITORY_DISPLAY_LIMIT).map(
           ([id2, n2]) => item(`ota:${id2}`, names5.get(id2) ?? id2, {
@@ -101114,16 +101506,16 @@ var collectTerritoryUsers = async (org) => {
         description: "TerrGeoAssignmentRule \u2014 postal-code / geography based alignment."
       },
       async () => {
-        const rows3 = await optionalQuery(
+        const rows4 = await optionalQuery(
           `SELECT Id, Name, Territory2Id, Territory2.Name, UsageType, GeoCodeType, GeoCode, EffectiveStartDate, EffectiveEndDate FROM TerrGeoAssignmentRule ORDER BY UsageType, Territory2.Name LIMIT 500`,
           org
         );
-        if (!rows3) return { items: [], findings: [NOT_AVAILABLE] };
-        const total = rows3.length === RULE_LIMIT ? await count(`SELECT COUNT() FROM TerrGeoAssignmentRule`, org) : rows3.length;
+        if (!rows4) return { items: [], findings: [NOT_AVAILABLE] };
+        const total = rows4.length === RULE_LIMIT ? await count(`SELECT COUNT() FROM TerrGeoAssignmentRule`, org) : rows4.length;
         const today4 = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
         return {
-          findings: total > rows3.length ? [showingNote(rows3.length, total, "geo rules")] : [],
-          items: rows3.map(
+          findings: total > rows4.length ? [showingNote(rows4.length, total, "geo rules")] : [],
+          items: rows4.map(
             (r) => item(String(r.Id), String(r.Name), {
               sublabel: [rel(r, "Territory2.Name"), r.GeoCode, r.UsageType].filter(Boolean).join(" \xB7 "),
               // Geo rules have no active flag; a rule applies between its effective dates.
@@ -101149,15 +101541,15 @@ var collectTerritoryUsers = async (org) => {
         description: "TerrProvAffilAssignRule \u2014 align providers through their affiliations."
       },
       async () => {
-        const rows3 = await optionalQuery(
+        const rows4 = await optionalQuery(
           `SELECT Id, Name, Territory2Id, Territory2.Name, AccountType, AffiliationRole FROM TerrProvAffilAssignRule ORDER BY Territory2.Name LIMIT 500`,
           org
         );
-        if (!rows3) return { items: [], findings: [NOT_AVAILABLE] };
-        const total = rows3.length === RULE_LIMIT ? await count(`SELECT COUNT() FROM TerrProvAffilAssignRule`, org) : rows3.length;
+        if (!rows4) return { items: [], findings: [NOT_AVAILABLE] };
+        const total = rows4.length === RULE_LIMIT ? await count(`SELECT COUNT() FROM TerrProvAffilAssignRule`, org) : rows4.length;
         return {
-          findings: total > rows3.length ? [showingNote(rows3.length, total, "affiliation rules")] : [],
-          items: rows3.map(
+          findings: total > rows4.length ? [showingNote(rows4.length, total, "affiliation rules")] : [],
+          items: rows4.map(
             (r) => item(String(r.Id), String(r.Name), {
               sublabel: [rel(r, "Territory2.Name"), r.AffiliationRole].filter(Boolean).join(" \xB7 "),
               properties: {
@@ -101213,11 +101605,11 @@ var collectTerritoryUsers = async (org) => {
         description: "Active users on LSC field profiles, with their territories and licenses."
       },
       async () => {
-        const { total, users: rows3, territoriesByUser } = await unwrap(fieldUsers);
+        const { total, users: rows4, territoriesByUser } = await unwrap(fieldUsers);
         const lscPsl = (await psls).ok ? (await unwrap(psls)).find((p) => LSC_PSL2.test(String(p.DeveloperName))) : void 0;
         let noTerritory = 0;
         let noPsl = 0;
-        const items = rows3.map((u) => {
+        const items = rows4.map((u) => {
           const terrs = territoriesByUser.get(String(u.Id)) ?? [];
           const pslRows = rel(u, "PermissionSetLicenseAssignments.records") ?? [];
           const psls2 = pslRows.map((a) => String(rel(a, "PermissionSetLicense.MasterLabel")));
@@ -101264,7 +101656,7 @@ var collectTerritoryUsers = async (org) => {
           });
         });
         const findings = [];
-        const partial2 = total > rows3.length ? ` (of the first ${rows3.length.toLocaleString("en-US")})` : "";
+        const partial2 = total > rows4.length ? ` (of the first ${rows4.length.toLocaleString("en-US")})` : "";
         if (noTerritory)
           findings.push({
             severity: "warning",
@@ -101275,8 +101667,8 @@ var collectTerritoryUsers = async (org) => {
             severity: "warning",
             title: `${noPsl} users have no Life Science Commercial license${partial2}`
           });
-        if (total > rows3.length)
-          findings.push(showingNote(rows3.length, total, "field users", "In name order"));
+        if (total > rows4.length)
+          findings.push(showingNote(rows4.length, total, "field users", "In name order"));
         fieldUserTotal = total;
         return { items, findings };
       }
@@ -101315,9 +101707,9 @@ var collectTerritoryUsers = async (org) => {
         description: "LSC-related permission set licenses and capacity."
       },
       async () => {
-        const rows3 = await unwrap(psls);
+        const rows4 = await unwrap(psls);
         return {
-          items: rows3.map((r) => {
+          items: rows4.map((r) => {
             const used2 = Number(r.UsedLicenses ?? 0);
             const total = Number(r.TotalLicenses ?? 0);
             const findings = [];
@@ -101357,18 +101749,18 @@ var collectTerritoryUsers = async (org) => {
         description: "LSC permission sets and how many users have each."
       },
       async () => {
-        const rows3 = await query(
+        const rows4 = await query(
           `SELECT Id, Name, Label, NamespacePrefix FROM PermissionSet WHERE ${LSC_PS_FILTER} ORDER BY Label`,
           org
         );
         const counts2 = await countGroupedBy(
           "PermissionSetAssignment",
           "PermissionSetId",
-          rows3.map((r) => String(r.Id)),
+          rows4.map((r) => String(r.Id)),
           org
         );
         return {
-          items: rows3.map((r) => {
+          items: rows4.map((r) => {
             const n2 = counts2.get(String(r.Id)) ?? 0;
             return item(String(r.Id), String(r.Label), {
               sublabel: `${n2} users${r.NamespacePrefix ? ` \xB7 ${r.NamespacePrefix}` : ""}`,
@@ -101856,8 +102248,8 @@ init_cli();
 
 // src/studio/metadata/live.ts
 init_cli();
-import * as fs9 from "fs";
-import * as path8 from "path";
+import * as fs10 from "fs";
+import * as path9 from "path";
 
 // src/studio/change-helpers.ts
 init_cli();
@@ -102269,8 +102661,8 @@ function applyCompactOps(root2, ops2) {
 // src/studio/metadata/doc.ts
 init_cli();
 init_xml2();
-import * as fs8 from "fs";
-import * as path7 from "path";
+import * as fs9 from "fs";
+import * as path8 from "path";
 var SUFFIX = {
   Layout: ".layout-meta.xml",
   CompactLayout: ".compactLayout-meta.xml",
@@ -102280,8 +102672,8 @@ var SUFFIX = {
   CustomApplication: ".app-meta.xml"
 };
 function findFile(dir, suffix) {
-  for (const entry of fs8.readdirSync(dir, { withFileTypes: true })) {
-    const full = path7.join(dir, entry.name);
+  for (const entry of fs9.readdirSync(dir, { withFileTypes: true })) {
+    const full = path8.join(dir, entry.name);
     if (entry.isDirectory()) {
       const found = findFile(full, suffix);
       if (found) return found;
@@ -102294,13 +102686,13 @@ async function retrieveDoc(type, fullName, org, onStatus) {
   if (!result2.success || !result2.data)
     throw new Error(`Couldn't retrieve ${fullName}: ${result2.error ?? "unknown error"}`);
   const { outputDir } = result2.data;
-  const filePath = fs8.existsSync(outputDir) ? findFile(outputDir, SUFFIX[type]) : void 0;
+  const filePath = fs9.existsSync(outputDir) ? findFile(outputDir, SUFFIX[type]) : void 0;
   if (!filePath) {
     discardDir(outputDir);
     throw new Error(`${fullName} wasn't found in the org. It may have been renamed or deleted.`);
   }
-  const xml = fs8.readFileSync(filePath, "utf-8");
-  return { type, fullName, xml, root: parseXml2(xml), filePath, outputDir };
+  const xml2 = fs9.readFileSync(filePath, "utf-8");
+  return { type, fullName, xml: xml2, root: parseXml2(xml2), filePath, outputDir };
 }
 async function retrieveDocs(entries2, org, onStatus) {
   const result2 = await retrieveMetadata(
@@ -102316,13 +102708,13 @@ async function retrieveDocs(entries2, org, onStatus) {
   const { outputDir } = result2.data;
   try {
     return entries2.map(({ type, fullName }) => {
-      const filePath = fs8.existsSync(outputDir) ? findFile(outputDir, SUFFIX[type]) : void 0;
+      const filePath = fs9.existsSync(outputDir) ? findFile(outputDir, SUFFIX[type]) : void 0;
       if (!filePath)
         throw new Error(
           `${fullName} wasn't found in the org. It may have been renamed or deleted.`
         );
-      const xml = fs8.readFileSync(filePath, "utf-8");
-      return { type, fullName, xml, root: parseXml2(xml), filePath, outputDir };
+      const xml2 = fs9.readFileSync(filePath, "utf-8");
+      return { type, fullName, xml: xml2, root: parseXml2(xml2), filePath, outputDir };
     });
   } catch (e) {
     discardDir(outputDir);
@@ -102330,13 +102722,13 @@ async function retrieveDocs(entries2, org, onStatus) {
   }
 }
 async function deployDoc(doc, root2, org, onStatus) {
-  fs8.writeFileSync(doc.filePath, serializeXml(root2), "utf-8");
+  fs9.writeFileSync(doc.filePath, serializeXml(root2), "utf-8");
   const result2 = await (onStatus ? deployMetadata(doc.filePath, org, onStatus) : deployMetadata(doc.filePath, org));
   if (!result2.success)
     throw new Error(`Couldn't deploy ${doc.fullName}: ${result2.error ?? "unknown error"}`);
 }
 async function validateDoc(doc, root2, org) {
-  fs8.writeFileSync(doc.filePath, serializeXml(root2), "utf-8");
+  fs9.writeFileSync(doc.filePath, serializeXml(root2), "utf-8");
   const result2 = await deployMetadata(doc.filePath, org, void 0, true);
   return result2.rejected ? result2.error ?? "the org refused it" : null;
 }
@@ -102345,7 +102737,7 @@ function discardDoc(doc) {
 }
 function discardDir(dir) {
   try {
-    fs8.rmSync(dir, { recursive: true, force: true });
+    fs9.rmSync(dir, { recursive: true, force: true });
   } catch {
   }
 }
@@ -102565,8 +102957,8 @@ function newItem(component2, identifier, properties) {
     ]
   };
 }
-function parseFragment(xml, tag) {
-  const node = parseXml2(xml);
+function parseFragment(xml2, tag) {
+  const node = parseXml2(xml2);
   if (node.tag !== tag) throw new Error(`Expected a ${tag} element.`);
   return node;
 }
@@ -102802,14 +103194,14 @@ async function layoutProfiles(fullName, org) {
     const layout = layouts.length === 1 ? layouts[0] : layouts.find((l) => l.TableEnumOrId === table);
     if (!layout) return null;
     assertId(String(layout.Id));
-    const rows3 = await query(
+    const rows4 = await query(
       `SELECT Profile.Name FROM ProfileLayout WHERE LayoutId = '${layout.Id}'`,
       org,
       true
     );
     return [
       ...new Set(
-        rows3.map((r) => r.Profile?.Name).filter((n2) => typeof n2 === "string" && !!n2)
+        rows4.map((r) => r.Profile?.Name).filter((n2) => typeof n2 === "string" && !!n2)
       )
     ].sort();
   } catch {
@@ -102854,12 +103246,12 @@ var NOT_RELATED_LIST = /(Share|Feed|History|ChangeEvent|__hd|__e)$/;
 async function layoutableRelatedLists(object3, org) {
   try {
     if (!/^[A-Za-z0-9_]+$/.test(object3)) return null;
-    const rows3 = await query(
+    const rows4 = await query(
       `SELECT RelatedListName FROM RelatedListDefinition WHERE ParentEntityDefinitionId = '${object3}' AND IsLayoutable = true`,
       org,
       true
     );
-    return rows3.length ? new Set(rows3.map((r) => String(r.RelatedListName))) : null;
+    return rows4.length ? new Set(rows4.map((r) => String(r.RelatedListName))) : null;
   } catch {
     return null;
   }
@@ -102998,14 +103390,14 @@ async function loadAppsViaTooling(org) {
       org,
       true
     );
-    const rows3 = list2.filter((r) => r.ManageableState !== "installed");
+    const rows4 = list2.filter((r) => r.ManageableState !== "installed");
     const cache3 = appCache.get(org) ?? /* @__PURE__ */ new Map();
     appCache.set(org, cache3);
-    const live = new Set(rows3.map((r) => String(r.Id)));
+    const live = new Set(rows4.map((r) => String(r.Id)));
     for (const id2 of [...cache3.keys()]) if (!live.has(id2)) cache3.delete(id2);
-    const apps = new Array(rows3.length).fill(null);
+    const apps = new Array(rows4.length).fill(null);
     const stale = [];
-    rows3.forEach((r, i) => {
+    rows4.forEach((r, i) => {
       const hit = cache3.get(String(r.Id));
       const modified = String(r.LastModifiedDate ?? "");
       if (hit && modified && hit.modified === modified && hit.readAt > Date.parse(modified) + APP_SETTLE_MS)
@@ -103016,7 +103408,7 @@ async function loadAppsViaTooling(org) {
     const worker = async () => {
       for (let n2 = next++; n2 < stale.length; n2 = next++) {
         const i = stale[n2];
-        const id2 = String(rows3[i].Id);
+        const id2 = String(rows4[i].Id);
         assertId(id2);
         const readAt = Date.now();
         const [row] = await query(
@@ -103027,24 +103419,24 @@ async function loadAppsViaTooling(org) {
         const m = row?.Metadata;
         if (!m) throw new Error(`No metadata for app ${id2}`);
         const rowsOf = (v) => Array.isArray(v) ? v : [];
-        const str33 = (v) => typeof v === "string" ? v : void 0;
+        const str34 = (v) => typeof v === "string" ? v : void 0;
         const dev = String(row.DeveloperName ?? "");
         const ns3 = typeof row.NamespacePrefix === "string" && row.NamespacePrefix ? row.NamespacePrefix : "";
         const app = {
           fullName: ns3 ? `${ns3}__${dev}` : dev,
-          label: str33(m.label) || dev,
+          label: str34(m.label) || dev,
           profileActionOverrides: rowsOf(m.profileActionOverrides).map((o) => ({
-            content: str33(o.content),
-            profile: str33(o.profile),
-            formFactor: str33(o.formFactor)
+            content: str34(o.content),
+            profile: str34(o.profile),
+            formFactor: str34(o.formFactor)
           })),
           actionOverrides: rowsOf(m.actionOverrides).map((o) => ({
-            content: str33(o.content),
-            formFactor: str33(o.formFactor)
+            content: str34(o.content),
+            formFactor: str34(o.formFactor)
           }))
         };
         apps[i] = app;
-        cache3.set(id2, { modified: String(rows3[i].LastModifiedDate ?? ""), readAt, app });
+        cache3.set(id2, { modified: String(rows4[i].LastModifiedDate ?? ""), readAt, app });
       }
     };
     await Promise.all(Array.from({ length: Math.min(APP_READS_IN_FLIGHT, stale.length) }, worker));
@@ -103066,8 +103458,8 @@ async function appOverridesViaRetrieve(org) {
   const { outputDir } = result2.data;
   try {
     return appFiles(outputDir).map((file) => {
-      const root2 = parseXml2(fs9.readFileSync(file, "utf-8"));
-      const fullName = path8.basename(file).replace(/\.app-meta\.xml$/, "");
+      const root2 = parseXml2(fs10.readFileSync(file, "utf-8"));
+      const fullName = path9.basename(file).replace(/\.app-meta\.xml$/, "");
       return {
         fullName,
         label: childText(root2, "label") || fullName,
@@ -103085,7 +103477,7 @@ async function appOverridesViaRetrieve(org) {
   } catch {
     return null;
   } finally {
-    fs9.rmSync(outputDir, { recursive: true, force: true });
+    fs10.rmSync(outputDir, { recursive: true, force: true });
   }
 }
 async function appsReferencingPage(page, org) {
@@ -103114,9 +103506,9 @@ async function pageAssignments(org) {
   return value4;
 }
 function appFiles(dir) {
-  if (!fs9.existsSync(dir)) return [];
-  return fs9.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
-    const full = path8.join(dir, e.name);
+  if (!fs10.existsSync(dir)) return [];
+  return fs10.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = path9.join(dir, e.name);
     return e.isDirectory() ? appFiles(full) : e.name.endsWith(".app-meta.xml") ? [full] : [];
   });
 }
@@ -103144,12 +103536,12 @@ async function isManagedFlexiPage(fullName, org) {
   const sep6 = fullName.indexOf("__");
   const [ns3, name] = sep6 > 0 ? [fullName.slice(0, sep6), fullName.slice(sep6 + 2)] : [null, fullName];
   try {
-    const rows3 = await query(
+    const rows4 = await query(
       `SELECT ManageableState FROM FlexiPage WHERE DeveloperName = ${soqlString4(name)} AND NamespacePrefix ${ns3 ? `= ${soqlString4(ns3)}` : "= null"}`,
       org,
       true
     );
-    return rows3.some((r) => r.ManageableState === "installed");
+    return rows4.some((r) => r.ManageableState === "installed");
   } catch {
     return false;
   }
@@ -103287,8 +103679,8 @@ function dbSchemaItem(r, duplicates) {
   it.audience = audienceOf(r);
   if (fieldCount) it.properties["Synced fields"] = fieldCount;
   it.properties.Filter = r.fields.WhereSoql ? "Yes" : "None \u2014 all accessible records";
-  const soql5 = syncSoql(r);
-  if (soql5) it.code = { language: "soql", text: soql5 };
+  const soql6 = syncSoql(r);
+  if (soql6) it.code = { language: "soql", text: soql6 };
   if (r.fields.Errors) {
     it.findings.push({
       severity: "error",
@@ -103342,8 +103734,8 @@ async function fetchCache(org) {
     )
   ]);
   const seen = /* @__PURE__ */ new Set();
-  const rows3 = [...live, ...attempts].filter((r) => !seen.has(String(r.Id)) && seen.add(String(r.Id))).sort((a, b) => String(b.LastModifiedDate).localeCompare(String(a.LastModifiedDate)));
-  const ids = [...new Set(rows3.map((r) => r.ProfileId).filter(Boolean))];
+  const rows4 = [...live, ...attempts].filter((r) => !seen.has(String(r.Id)) && seen.add(String(r.Id))).sort((a, b) => String(b.LastModifiedDate).localeCompare(String(a.LastModifiedDate)));
+  const ids = [...new Set(rows4.map((r) => r.ProfileId).filter(Boolean))];
   const names5 = /* @__PURE__ */ new Map();
   const profileRows2 = await Promise.all(
     chunkIds(ids).map(
@@ -103351,7 +103743,7 @@ async function fetchCache(org) {
     )
   );
   for (const p of profileRows2.flat()) names5.set(String(p.Id), String(p.Name));
-  return rows3.map((row) => ({
+  return rows4.map((row) => ({
     row,
     profile: row.ProfileId ? names5.get(String(row.ProfileId)) ?? String(row.ProfileId) : null
   }));
@@ -104013,13 +104405,13 @@ var collectActionsHome = async (org) => {
         description: "Lightning home pages (FlexiPage, Type = HomePage) used by the LSC web app."
       },
       async () => {
-        const rows3 = await query(
+        const rows4 = await query(
           `SELECT Id, DeveloperName, MasterLabel, NamespacePrefix, Description, LastModifiedDate FROM FlexiPage WHERE Type = 'HomePage' ORDER BY MasterLabel`,
           org,
           true
         );
         return {
-          items: rows3.map(
+          items: rows4.map(
             (r) => item(String(r.Id), String(r.MasterLabel), {
               sublabel: r.NamespacePrefix ? `${r.DeveloperName} \xB7 ${r.NamespacePrefix}` : String(r.DeveloperName),
               properties: {
@@ -104080,7 +104472,7 @@ function briefingFlowGroups(org, withSummary = true) {
   const select = "SELECT Label, ApiName, ActiveVersionId, ProcessType FROM FlowDefinitionView WHERE";
   const asks = [`${select} ApiName LIKE '%Briefing%'`, `${select} Label LIKE '%Briefing%'`];
   if (withSummary) asks.push(`${select} Label = '${SUMMARY_FLOW_LABEL}'`);
-  return Promise.all(asks.map((soql5) => query(soql5, org)));
+  return Promise.all(asks.map((soql6) => query(soql6, org)));
 }
 var CONTENT_WINDOW_DAYS = 30;
 var STALE_DAYS = 3;
@@ -104088,16 +104480,16 @@ var DAY_MS = 24 * 60 * 60 * 1e3;
 var isMissingObject = (err) => /is not supported|INVALID_TYPE|does not exist/i.test(
   String(err instanceof Error ? err.message : err)
 );
-async function optionalQuery2(soql5, org) {
+async function optionalQuery2(soql6, org) {
   try {
-    return await query(soql5, org);
+    return await query(soql6, org);
   } catch (err) {
     if (isMissingObject(err)) return null;
     throw err;
   }
 }
-function rel2(r, path24) {
-  return path24.split(".").reduce((v, k) => v?.[k], r);
+function rel2(r, path25) {
+  return path25.split(".").reduce((v, k) => v?.[k], r);
 }
 var NOT_ENABLED = {
   severity: "info",
@@ -104118,10 +104510,10 @@ async function standardSetAssignments(org) {
   );
   return new Map(sets.map((r) => [String(r.Name), counts2.get(String(r.Id)) ?? 0]));
 }
-async function countBy2(soql5, key5, org) {
-  const rows3 = await query(soql5, org);
+async function countBy2(soql6, key5, org) {
+  const rows4 = await query(soql6, org);
   return new Map(
-    rows3.filter((r) => r[key5]).map((r) => [String(r[key5]), Number(r.cnt ?? r.expr0 ?? 0)])
+    rows4.filter((r) => r[key5]).map((r) => [String(r[key5]), Number(r.cnt ?? r.expr0 ?? 0)])
   );
 }
 var collectBriefings = async (org) => {
@@ -104247,9 +104639,9 @@ var collectBriefings = async (org) => {
         description: "Permission set licenses Briefings and its text generation depend on."
       },
       async () => {
-        const rows3 = await unwrap(psls);
-        const found = new Set(rows3.map((r) => String(r.DeveloperName)));
-        const items = rows3.map((r) => {
+        const rows4 = await unwrap(psls);
+        const found = new Set(rows4.map((r) => String(r.DeveloperName)));
+        const items = rows4.map((r) => {
           const total = Number(r.TotalLicenses ?? 0);
           const used2 = Number(r.UsedLicenses ?? 0);
           const findings = [];
@@ -104365,12 +104757,12 @@ var collectBriefings = async (org) => {
         description: "Flows that generate the briefing text and schedule it daily. Clone the schedule template rather than activating it."
       },
       async () => {
-        const [rows3, on2, generated] = await Promise.all([
+        const [rows4, on2, generated] = await Promise.all([
           unwrap(flows),
           unwrap(enabled),
           unwrap(newestContent)
         ]);
-        const briefingFlows = rows3.filter((f) => f.Label !== SUMMARY_FLOW_LABEL);
+        const briefingFlows = rows4.filter((f) => f.Label !== SUMMARY_FLOW_LABEL);
         const template = briefingFlows.find((f) => SCHEDULE_FLOW.test(String(f.ApiName)));
         const textGen = briefingFlows.find((f) => TEXT_GEN_FLOW.test(String(f.ApiName)));
         const clones = briefingFlows.filter(
@@ -104452,10 +104844,10 @@ var collectBriefings = async (org) => {
         description: "PrstContentDefinition \u2014 what a briefing is and the content type it produces."
       },
       async () => {
-        const rows3 = await unwrap(definitions);
-        if (rows3 === null) return { items: [], findings: [NOT_ENABLED] };
+        const rows4 = await unwrap(definitions);
+        if (rows4 === null) return { items: [], findings: [NOT_ENABLED] };
         const findings = [];
-        if (!rows3.some((r) => r.IsActive)) {
+        if (!rows4.some((r) => r.IsActive)) {
           findings.push({
             severity: "error",
             title: "No active content definition",
@@ -104463,7 +104855,7 @@ var collectBriefings = async (org) => {
           });
         }
         return {
-          items: rows3.map(
+          items: rows4.map(
             (r) => item(String(r.Id), String(r.MasterLabel), {
               sublabel: `${r.ContentType} \xB7 ${r.IsActive ? "Active" : "Inactive"}`,
               active: r.IsActive,
@@ -104485,14 +104877,14 @@ var collectBriefings = async (org) => {
         description: "PrstCntntDefAssignment \u2014 the profiles that receive daily briefings, with their readiness."
       },
       async () => {
-        const [rows3, userCounts, generated, caches, schema] = await Promise.all([
+        const [rows4, userCounts, generated, caches, schema] = await Promise.all([
           unwrap(assignments),
           unwrap(briefingUsers),
           unwrap(content),
           unwrap(cache3),
           unwrap(dbSchema)
         ]);
-        if (rows3 === null) return { items: [], findings: [NOT_ENABLED] };
+        if (rows4 === null) return { items: [], findings: [NOT_ENABLED] };
         const withContent = /* @__PURE__ */ new Set();
         for (const r of generated ?? []) if (r.pn) withContent.add(String(r.pn));
         const syncing = (profile) => REQUIRED_SYNC_OBJECTS.some(
@@ -104500,7 +104892,7 @@ var collectBriefings = async (org) => {
         );
         const liveCache2 = (profile) => caches.some((c) => c.profile === profile && isLiveCache(c));
         const orgCache = caches.some((c) => c.profile === null && isLiveCache(c));
-        const items = rows3.map((a) => {
+        const items = rows4.map((a) => {
           const profile = String(rel2(a, "AssignedTo.Name"));
           const findings2 = [];
           if (a.IsActive) {
@@ -104546,7 +104938,7 @@ var collectBriefings = async (org) => {
           });
         });
         const findings = [];
-        if (!rows3.some((a) => a.IsActive)) {
+        if (!rows4.some((a) => a.IsActive)) {
           findings.push({
             severity: "error",
             title: "No active content definition assignments",
@@ -104575,15 +104967,15 @@ var collectBriefings = async (org) => {
         description: "PresentationContent \u2014 the briefings produced in the last 30 days, by profile."
       },
       async () => {
-        const [rows3, on2, newestRows] = await Promise.all([
+        const [rows4, on2, newestRows] = await Promise.all([
           unwrap(content),
           unwrap(enabled),
           unwrap(newestContent)
         ]);
-        if (rows3 === null) return { items: [], findings: [NOT_ENABLED] };
+        if (rows4 === null) return { items: [], findings: [NOT_ENABLED] };
         const byProfile = /* @__PURE__ */ new Map();
         const newest2 = String(newestRows?.[0]?.CreatedDate ?? "");
-        for (const r of rows3) {
+        for (const r of rows4) {
           const profile = r.pn ? String(r.pn) : "Unknown profile";
           const latest = String(r.latest ?? "");
           const cur = byProfile.get(profile) ?? { total: 0, latest: "" };
@@ -105136,9 +105528,9 @@ function describeFlow(meta) {
     }
   }
   walk5(target(start.connector) ?? meta.startElementReference, 0, /* @__PURE__ */ new Set());
-  for (const path24 of start.scheduledPaths ?? []) {
-    push(0, "path", scheduledPathLabel(path24));
-    walk5(target(path24.connector), 1, /* @__PURE__ */ new Set(), true);
+  for (const path25 of start.scheduledPaths ?? []) {
+    push(0, "path", scheduledPathLabel(path25));
+    walk5(target(path25.connector), 1, /* @__PURE__ */ new Set(), true);
   }
   const conditions = start.filterFormula ? [String(start.filterFormula)] : filters(start);
   const conditionLogic = start.filterFormula ? "formula" : conditions.length > 1 ? String(start.filterLogic ?? "and") : null;
@@ -105171,13 +105563,13 @@ function triggerSentence(object3, triggerType, recordTriggerType) {
   const when = triggerType === "RecordBeforeSave" ? "Before" : "After";
   return `${when} ${what} is saved \u2014 when it's ${EVENTS[recordTriggerType] ?? recordTriggerType}`;
 }
-function scheduledPathLabel(path24) {
-  if (path24.pathType === "AsyncAfterCommit")
-    return `Afterwards, separately (${path24.label || "run asynchronously"})`;
-  const n2 = Number(path24.offsetNumber ?? 0);
-  const unit = String(path24.offsetUnit ?? "").toLowerCase();
-  const from = path24.recordField ? path24.recordField : "the save";
-  return `Later: ${path24.label || path24.name || "scheduled path"} \u2014 ${Math.abs(n2)} ${unit} ${n2 < 0 ? "before" : "after"} ${from}`;
+function scheduledPathLabel(path25) {
+  if (path25.pathType === "AsyncAfterCommit")
+    return `Afterwards, separately (${path25.label || "run asynchronously"})`;
+  const n2 = Number(path25.offsetNumber ?? 0);
+  const unit = String(path25.offsetUnit ?? "").toLowerCase();
+  const from = path25.recordField ? path25.recordField : "the save";
+  return `Later: ${path25.label || path25.name || "scheduled path"} \u2014 ${Math.abs(n2)} ${unit} ${n2 < 0 ? "before" : "after"} ${from}`;
 }
 var names2 = (labels2) => labels2.map((l) => `"${l}"`).join(", ");
 function flowFindings(f) {
@@ -110487,9 +110879,9 @@ pp.getTokenFromCode = function(code) {
   this.raise(this.pos, "Unexpected character '" + codePointToString(code) + "'");
 };
 pp.finishOp = function(type, size) {
-  var str33 = this.input.slice(this.pos, this.pos + size);
+  var str34 = this.input.slice(this.pos, this.pos + size);
   this.pos += size;
-  return this.finishToken(type, str33);
+  return this.finishToken(type, str34);
 };
 pp.readRegexp = function() {
   var escaped, inClass, start = this.pos;
@@ -110575,17 +110967,17 @@ pp.readInt = function(radix, len, maybeLegacyOctalNumericLiteral) {
   }
   return total;
 };
-function stringToNumber(str33, isLegacyOctalNumericLiteral) {
+function stringToNumber(str34, isLegacyOctalNumericLiteral) {
   if (isLegacyOctalNumericLiteral) {
-    return parseInt(str33, 8);
+    return parseInt(str34, 8);
   }
-  return parseFloat(str33.replace(/_/g, ""));
+  return parseFloat(str34.replace(/_/g, ""));
 }
-function stringToBigInt(str33) {
+function stringToBigInt(str34) {
   if (typeof BigInt !== "function") {
     return null;
   }
-  return BigInt(str33.replace(/_/g, ""));
+  return BigInt(str34.replace(/_/g, ""));
 }
 pp.readRadixNumber = function(radix) {
   var start = this.pos;
@@ -111463,19 +111855,19 @@ function warmSharedReads(org) {
     warm().catch(() => void 0);
   }
 }
-function unionRows(org, kind, tooling2, sql) {
+function unionRows(org, kind, tooling3, sql) {
   return sharedRead(
     org,
     `studio:union:${kind}`,
-    () => query(sql(inList(ALL_OBJECTS)), org, tooling2)
+    () => query(sql(inList(ALL_OBJECTS)), org, tooling3)
   );
 }
-async function rowsForObjects(org, kind, tooling2, sql, objects, keyOf2) {
-  const own = () => query(sql(inList(objects)), org, tooling2);
+async function rowsForObjects(org, kind, tooling3, sql, objects, keyOf2) {
+  const own = () => query(sql(inList(objects)), org, tooling3);
   if (objects.some((o) => !ALL_OBJECTS_LOWER.has(o.toLowerCase()))) return own();
   let all;
   try {
-    all = await unionRows(org, kind, tooling2, sql);
+    all = await unionRows(org, kind, tooling3, sql);
   } catch {
     return own();
   }
@@ -111504,7 +111896,7 @@ function triggerHandlerRows(org) {
 async function collectObjects(feature, org) {
   const found = [];
   const s11 = await surface("objects", async () => {
-    const rows3 = await rowsForObjects(
+    const rows4 = await rowsForObjects(
       org,
       "entities",
       true,
@@ -111512,7 +111904,7 @@ async function collectObjects(feature, org) {
       feature.objects,
       (r) => r.QualifiedApiName
     );
-    const byName = new Map(rows3.map((r) => [r.QualifiedApiName, r]));
+    const byName = new Map(rows4.map((r) => [r.QualifiedApiName, r]));
     const items = [];
     const findings = [];
     for (const name of feature.objects) {
@@ -111544,7 +111936,7 @@ async function collectObjects(feature, org) {
 function collectRecordTypes(objects, org) {
   return surface("recordTypes", async () => {
     if (objects.length === 0) return { items: [] };
-    const rows3 = await rowsForObjects(
+    const rows4 = await rowsForObjects(
       org,
       "recordTypes",
       false,
@@ -111553,7 +111945,7 @@ function collectRecordTypes(objects, org) {
       (r) => r.SobjectType
     );
     return {
-      items: rows3.map(
+      items: rows4.map(
         (r) => item(r.Id, r.Name, {
           sublabel: r.SobjectType,
           active: r.IsActive,
@@ -111571,7 +111963,7 @@ var SIDEBAR_OBJECT = "Visit";
 function collectLayouts(objects, org) {
   return surface("layouts", async () => {
     if (objects.length === 0) return { items: [] };
-    const rows3 = await rowsForObjects(
+    const rows4 = await rowsForObjects(
       org,
       "layouts",
       true,
@@ -111580,7 +111972,7 @@ function collectLayouts(objects, org) {
       (r) => r.TableEnumOrId
     );
     return {
-      items: rows3.map(
+      items: rows4.map(
         (r) => item(r.Id, r.Name, {
           sublabel: r.TableEnumOrId,
           properties: { Object: scalar2(r.TableEnumOrId) },
@@ -111609,10 +112001,10 @@ function collectCustomScripts(feature, org) {
       `SELECT Id, Name, ComponentName, Type, ObjectName, OperationEventType, CodeText, CreatedDate FROM LifeScienceCustomScript WHERE ${scope2.join(" OR ")} ORDER BY CreatedDate, Id`,
       org
     );
-    const rows3 = feature.objects.every((o) => ALL_OBJECTS_LOWER.has(o.toLowerCase())) ? await unionRows(org, "customScripts", false, customScriptsSql).catch(own) : await own();
+    const rows4 = feature.objects.every((o) => ALL_OBJECTS_LOWER.has(o.toLowerCase())) ? await unionRows(org, "customScripts", false, customScriptsSql).catch(own) : await own();
     const objects = new Set(feature.objects.map((o) => o.toLowerCase()));
     const isVav = (r) => r.Type === "VisitActionValidation";
-    const relevant = rows3.filter(
+    const relevant = rows4.filter(
       (r) => objects.has(String(r.ObjectName || "").toLowerCase()) || feature.includeVisitActionValidation && isVav(r)
     );
     const vavs = relevant.filter(isVav);
@@ -111676,7 +112068,7 @@ function collectCustomScripts(feature, org) {
 function collectValidationRules(objects, org) {
   return surface("validationRules", async () => {
     if (objects.length === 0) return { items: [] };
-    const rows3 = await rowsForObjects(
+    const rows4 = await rowsForObjects(
       org,
       "validationRules",
       true,
@@ -111685,7 +112077,7 @@ function collectValidationRules(objects, org) {
       (r) => r.EntityDefinition?.QualifiedApiName
     );
     return {
-      items: rows3.map((r) => {
+      items: rows4.map((r) => {
         const obj12 = r.EntityDefinition?.QualifiedApiName;
         return item(r.Id, r.ValidationName, {
           sublabel: obj12,
@@ -111709,7 +112101,7 @@ function collectValidationRules(objects, org) {
 function collectApexTriggers(objects, org) {
   return surface("apexTriggers", async () => {
     if (objects.length === 0) return { items: [] };
-    const rows3 = await rowsForObjects(
+    const rows4 = await rowsForObjects(
       org,
       "apexTriggers",
       true,
@@ -111717,7 +112109,7 @@ function collectApexTriggers(objects, org) {
       objects,
       (r) => r.TableEnumOrId
     );
-    const items = rows3.map(
+    const items = rows4.map(
       (r) => item(r.Id, r.Name, {
         sublabel: r.TableEnumOrId,
         active: r.Status === "Active",
@@ -111743,10 +112135,10 @@ function collectApexTriggers(objects, org) {
 function collectFlows(objects, org) {
   return surface("flows", async () => {
     if (objects.length === 0) return { items: [] };
-    const rows3 = await recordTriggeredFlows(org);
+    const rows4 = await recordTriggeredFlows(org);
     const labels2 = new Set(objects.map((o) => o.label));
     return {
-      items: rows3.filter((r) => labels2.has(r.TriggerObjectOrEventLabel)).map(
+      items: rows4.filter((r) => labels2.has(r.TriggerObjectOrEventLabel)).map(
         (r) => item(r.DurableId, r.Label, {
           sublabel: `${r.TriggerObjectOrEventLabel} \xB7 ${r.TriggerType}`,
           active: r.IsActive,
@@ -111764,9 +112156,9 @@ function collectFlows(objects, org) {
 }
 function collectTriggerHandlers(feature, org) {
   return surface("triggerHandlers", async () => {
-    const rows3 = await triggerHandlerRows(org);
+    const rows4 = await triggerHandlerRows(org);
     return {
-      items: rows3.filter(
+      items: rows4.filter(
         (r) => matchesAny(
           `${r.DeveloperName} ${r.MasterLabel} ${r.Description || ""}`,
           feature.handlerKeywords
@@ -111916,14 +112308,14 @@ async function resolveIdNames(records, org) {
   const ids = new Set(records.flatMap((r) => Object.values(r.fields).flatMap(splitIds)));
   const names5 = /* @__PURE__ */ new Map();
   await Promise.all(
-    ID_LOOKUPS.map(async ({ prefix, soql: soql5 }) => {
+    ID_LOOKUPS.map(async ({ prefix, soql: soql6 }) => {
       const batch = [...ids].filter((id2) => id2.startsWith(prefix));
       if (batch.length === 0) return;
       try {
-        const chunks7 = await Promise.all(
-          chunkIds(batch).map((ids2) => query(`${soql5} (${inList(ids2)})`, org))
+        const chunks8 = await Promise.all(
+          chunkIds(batch).map((ids2) => query(`${soql6} (${inList(ids2)})`, org))
         );
-        for (const r of chunks7.flat()) {
+        for (const r of chunks8.flat()) {
           const id2 = String(r.Id);
           names5.set(id2, String(r.Name));
           names5.set(id2.slice(0, 15), String(r.Name));
@@ -111936,12 +112328,12 @@ async function resolveIdNames(records, org) {
 }
 function collectCompliance2(moduleType, org) {
   return surface("compliance", async () => {
-    const rows3 = await query(
+    const rows4 = await query(
       `SELECT Id, Name, ModuleType, StatementType FROM ComplianceStatementDef WHERE ModuleType = '${moduleType.replace(/'/g, "\\'")}' ORDER BY Name`,
       org
     );
     return {
-      items: rows3.map(
+      items: rows4.map(
         (r) => item(r.Id, r.Name, {
           sublabel: r.StatementType,
           properties: { Module: scalar2(r.ModuleType), "Statement type": scalar2(r.StatementType) }
@@ -112029,11 +112421,11 @@ async function gatherFeatureMap(feature, org) {
   };
 }
 async function collectProfileOptions(org) {
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Profile.Name pn, COUNT(Id) cnt FROM User WHERE IsActive = true AND UserType = 'Standard' GROUP BY Profile.Name ORDER BY COUNT(Id) DESC`,
     org
   );
-  return rows3.filter((r) => r.pn).map((r) => ({ name: String(r.pn), users: Number(r.cnt ?? r.expr0 ?? 0) }));
+  return rows4.filter((r) => r.pn).map((r) => ({ name: String(r.pn), users: Number(r.cnt ?? r.expr0 ?? 0) }));
 }
 async function collectItemDetail(kind, id2, org) {
   if (!(kind === "flow" ? FLOW_KEY_PATTERN : ID_PATTERN).test(id2))
@@ -112167,12 +112559,12 @@ var loadDbSchema = (org) => collectCategoryRecords(
   { strict: true, cache: true }
 );
 async function loadHandlers(org) {
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler`,
     org,
     true
   );
-  return rows3.map((r) => ({
+  return rows4.map((r) => ({
     developerName: String(r.DeveloperName),
     label: String(r.MasterLabel ?? r.DeveloperName),
     active: !!r.IsActive
@@ -112342,15 +112734,15 @@ var readiness = {
         },
         async () => {
           const where3 = `Status = 'InProgress' AND CreatedDate = LAST_N_DAYS:${STUCK_WINDOW_DAYS} AND CreatedDate < LAST_N_DAYS:14`;
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name, Account.Name, CreatedDate FROM Visit WHERE ${where3} ORDER BY CreatedDate LIMIT 6`,
             org
           );
-          const n2 = rows3.length === 6 ? await count(`SELECT COUNT() FROM Visit WHERE ${where3}`, org) : rows3.length;
+          const n2 = rows4.length === 6 ? await count(`SELECT COUNT() FROM Visit WHERE ${where3}`, org) : rows4.length;
           return {
             pass: n2 === 0,
             detail: n2 ? `${plural(n2, "visit")} from the last ${STUCK_WINDOW_DAYS} days In Progress for more than 14 days.` : `No visit from the last ${STUCK_WINDOW_DAYS} days has been In Progress for more than 14 days.`,
-            examples: rows3.map((r) => String(r.Name))
+            examples: rows4.map((r) => String(r.Name))
           };
         }
       ),
@@ -112460,18 +112852,18 @@ var readiness = {
           surface: "customScripts"
         },
         async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name, ObjectName, OperationEventType, CodeText FROM LifeScienceCustomScript WHERE Type = 'VisitActionValidation' ORDER BY CreatedDate, Id`,
             org
           );
-          if (!rows3.length)
+          if (!rows4.length)
             return {
               pass: true,
               skip: true,
               detail: "No Visit Action Validation scripts \u2014 optional."
             };
           const problems = [];
-          const [running, ...ignored] = rows3;
+          const [running, ...ignored] = rows4;
           if (ignored.length)
             problems.push(
               `${ignored.map((r) => r.Name).join(", ")} will not run \u2014 only "${running.Name}" does`
@@ -112559,11 +112951,11 @@ var SAMPLE_ROWS2 = 500;
 var DISBURSEMENT_WINDOW_DAYS = 90;
 var many2 = (n2, one, more) => `${n2} ${n2 === 1 ? one : more}`;
 async function sampleLocations(where3, org) {
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, Name, PrimaryUserId FROM Location WHERE ${where3} LIMIT ${SAMPLE_ROWS2}`,
     org
   );
-  return { rows: rows3, complete: rows3.length < SAMPLE_ROWS2 };
+  return { rows: rows4, complete: rows4.length < SAMPLE_ROWS2 };
 }
 var allOf = (n2, one, more) => n2 === 1 ? `the only ${one}` : `all ${n2} ${more}`;
 function checkedNote(s11, one, more) {
@@ -112574,7 +112966,7 @@ async function exists(object3, org) {
 }
 async function productsAt(locationIds, org) {
   const out = /* @__PURE__ */ new Map();
-  const chunks7 = await Promise.all(
+  const chunks8 = await Promise.all(
     chunkIds(locationIds).map(
       (chunk2) => query(
         `SELECT Product2Id, COUNT(Id) cnt FROM ProductItem WHERE LocationId IN (${inList(chunk2)}) GROUP BY Product2Id`,
@@ -112582,7 +112974,7 @@ async function productsAt(locationIds, org) {
       )
     )
   );
-  for (const r of chunks7.flat())
+  for (const r of chunks8.flat())
     out.set(
       String(r.Product2Id),
       (out.get(String(r.Product2Id)) ?? 0) + Number(r.cnt ?? r.expr0 ?? 0)
@@ -112652,12 +113044,12 @@ var readiness2 = {
           if (!total) return NO_USER_LOCATIONS;
           const s11 = await unassigned();
           const stock = await unassignedStock();
-          const rows3 = s11.rows.filter((r) => stock.has(String(r.Id)));
+          const rows4 = s11.rows.filter((r) => stock.has(String(r.Id)));
           const scope2 = s11.complete ? "" : ` Checked a sample of ${SAMPLE_ROWS2} User Inventory locations with no Primary User, not every one in the org.`;
           return {
-            pass: rows3.length === 0,
-            detail: rows3.length ? `${rows3.length} of ${total} User Inventory locations hold stock but have no Primary User.${scope2}` : `No User Inventory location holds stock without a Primary User.${scope2}`,
-            examples: rows3.slice(0, 5).map((r) => String(r.Name))
+            pass: rows4.length === 0,
+            detail: rows4.length ? `${rows4.length} of ${total} User Inventory locations hold stock but have no Primary User.${scope2}` : `No User Inventory location holds stock without a Primary User.${scope2}`,
+            examples: rows4.slice(0, 5).map((r) => String(r.Name))
           };
         }
       ),
@@ -112676,12 +113068,12 @@ var readiness2 = {
           if (!total) return NO_USER_LOCATIONS;
           const s11 = await unassigned();
           const stock = await unassignedStock();
-          const rows3 = s11.rows.filter((r) => !stock.has(String(r.Id)));
+          const rows4 = s11.rows.filter((r) => !stock.has(String(r.Id)));
           const scope2 = s11.complete ? "" : ` Checked a sample of ${SAMPLE_ROWS2} User Inventory locations with no Primary User, not every one in the org.`;
           return {
-            pass: rows3.length === 0,
-            detail: rows3.length ? `${rows3.length} of ${total} User Inventory locations have no Primary User and no stock.${scope2}` : `Every empty User Inventory location has a Primary User.${scope2}`,
-            examples: rows3.slice(0, 5).map((r) => String(r.Name))
+            pass: rows4.length === 0,
+            detail: rows4.length ? `${rows4.length} of ${total} User Inventory locations have no Primary User and no stock.${scope2}` : `Every empty User Inventory location has a Primary User.${scope2}`,
+            examples: rows4.slice(0, 5).map((r) => String(r.Name))
           };
         }
       ),
@@ -112699,18 +113091,18 @@ var readiness2 = {
           uiPath: "Locations tab"
         },
         async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name, PrimaryUser.Name FROM Location WHERE ${USER_LOCATION} AND PrimaryUserId != null AND PrimaryUser.IsActive = false LIMIT 5`,
             org
           );
-          const n2 = rows3.length < 5 ? rows3.length : await count(
+          const n2 = rows4.length < 5 ? rows4.length : await count(
             `SELECT COUNT() FROM Location WHERE ${USER_LOCATION} AND PrimaryUserId != null AND PrimaryUser.IsActive = false`,
             org
           );
           return {
             pass: n2 === 0,
             detail: n2 ? `${plural(n2, "location")} belong to deactivated users.` : "Every location's Primary User is active.",
-            examples: rows3.map((r) => String(r.Name))
+            examples: rows4.map((r) => String(r.Name))
           };
         }
       ),
@@ -112913,7 +113305,7 @@ var readiness2 = {
               skip: true,
               detail: `No sample disbursements in the last ${DISBURSEMENT_WINDOW_DAYS} days.`
             };
-          const rows3 = n2 ? await query(
+          const rows4 = n2 ? await query(
             `SELECT Name FROM ProductDisbursement WHERE ${window2} AND IsResolutionRequired = true LIMIT 5`,
             org
           ) : [];
@@ -112921,7 +113313,7 @@ var readiness2 = {
           return {
             pass: n2 === 0,
             detail: n2 ? `${n2} of ${total} need resolution. ${scope2}` : `None needs resolution. ${scope2}`,
-            examples: rows3.map((r) => String(r.Name))
+            examples: rows4.map((r) => String(r.Name))
           };
         }
       ),
@@ -113062,12 +113454,12 @@ async function loadSample(org) {
   if (focus && !focus.length)
     return { rows: [], accounts: /* @__PURE__ */ new Map(), complete: true, focused: true };
   const inTerritories = focus ? ` AND Territory2Id IN (${inList(spread(focus, SAMPLE_TERRITORIES))})` : "";
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT AccountId, Account.Name, Account.IsPersonAccount, Territory2Id, PreferredAddressId FROM ProviderAcctTerritoryInfo WHERE IsActive = true AND AccountId != null${inTerritories} LIMIT ${SAMPLE_ROWS3}`,
     org
   );
   const accounts = /* @__PURE__ */ new Map();
-  for (const r of rows3) {
+  for (const r of rows4) {
     const a = r.Account ?? {};
     accounts.set(String(r.AccountId), {
       name: String(a.Name ?? r.AccountId),
@@ -113075,9 +113467,9 @@ async function loadSample(org) {
     });
   }
   return {
-    rows: rows3,
+    rows: rows4,
     accounts,
-    complete: rows3.length < SAMPLE_ROWS3 && (!focus || focus.length <= SAMPLE_TERRITORIES),
+    complete: rows4.length < SAMPLE_ROWS3 && (!focus || focus.length <= SAMPLE_TERRITORIES),
     focused: !!focus
   };
 }
@@ -113428,14 +113820,14 @@ var readiness3 = {
             };
           const where3 = `Status IN ('NotProcessed', 'Failed', 'Retry') AND CreatedDate = LAST_N_DAYS:${DCR_WINDOW_DAYS} AND CreatedDate < LAST_N_DAYS:${DCR_STALE_DAYS}`;
           const n2 = await count(`SELECT COUNT() FROM LifeSciDataChangeRequest WHERE ${where3}`, org);
-          const rows3 = n2 ? await query(
+          const rows4 = n2 ? await query(
             `SELECT Name, Status, FailureReason FROM LifeSciDataChangeRequest WHERE ${where3} LIMIT 5`,
             org
           ) : [];
           return {
             pass: n2 === 0,
             detail: n2 ? `${plural(n2, "request")} from the last ${DCR_WINDOW_DAYS} days unprocessed for more than ${DCR_STALE_DAYS} days.` : `No request from the last ${DCR_WINDOW_DAYS} days is stuck.`,
-            examples: rows3.map((r) => `${r.Name} (${r.Status})`)
+            examples: rows4.map((r) => `${r.Name} (${r.Status})`)
           };
         }
       ),
@@ -113568,15 +113960,15 @@ init_shared();
 init_helpers2();
 var lazy = memoFocus;
 var countOf = count;
-var labels = (rows3) => rows3.map(rowLabel);
+var labels = (rows4) => rows4.map(rowLabel);
 var loadHandlers2 = (org) => lazy(async () => {
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler`,
     org,
     true
   );
   return new Map(
-    rows3.map((r) => [
+    rows4.map((r) => [
       String(r.DeveloperName),
       {
         developerName: String(r.DeveloperName),
@@ -113724,15 +114116,15 @@ var readiness4 = {
         focusTerritoryIds(org)
       ]);
       const mine = focus && new Set(focus);
-      const rows3 = mine ? all.filter((t) => mine.has(String(t.Id))) : all;
+      const rows4 = mine ? all.filter((t) => mine.has(String(t.Id))) : all;
       const users = await countGroupedBy(
         "UserTerritory2Association",
         "Territory2Id",
-        rows3.map((t) => String(t.Id)),
+        rows4.map((t) => String(t.Id)),
         org,
         "IsActive = true"
       );
-      return rows3.filter((t) => users.get(String(t.Id))).map((t) => ({
+      return rows4.filter((t) => users.get(String(t.Id))).map((t) => ({
         Territory2Id: String(t.Id),
         tname: String(t.Name),
         cnt: users.get(String(t.Id))
@@ -113751,11 +114143,11 @@ var readiness4 = {
       const goals = /* @__PURE__ */ new Map();
       await Promise.all(
         plans.map(async (p) => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name FROM ProviderActivityGoal WHERE ActivityPlanId = '${p.Id}' LIMIT ${perPlan}`,
             org
           );
-          goals.set(String(p.Id), rows3);
+          goals.set(String(p.Id), rows4);
         })
       );
       const complete = plans.length === all.length && [...goals.values()].every((g) => g.length < perPlan);
@@ -113813,15 +114205,15 @@ var readiness4 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Name, EndDate FROM TimePeriod WHERE StartDate <= TODAY AND EndDate >= TODAY ORDER BY EndDate`,
             org
           );
-          if (rows3.length)
+          if (rows4.length)
             return {
               pass: true,
-              detail: `${plural(rows3.length, "time period")} cover today.`,
-              examples: labels(rows3)
+              detail: `${plural(rows4.length, "time period")} cover today.`,
+              examples: labels(rows4)
             };
           const total = await countOf(`SELECT COUNT() FROM TimePeriod`, org);
           return {
@@ -113873,14 +114265,14 @@ var readiness4 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Name, TimePeriod.EndDate FROM ActivityPlan WHERE IsActive = true AND TimePeriod.EndDate < TODAY ORDER BY TimePeriod.EndDate DESC LIMIT 50`,
             org
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${plural(rows3.length, "active plan")} past their time period.`,
-            examples: labels(rows3)
+            detail: `${plural(rows4.length, "active plan")} past their time period.`,
+            examples: labels(rows4)
           } : { pass: true, detail: "None." };
         }
       ),
@@ -113904,11 +114296,11 @@ var readiness4 = {
             plans.map((p) => String(p.Id)),
             org
           );
-          const rows3 = plans.filter((p) => !linked.has(String(p.Id)));
-          return rows3.length ? {
+          const rows4 = plans.filter((p) => !linked.has(String(p.Id)));
+          return rows4.length ? {
             pass: false,
-            detail: `${plural(rows3.length, "active plan")} with no territory.`,
-            examples: labels(rows3.slice(0, 50))
+            detail: `${plural(rows4.length, "active plan")} with no territory.`,
+            examples: labels(rows4.slice(0, 50))
           } : { pass: true, detail: "All linked." };
         }
       ),
@@ -113926,15 +114318,15 @@ var readiness4 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT ActivityPlan.Name, Territory.Name FROM ActivityPlanTerritory WHERE Territory.Territory2Model.State != 'Active' LIMIT 50`,
             org
           );
           const label2 = (r) => `${r.ActivityPlan?.Name} \u2192 ${r.Territory?.Name}`;
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${plural(rows3.length, "link")} point outside the active model.`,
-            examples: rows3.map(label2)
+            detail: `${plural(rows4.length, "link")} point outside the active model.`,
+            examples: rows4.map(label2)
           } : { pass: true, detail: "All in the active model." };
         }
       ),
@@ -113995,12 +114387,12 @@ var readiness4 = {
         async () => {
           const s11 = await goalSample();
           if (!s11.plans.length) return { pass: true, detail: "No active plans." };
-          const rows3 = s11.plans.filter((p) => !s11.goals.get(String(p.Id))?.length);
+          const rows4 = s11.plans.filter((p) => !s11.goals.get(String(p.Id))?.length);
           const scope2 = s11.plans.length === s11.totalPlans ? `Checked all ${many4(s11.totalPlans, "active plan", "active plans")}.` : `Checked ${s11.plans.length} of ${s11.totalPlans} active plans, not every one in the org.`;
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${plural(rows3.length, "active plan")} with no goals. ${scope2}`,
-            examples: labels(rows3.slice(0, 50))
+            detail: `${plural(rows4.length, "active plan")} with no goals. ${scope2}`,
+            examples: labels(rows4.slice(0, 50))
           } : { pass: true, detail: `All have goals. ${scope2}` };
         }
       ),
@@ -114021,7 +114413,7 @@ var readiness4 = {
           const s11 = await goalSample();
           const names5 = new Map([...s11.plans].map((p) => [String(p.Id), String(p.Name ?? p.Id)]));
           const goals = [...s11.goals].flatMap(
-            ([plan3, rows3]) => rows3.map((g) => ({ id: String(g.Id), label: `${g.Name ?? g.Id} (${names5.get(plan3)})` }))
+            ([plan3, rows4]) => rows4.map((g) => ({ id: String(g.Id), label: `${g.Name ?? g.Id} (${names5.get(plan3)})` }))
           );
           if (!goals.length) return { pass: true, skip: true, detail: "No goals on active plans." };
           const measured = new Set((await measures()).map((m) => String(m.ProviderActivityGoalId)));
@@ -114064,14 +114456,14 @@ var readiness4 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Name FROM ActivityPlan WHERE IsActive = true AND IsCalculationEnabled = false LIMIT 50`,
             org
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${plural(rows3.length, "active plan")} with calculation off.`,
-            examples: labels(rows3)
+            detail: `${plural(rows4.length, "active plan")} with calculation off.`,
+            examples: labels(rows4)
           } : { pass: true, detail: "All active plans calculate." };
         }
       ),
@@ -114122,16 +114514,16 @@ var readiness4 = {
           uiPath: "Admin Console > Activity Plans > Jobs"
         },
         async () => {
-          const rows3 = await failedJobs(org, [
+          const rows4 = await failedJobs(org, [
             "%ActivityPlan%",
             "%AccountGoals%",
             "%ProviderActivity%"
           ]);
           const label2 = (r) => `${r.ApexClass?.Name}: ${String(r.ExtendedStatus ?? r.Status).slice(0, 80)}`;
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${plural(rows3.length, "failed run")} in the last 14 days.`,
-            examples: rows3.map(label2)
+            detail: `${plural(rows4.length, "failed run")} in the last 14 days.`,
+            examples: rows4.map(label2)
           } : { pass: true, detail: "No failed runs in the last 14 days." };
         }
       ),
@@ -114210,15 +114602,15 @@ var readiness5 = {
         },
         async () => {
           const where3 = `IsActive = true AND EffectiveEndDate < TODAY`;
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Name, EffectiveEndDate FROM ProductGuidance WHERE ${where3} ORDER BY EffectiveEndDate DESC LIMIT 5`,
             org
           );
-          const n2 = rows3.length < 5 ? rows3.length : await count(`SELECT COUNT() FROM ProductGuidance WHERE ${where3}`, org);
+          const n2 = rows4.length < 5 ? rows4.length : await count(`SELECT COUNT() FROM ProductGuidance WHERE ${where3}`, org);
           return {
             pass: n2 === 0,
             detail: n2 ? `${plural(n2, "active message")} past the end date.` : "No active message is past its end date.",
-            examples: rows3.map(
+            examples: rows4.map(
               (r) => `${r.Name} (ended ${String(r.EffectiveEndDate).slice(0, 10)})`
             )
           };
@@ -114239,11 +114631,11 @@ var readiness5 = {
             return { pass: true, skip: true, detail: "No active messages." };
           const where3 = `IsActive = true AND ProductReferenceRecordId IN (SELECT Id FROM LifeSciMarketableProduct WHERE IsActive = false)`;
           const n2 = await count(`SELECT COUNT() FROM ProductGuidance WHERE ${where3}`, org);
-          const rows3 = n2 ? await query(`SELECT Name FROM ProductGuidance WHERE ${where3} LIMIT 5`, org) : [];
+          const rows4 = n2 ? await query(`SELECT Name FROM ProductGuidance WHERE ${where3} LIMIT 5`, org) : [];
           return {
             pass: n2 === 0,
             detail: n2 ? `${plural(n2, "active message")} on inactive products.` : "Every active message is on an active product.",
-            examples: rows3.map((r) => String(r.Name))
+            examples: rows4.map((r) => String(r.Name))
           };
         }
       ),
@@ -114370,12 +114762,12 @@ var hasHave3 = (n2) => n2 === 1 ? "has" : "have";
 function checkedNote3(n2, one, more) {
   return n2 < SAMPLE_ROWS4 ? `Checked all ${many6(n2, one, more)}.` : `Checked a sample of ${SAMPLE_ROWS4} ${more}, not every one in the org.`;
 }
-function missingResult(rows3, children2, one, more, what) {
-  const bare2 = rows3.filter((r) => !children2.has(String(r.Id)));
-  const scope2 = checkedNote3(rows3.length, one, more);
+function missingResult(rows4, children2, one, more, what) {
+  const bare2 = rows4.filter((r) => !children2.has(String(r.Id)));
+  const scope2 = checkedNote3(rows4.length, one, more);
   return bare2.length ? {
     pass: false,
-    detail: `${bare2.length} of ${many6(rows3.length, one, more)} ${hasHave3(bare2.length)} no ${what}. ${scope2}`,
+    detail: `${bare2.length} of ${many6(rows4.length, one, more)} ${hasHave3(bare2.length)} no ${what}. ${scope2}`,
     examples: bare2.slice(0, 5).map((r) => String(r.Name ?? r.Id))
   } : {
     pass: true,
@@ -114502,15 +114894,15 @@ var readiness6 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await plans();
-          if (!rows3.length) return { pass: true, skip: true, detail: "No account plans yet." };
+          const rows4 = await plans();
+          if (!rows4.length) return { pass: true, skip: true, detail: "No account plans yet." };
           const children2 = await countGroupedBy(
             "AccountPlanObjective",
             "AccountPlanId",
             await planIds(),
             org
           );
-          return missingResult(rows3, children2, "account plan", "account plans", "objectives");
+          return missingResult(rows4, children2, "account plan", "account plans", "objectives");
         }
       ),
       runCheck(
@@ -114525,15 +114917,15 @@ var readiness6 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await plans();
-          if (!rows3.length) return { pass: true, skip: true, detail: "No account plans yet." };
+          const rows4 = await plans();
+          if (!rows4.length) return { pass: true, skip: true, detail: "No account plans yet." };
           const children2 = await countGroupedBy(
             "AccountPlanParticipant",
             "AccountPlanId",
             await planIds(),
             org
           );
-          return missingResult(rows3, children2, "account plan", "account plans", "participants");
+          return missingResult(rows4, children2, "account plan", "account plans", "participants");
         }
       ),
       runCheck(
@@ -114548,9 +114940,9 @@ var readiness6 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await objectives();
-          if (!rows3.length) return { pass: true, skip: true, detail: "No objectives yet." };
-          const ids = rows3.map((r) => String(r.Id));
+          const rows4 = await objectives();
+          if (!rows4.length) return { pass: true, skip: true, detail: "No objectives yet." };
+          const ids = rows4.map((r) => String(r.Id));
           const children2 = await countGroupedBy(
             "ActionPlan",
             "TargetId",
@@ -114558,7 +114950,7 @@ var readiness6 = {
             org,
             "ActionPlanType = 'KAM'"
           );
-          return missingResult(rows3, children2, "objective", "objectives", "action plan");
+          return missingResult(rows4, children2, "objective", "objectives", "action plan");
         }
       ),
       runCheck(
@@ -114838,7 +115230,7 @@ var readiness7 = {
           surface: "objects"
         },
         async () => {
-          const read2 = async (soql5) => (await query(`${soql5} LIMIT ${SAMPLE_ROWS5}`, org)).length;
+          const read2 = async (soql6) => (await query(`${soql6} LIMIT ${SAMPLE_ROWS5}`, org)).length;
           const [events, visits] = await Promise.all([
             read2(`SELECT Id FROM Event WHERE StartDateTime >= LAST_N_DAYS:30`),
             read2(`SELECT Id FROM Visit WHERE PlannedVisitStartTime >= LAST_N_DAYS:30`).catch(
@@ -114883,7 +115275,7 @@ init_helpers2();
 var SAMPLE_ROWS6 = 500;
 var INACTIVE_USERS = 2e3;
 var many7 = (n2, one, more) => `${n2} ${n2 === 1 ? one : more}`;
-var checkedNote4 = (rows3, one, more) => rows3.length < SAMPLE_ROWS6 ? `Checked all ${many7(rows3.length, one, more)}.` : `Checked a sample of ${SAMPLE_ROWS6} ${more}, not every one in the org.`;
+var checkedNote4 = (rows4, one, more) => rows4.length < SAMPLE_ROWS6 ? `Checked all ${many7(rows4.length, one, more)}.` : `Checked a sample of ${SAMPLE_ROWS6} ${more}, not every one in the org.`;
 async function emptyLists(where3, org) {
   const sampled = await query(
     `SELECT Id, Name FROM LifeScienceAccountList WHERE ${where3} LIMIT ${SAMPLE_ROWS6}`,
@@ -115023,14 +115415,14 @@ var readiness8 = {
           );
           if (!owners.size) return { pass: true, detail: `All list owners are active. ${scope2}` };
           const n2 = [...owners.values()].reduce((a, b) => a + b, 0);
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name FROM LifeScienceAccountList WHERE OwnerId IN (${inList([...owners.keys()].slice(0, 200))}) LIMIT 20`,
             org
           );
           return {
             pass: false,
             detail: `${plural(n2, "list")} owned by ${many7(owners.size, "inactive user", "inactive users")}. ${scope2}`,
-            examples: labels(rows3)
+            examples: labels(rows4)
           };
         }
       ),
@@ -115048,14 +115440,14 @@ var readiness8 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name FROM LifeScienceAccountList WHERE (Type = 'Filter' OR (Type = 'AdvancedFilter' AND ReportIdentifier = null)) AND Id NOT IN (SELECT LifeScienceAccountListId FROM LifeScienceAccountListObject) LIMIT 20`,
             org
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${plural(rows3.length, "filter")} with no object.`,
-            examples: labels(rows3)
+            detail: `${plural(rows4.length, "filter")} with no object.`,
+            examples: labels(rows4)
           } : { pass: true, detail: "Every filter has an object." };
         }
       ),
@@ -115071,14 +115463,14 @@ var readiness8 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await listsMissing(
+          const rows4 = await listsMissing(
             "LifeSciAcctListFilterCrit",
             "Type IN ('Filter', 'AdvancedFilter')"
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${plural(rows3.length, "filter")} with no criteria.`,
-            examples: labels(rows3)
+            detail: `${plural(rows4.length, "filter")} with no criteria.`,
+            examples: labels(rows4)
           } : { pass: true, detail: "Every filter has criteria." };
         }
       ),
@@ -115094,11 +115486,11 @@ var readiness8 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await listsMissing("LifeSciAccountListColumn", "Id != null");
-          return rows3.length ? {
+          const rows4 = await listsMissing("LifeSciAccountListColumn", "Id != null");
+          return rows4.length ? {
             pass: false,
-            detail: `${plural(rows3.length, "list")} with no columns.`,
-            examples: labels(rows3)
+            detail: `${plural(rows4.length, "list")} with no columns.`,
+            examples: labels(rows4)
           } : { pass: true, detail: "Every list has columns." };
         }
       ),
@@ -115216,22 +115608,22 @@ async function syncResult2(org, schema, objects, main2 = objects[0]) {
   };
 }
 async function handlersResult2(org, names5) {
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler WHERE DeveloperName IN (${inList(names5)})`,
     org,
     true
   );
-  if (!rows3.length)
+  if (!rows4.length)
     return {
       pass: true,
       skip: true,
       detail: "None of these handlers exist in this org's package version."
     };
-  const off = rows3.filter((r) => !r.IsActive);
-  if (!off.length) return { pass: true, detail: `${plural(rows3.length, "handler")} active.` };
+  const off = rows4.filter((r) => !r.IsActive);
+  if (!off.length) return { pass: true, detail: `${plural(rows4.length, "handler")} active.` };
   return {
     pass: false,
-    detail: `${off.length} of ${rows3.length} are switched off: ${off.map((r) => r.DeveloperName).join(", ")}.`,
+    detail: `${off.length} of ${rows4.length} are switched off: ${off.map((r) => r.DeveloperName).join(", ")}.`,
     examples: off.map((r) => String(r.DeveloperName)),
     fixes: off.map((r) => ({
       kind: "setActive",
@@ -115246,8 +115638,8 @@ async function handlersResult2(org, names5) {
     }))
   };
 }
-function nameList(rows3, key5 = "Name") {
-  return rows3.map((r) => String(r[key5] ?? r.Id));
+function nameList(rows4, key5 = "Name") {
+  return rows4.map((r) => String(r[key5] ?? r.Id));
 }
 
 // src/studio/readiness/features/consent.ts
@@ -115360,14 +115752,14 @@ var readiness9 = {
           const total = await count(`SELECT COUNT() FROM CommSubscription`, org);
           if (!total)
             return { pass: true, skip: true, detail: "No communication subscriptions yet." };
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name FROM CommSubscription WHERE Id NOT IN (SELECT CommunicationSubscriptionId FROM CommSubscriptionChannelType) LIMIT 20`,
             org
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${rows3.length} of ${plural(total, "subscription")} have no channel.`,
-            examples: nameList(rows3)
+            detail: `${rows4.length} of ${plural(total, "subscription")} have no channel.`,
+            examples: nameList(rows4)
           } : { pass: true, detail: `All ${plural(total, "subscription")} have a channel.` };
         }
       ),
@@ -115386,15 +115778,15 @@ var readiness9 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, CommunicationSubscription.Name, EngagementChannelType.Name FROM CommSubscriptionChannelType WHERE EngagementChannelTypeId IN (SELECT Id FROM EngagementChannelType WHERE IsActive = false) LIMIT 20`,
             org
           );
           const label2 = (r) => `${r.CommunicationSubscription?.Name ?? "?"} \u2192 ${r.EngagementChannelType?.Name ?? "?"}`;
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${plural(rows3.length, "mapping")} point at an inactive channel type.`,
-            examples: rows3.map(label2)
+            detail: `${plural(rows4.length, "mapping")} point at an inactive channel type.`,
+            examples: rows4.map(label2)
           } : { pass: true, detail: "Every mapping points at an active channel type." };
         }
       ),
@@ -115413,14 +115805,14 @@ var readiness9 = {
           const total = await count(`SELECT COUNT() FROM CommSubscription`, org);
           if (!total)
             return { pass: true, skip: true, detail: "No communication subscriptions yet." };
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name FROM CommSubscription WHERE DataUsePurposeId = null LIMIT 20`,
             org
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${rows3.length} of ${plural(total, "subscription")} have no data use purpose.`,
-            examples: nameList(rows3)
+            detail: `${rows4.length} of ${plural(total, "subscription")} have no data use purpose.`,
+            examples: nameList(rows4)
           } : { pass: true, detail: `All ${plural(total, "subscription")} have one.` };
         }
       ),
@@ -115439,18 +115831,18 @@ var readiness9 = {
           surface: "compliance"
         },
         async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name, StatementText FROM ComplianceStatementDef WHERE ModuleType = 'Consent' LIMIT 200`,
             org
           );
-          if (!rows3.length)
+          if (!rows4.length)
             return { pass: true, skip: true, detail: "No consent compliance statements." };
-          const blank2 = rows3.filter((r) => !String(r.StatementText ?? "").trim());
+          const blank2 = rows4.filter((r) => !String(r.StatementText ?? "").trim());
           return blank2.length ? {
             pass: false,
-            detail: `${blank2.length} of ${plural(rows3.length, "statement")} have no text.`,
+            detail: `${blank2.length} of ${plural(rows4.length, "statement")} have no text.`,
             examples: nameList(blank2)
-          } : { pass: true, detail: `${plural(rows3.length, "statement")}, all with text.` };
+          } : { pass: true, detail: `${plural(rows4.length, "statement")}, all with text.` };
         }
       ),
       runCheck(
@@ -115496,19 +115888,19 @@ var readiness9 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Name, EffectiveToDate FROM CommSubscriptionConsent WHERE PrivacyConsentStatus = 'OptIn' LIMIT ${SAMPLE_ROWS7}`,
             org
           );
-          if (!rows3.length) return { pass: true, skip: true, detail: "No Opt In consents." };
+          if (!rows4.length) return { pass: true, skip: true, detail: "No Opt In consents." };
           const today4 = (/* @__PURE__ */ new Date()).toLocaleDateString("en-CA");
-          const expired = rows3.filter(
+          const expired = rows4.filter(
             (r) => r.EffectiveToDate && String(r.EffectiveToDate).slice(0, 10) < today4
           );
-          const scope2 = rows3.length < SAMPLE_ROWS7 ? `Checked all ${plural(rows3.length, "Opt In consent")}.` : `Checked a sample of ${SAMPLE_ROWS7} Opt In consents, not every one in the org.`;
+          const scope2 = rows4.length < SAMPLE_ROWS7 ? `Checked all ${plural(rows4.length, "Opt In consent")}.` : `Checked a sample of ${SAMPLE_ROWS7} Opt In consents, not every one in the org.`;
           return expired.length ? {
             pass: false,
-            detail: `${expired.length} of ${rows3.length} ${expired.length === 1 ? "is" : "are"} past the end date. ${scope2}`,
+            detail: `${expired.length} of ${rows4.length} ${expired.length === 1 ? "is" : "are"} past the end date. ${scope2}`,
             examples: expired.slice(0, 5).map((r) => `${r.Name} (ended ${String(r.EffectiveToDate).slice(0, 10)})`)
           } : { pass: true, detail: `None is past its end date. ${scope2}` };
         }
@@ -115614,8 +116006,8 @@ var TRACKING_OBJECTS = ["PresentationClickStrmEntry"];
 var ACTIVE = `FROM Presentation WHERE Status = 'Active'`;
 var SAMPLE_ROWS8 = 500;
 async function loadActive(org) {
-  const rows3 = await query(`SELECT Id, Name ${ACTIVE} LIMIT ${SAMPLE_ROWS8}`, org);
-  return { rows: rows3, ids: rows3.map((r) => String(r.Id)), complete: rows3.length < SAMPLE_ROWS8 };
+  const rows4 = await query(`SELECT Id, Name ${ACTIVE} LIMIT ${SAMPLE_ROWS8}`, org);
+  return { rows: rows4, ids: rows4.map((r) => String(r.Id)), complete: rows4.length < SAMPLE_ROWS8 };
 }
 function checkedNote5(s11) {
   return s11.complete ? `Checked all ${plural(s11.rows.length, "active presentation")}.` : `Checked a sample of ${SAMPLE_ROWS8} active presentations, not every one in the org.`;
@@ -115664,12 +116056,12 @@ var readiness10 = {
             org,
             "RowCause != 'Owner'"
           );
-          const rows3 = s11.rows.filter((r) => !shared.has(String(r.Id)));
+          const rows4 = s11.rows.filter((r) => !shared.has(String(r.Id)));
           const scope2 = checkedNote5(s11);
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${rows3.length} of ${s11.rows.length} ${rows3.length === 1 ? "isn't" : "aren't"} distributed. ${scope2}`,
-            examples: nameList(rows3.slice(0, 20))
+            detail: `${rows4.length} of ${s11.rows.length} ${rows4.length === 1 ? "isn't" : "aren't"} distributed. ${scope2}`,
+            examples: nameList(rows4.slice(0, 20))
           } : { pass: true, detail: `Every one is distributed. ${scope2}` };
         }
       ),
@@ -115696,12 +116088,12 @@ var readiness10 = {
             s11.ids,
             org
           );
-          const rows3 = s11.rows.filter((r) => !paged.has(String(r.Id)));
+          const rows4 = s11.rows.filter((r) => !paged.has(String(r.Id)));
           const scope2 = checkedNote5(s11);
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${rows3.length} of ${s11.rows.length} ${rows3.length === 1 ? "has" : "have"} no pages. ${scope2}`,
-            examples: nameList(rows3.slice(0, 20))
+            detail: `${rows4.length} of ${s11.rows.length} ${rows4.length === 1 ? "has" : "have"} no pages. ${scope2}`,
+            examples: nameList(rows4.slice(0, 20))
           } : { pass: true, detail: `Every one has pages. ${scope2}` };
         }
       ),
@@ -115722,7 +116114,7 @@ var readiness10 = {
         async () => {
           const s11 = await active2();
           if (!s11.rows.length) return NO_ACTIVE;
-          const rows3 = await queryByIds(
+          const rows4 = await queryByIds(
             "Presentation.Name, PresentationPage.Name",
             "PresentationLinkedPage",
             "PresentationId",
@@ -115732,10 +116124,10 @@ var readiness10 = {
           );
           const label2 = (r) => `${r.Presentation?.Name ?? "?"} \u2192 ${r.PresentationPage?.Name ?? "?"}`;
           const scope2 = checkedNote5(s11);
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${plural(rows3.length, "inactive page")} in active presentations. ${scope2}`,
-            examples: rows3.slice(0, 20).map(label2)
+            detail: `${plural(rows4.length, "inactive page")} in active presentations. ${scope2}`,
+            examples: rows4.slice(0, 20).map(label2)
           } : { pass: true, detail: `No active presentation includes an inactive page. ${scope2}` };
         }
       ),
@@ -115754,14 +116146,14 @@ var readiness10 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name, ActivationDate, DeactivationDate ${ACTIVE} AND (DeactivationDate < TODAY OR ActivationDate > TODAY) LIMIT 20`,
             org
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${plural(rows3.length, "active presentation")} outside the dates.`,
-            examples: nameList(rows3.slice(0, 20))
+            detail: `${plural(rows4.length, "active presentation")} outside the dates.`,
+            examples: nameList(rows4.slice(0, 20))
           } : { pass: true, detail: "All within their dates." };
         }
       ),
@@ -115915,14 +116307,14 @@ var readiness11 = {
         async () => {
           const total = await count(`SELECT COUNT() ${activeTemplates}`, org);
           if (!total) return { pass: true, skip: true, detail: "No active email templates." };
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name ${activeTemplates} AND Id NOT IN (SELECT ParentId FROM LifeSciEmailTemplateShare WHERE RowCause != 'Owner') LIMIT 20`,
             org
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${rows3.length} of ${plural(total, "active template")} aren't shared with anyone.`,
-            examples: nameList(rows3)
+            detail: `${rows4.length} of ${plural(total, "active template")} aren't shared with anyone.`,
+            examples: nameList(rows4)
           } : { pass: true, detail: `All ${plural(total, "active template")} are shared.` };
         }
       ),
@@ -115944,14 +116336,14 @@ var readiness11 = {
         async () => {
           const total = await count(`SELECT COUNT() ${activeTemplates}`, org);
           if (!total) return { pass: true, skip: true, detail: "No active email templates." };
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name ${activeTemplates} AND CommunicationSubscriptionId = null AND ShouldIgnoreEmailConsent = false LIMIT 20`,
             org
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${rows3.length} of ${plural(total, "active template")} have no subscription and still require consent.`,
-            examples: nameList(rows3)
+            detail: `${rows4.length} of ${plural(total, "active template")} have no subscription and still require consent.`,
+            examples: nameList(rows4)
           } : {
             pass: true,
             detail: `All ${plural(total, "active template")} have a subscription or ignore consent.`
@@ -115973,14 +116365,14 @@ var readiness11 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name, EffectiveEndDate ${activeTemplates} AND EffectiveEndDate < TODAY LIMIT 20`,
             org
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${plural(rows3.length, "active template")} past the end date.`,
-            examples: rows3.map((r) => `${r.Name} (ended ${r.EffectiveEndDate})`)
+            detail: `${plural(rows4.length, "active template")} past the end date.`,
+            examples: rows4.map((r) => `${r.Name} (ended ${r.EffectiveEndDate})`)
           } : { pass: true, detail: "None have ended." };
         }
       ),
@@ -116002,14 +116394,14 @@ var readiness11 = {
         async () => {
           const total = await count(`SELECT COUNT() ${activeTemplates}`, org);
           if (!total) return { pass: true, skip: true, detail: "No active email templates." };
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name ${activeTemplates} AND ProductId = null LIMIT 20`,
             org
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${rows3.length} of ${plural(total, "active template")} have no product.`,
-            examples: nameList(rows3)
+            detail: `${rows4.length} of ${plural(total, "active template")} have no product.`,
+            examples: nameList(rows4)
           } : { pass: true, detail: `All ${plural(total, "active template")} have a product.` };
         }
       ),
@@ -116240,14 +116632,14 @@ var readiness12 = {
               pass: true,
               detail: `Survey's org-wide default is ${owd}, so reps can read all ${plural(total, "mobile survey")}.`
             };
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name ${MOBILE} AND Id NOT IN (SELECT ParentId FROM SurveyShare WHERE RowCause != 'Owner') LIMIT 20`,
             org
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${owd ? "Survey's org-wide default is Private and " : ""}${rows3.length} of ${plural(total, "mobile survey")} aren't shared with anyone but the owner.`,
-            examples: nameList(rows3)
+            detail: `${owd ? "Survey's org-wide default is Private and " : ""}${rows4.length} of ${plural(total, "mobile survey")} aren't shared with anyone but the owner.`,
+            examples: nameList(rows4)
           } : { pass: true, detail: `All ${plural(total, "mobile survey")} are shared.` };
         }
       ),
@@ -116291,14 +116683,14 @@ var readiness12 = {
         async () => {
           const total = await count(`SELECT COUNT() ${MOBILE}`, org);
           if (!total) return { pass: true, skip: true, detail: "No mobile surveys." };
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name ${MOBILE} AND ActiveVersionId = null LIMIT 20`,
             org
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${rows3.length} of ${plural(total, "mobile survey")} have no active version.`,
-            examples: nameList(rows3)
+            detail: `${rows4.length} of ${plural(total, "mobile survey")} have no active version.`,
+            examples: nameList(rows4)
           } : { pass: true, detail: `All ${plural(total, "mobile survey")} have one.` };
         }
       ),
@@ -116322,14 +116714,14 @@ var readiness12 = {
             org
           );
           if (!total) return { pass: true, skip: true, detail: "No active survey versions." };
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name, Survey.Name FROM SurveyVersion WHERE SurveyStatus = 'Active' AND Id NOT IN (SELECT SurveyVersionId FROM SurveyQuestion) LIMIT 20`,
             org
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${rows3.length} of ${plural(total, "active version")} have no questions.`,
-            examples: rows3.map(
+            detail: `${rows4.length} of ${plural(total, "active version")} have no questions.`,
+            examples: rows4.map(
               (r) => String(r.Survey?.Name ?? r.Name)
             )
           } : { pass: true, detail: `All ${plural(total, "active version")} have questions.` };
@@ -116411,8 +116803,8 @@ var HANDLERS5 = ["NotificationTerritorySharingHandler"];
 var ALERT_OBJECTS = ["AppAlert", "AppAlertUserResponse"];
 var SAMPLE_ROWS9 = 500;
 var allOf2 = (n2, one, more) => n2 === 1 ? `the only ${one}` : `all ${n2} ${more}`;
-function checkedNote6(rows3, one, more) {
-  return rows3.length < SAMPLE_ROWS9 ? `Checked ${allOf2(rows3.length, one, more)}.` : `Checked a sample of ${SAMPLE_ROWS9} ${more}, not every one in the org.`;
+function checkedNote6(rows4, one, more) {
+  return rows4.length < SAMPLE_ROWS9 ? `Checked ${allOf2(rows4.length, one, more)}.` : `Checked a sample of ${SAMPLE_ROWS9} ${more}, not every one in the org.`;
 }
 var LIVE = `FROM AppAlert WHERE EffectiveDate <= TODAY AND (ValidUntilDate = null OR ValidUntilDate >= TODAY)`;
 var readiness13 = {
@@ -116463,14 +116855,14 @@ var readiness13 = {
           const ownerProfile = (r) => String(
             r.Owner?.Profile?.Name ?? ""
           ).toLowerCase();
-          const rows3 = live.filter(
+          const rows4 = live.filter(
             (r) => !territories.has(String(r.Id)) && !shares.has(String(r.Id)) && !reps.has(ownerProfile(r))
           );
           const scope2 = checkedNote6(live, "alert in effect", "alerts in effect");
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${rows3.length} of ${live.length} have no territory and reach nobody but their owner. ${scope2}`,
-            examples: nameList(rows3.slice(0, 20), "Subject")
+            detail: `${rows4.length} of ${live.length} have no territory and reach nobody but their owner. ${scope2}`,
+            examples: nameList(rows4.slice(0, 20), "Subject")
           } : { pass: true, detail: `Every one is targeted. ${scope2}` };
         }
       ),
@@ -116514,15 +116906,15 @@ var readiness13 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Subject, EffectiveDate, ValidUntilDate FROM AppAlert WHERE ValidUntilDate >= TODAY LIMIT ${SAMPLE_ROWS9}`,
             org
           );
-          if (!rows3.length)
+          if (!rows4.length)
             return { pass: true, skip: true, detail: "No alert has an end date still to come." };
-          const bad = rows3.filter((r) => String(r.ValidUntilDate) < String(r.EffectiveDate));
+          const bad = rows4.filter((r) => String(r.ValidUntilDate) < String(r.EffectiveDate));
           const note = checkedNote6(
-            rows3,
+            rows4,
             "alert with an end date to come",
             "alerts with an end date to come"
           );
@@ -116548,14 +116940,14 @@ var readiness13 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Subject FROM AppAlert WHERE DisplayContextType IN ('Tab', 'Object') AND DisplayContextName = null LIMIT 20`,
             org
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${plural(rows3.length, "alert")} with a Tab or Object context and no name.`,
-            examples: nameList(rows3, "Subject")
+            detail: `${plural(rows4.length, "alert")} with a Tab or Object context and no name.`,
+            examples: nameList(rows4, "Subject")
           } : { pass: true, detail: "None." };
         }
       ),
@@ -116573,14 +116965,14 @@ var readiness13 = {
         async () => {
           const total = await count(`SELECT COUNT() ${LIVE} AND Type = 'Announcement'`, org);
           if (!total) return { pass: true, skip: true, detail: "No announcements are in effect." };
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Subject ${LIVE} AND Type = 'Announcement' AND ImageUrl = null LIMIT 20`,
             org
           );
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${rows3.length} of ${plural(total, "announcement")} have no image.`,
-            examples: nameList(rows3, "Subject")
+            detail: `${rows4.length} of ${plural(total, "announcement")} have no image.`,
+            examples: nameList(rows4, "Subject")
           } : { pass: true, detail: `All ${plural(total, "announcement")} have an image.` };
         }
       ),
@@ -116599,18 +116991,18 @@ var readiness13 = {
           surface: "objects"
         },
         async () => {
-          const rows3 = await query(`SELECT Id FROM AppAlert LIMIT ${SAMPLE_ROWS9}`, org);
-          if (!rows3.length) return { pass: true, skip: true, detail: "No alerts yet." };
+          const rows4 = await query(`SELECT Id FROM AppAlert LIMIT ${SAMPLE_ROWS9}`, org);
+          if (!rows4.length) return { pass: true, skip: true, detail: "No alerts yet." };
           const expired = (await queryByIds(
             "Id",
             "AppAlert",
             "Id",
-            rows3.map((r) => String(r.Id)),
+            rows4.map((r) => String(r.Id)),
             org,
             "ValidUntilDate < TODAY"
           )).length;
-          const detail = `${expired} of ${rows3.length} have expired. ${checkedNote6(rows3, "alert", "alerts")}`;
-          return { pass: expired * 2 <= rows3.length, detail };
+          const detail = `${expired} of ${rows4.length} have expired. ${checkedNote6(rows4, "alert", "alerts")}`;
+          return { pass: expired * 2 <= rows4.length, detail };
         }
       ),
       runCheck(
@@ -116656,11 +117048,11 @@ async function fieldUsersReadResult(org, object3, label2) {
   const [totals, grants] = await Promise.all([
     query(`${users} GROUP BY Profile.Name`, org),
     held.then(
-      (rows3) => queryByIds(
+      (rows4) => queryByIds(
         "ParentId",
         "ObjectPermissions",
         "ParentId",
-        rows3.map((r) => String(r.PermissionSetId)),
+        rows4.map((r) => String(r.PermissionSetId)),
         org,
         `SobjectType = '${object3}' AND PermissionsRead = true`
       )
@@ -116704,11 +117096,11 @@ async function withLscUsers(profiles, org) {
 }
 async function profilesWithApps(profiles, org) {
   if (!profiles.length) return /* @__PURE__ */ new Set();
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Parent.Profile.Name pn, COUNT(Id) cnt FROM SetupEntityAccess WHERE SetupEntityType = 'TabSet' AND Parent.IsOwnedByProfile = true AND Parent.Profile.Name IN (${inList(profiles)}) GROUP BY Parent.Profile.Name`,
     org
   );
-  return new Set(rows3.map((r) => String(r.pn ?? "").toLowerCase()));
+  return new Set(rows4.map((r) => String(r.pn ?? "").toLowerCase()));
 }
 async function changedConfig(org, categories, since) {
   const after = new Date(since).toISOString();
@@ -116926,8 +117318,8 @@ var readiness14 = {
           surface: "objects"
         },
         gate(async () => {
-          const rows3 = await scores();
-          const latest = rows3.map((r) => String(r.LastModifiedDate ?? "")).sort().pop();
+          const rows4 = await scores();
+          const latest = rows4.map((r) => String(r.LastModifiedDate ?? "")).sort().pop();
           const age = daysSince(latest) ?? 0;
           return {
             pass: age <= STALE_DAYS3,
@@ -116950,11 +117342,11 @@ var readiness14 = {
           surface: "objects"
         },
         gate(async () => {
-          const rows3 = await scores();
-          const scope2 = scoresNote(rows3.length, SAMPLE_ROWS10);
-          const noTotal = rows3.filter((r) => r.TotalScore == null);
-          const noRank = rows3.filter((r) => r.Rank == null);
-          const bad = rows3.filter((r) => r.TotalScore == null || r.Rank == null);
+          const rows4 = await scores();
+          const scope2 = scoresNote(rows4.length, SAMPLE_ROWS10);
+          const noTotal = rows4.filter((r) => r.TotalScore == null);
+          const noRank = rows4.filter((r) => r.Rank == null);
+          const bad = rows4.filter((r) => r.TotalScore == null || r.Rank == null);
           return bad.length ? {
             pass: false,
             detail: `${many8(noTotal.length, "score", "scores")} without a total and ${many8(noRank.length, "score", "scores")} without a rank. ${scope2}`,
@@ -116976,12 +117368,12 @@ var readiness14 = {
           surface: "objects"
         },
         gate(async () => {
-          const rows3 = await scores();
-          const scope2 = scoresNote(rows3.length, SAMPLE_ROWS10);
-          const none2 = rows3.filter((r) => !r.TerritoryId);
+          const rows4 = await scores();
+          const scope2 = scoresNote(rows4.length, SAMPLE_ROWS10);
+          const none2 = rows4.filter((r) => !r.TerritoryId);
           return none2.length ? {
             pass: false,
-            detail: `${none2.length} of ${many8(rows3.length, "score", "scores")} ${hasHave4(none2.length)} no territory. ${scope2}`,
+            detail: `${none2.length} of ${many8(rows4.length, "score", "scores")} ${hasHave4(none2.length)} no territory. ${scope2}`,
             examples: none2.slice(0, 5).map((r) => label(r))
           } : { pass: true, detail: `Every score checked has a territory. ${scope2}` };
         })
@@ -117001,12 +117393,12 @@ var readiness14 = {
           surface: "objects"
         },
         gate(async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, ScoreExplainabilityInfo FROM TerritoryAccountScore ORDER BY SystemModstamp DESC LIMIT ${EXPLAIN_SAMPLE}`,
             org
           );
-          const scope2 = scoresNote(rows3.length, EXPLAIN_SAMPLE, "scores' explanations");
-          const filled = rows3.filter((r) => r.ScoreExplainabilityInfo);
+          const scope2 = scoresNote(rows4.length, EXPLAIN_SAMPLE, "scores' explanations");
+          const filled = rows4.filter((r) => r.ScoreExplainabilityInfo);
           if (!filled.length)
             return {
               pass: true,
@@ -117046,24 +117438,24 @@ var readiness14 = {
           surface: "objects"
         },
         gate(async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Id, Name, DueDate, Status, Account.Name FROM TerritoryAcctRcmdAction LIMIT ${SAMPLE_ROWS10}`,
             org
           );
-          if (!rows3.length)
+          if (!rows4.length)
             return {
               pass: true,
               skip: true,
               detail: "No recommended actions exist (Next Best Action not in use)."
             };
           const day4 = today();
-          const overdue = rows3.filter(
+          const overdue = rows4.filter(
             (r) => r.Status === "Upcoming" && r.DueDate && String(r.DueDate).slice(0, 10) < day4
           );
-          const scope2 = rows3.length < SAMPLE_ROWS10 ? `Checked all ${many8(rows3.length, "recommended action", "recommended actions")}.` : `Checked a sample of ${SAMPLE_ROWS10} recommended actions, not every one in the org.`;
+          const scope2 = rows4.length < SAMPLE_ROWS10 ? `Checked all ${many8(rows4.length, "recommended action", "recommended actions")}.` : `Checked a sample of ${SAMPLE_ROWS10} recommended actions, not every one in the org.`;
           return overdue.length ? {
             pass: false,
-            detail: `${overdue.length} of ${rows3.length} ${isAre2(overdue.length)} still Upcoming past the due date. ${scope2}`,
+            detail: `${overdue.length} of ${rows4.length} ${isAre2(overdue.length)} still Upcoming past the due date. ${scope2}`,
             examples: overdue.slice(0, 5).map((r) => label(r, `due ${String(r.DueDate).slice(0, 10)}`))
           } : { pass: true, detail: `None is Upcoming past its due date. ${scope2}` };
         })
@@ -117347,23 +117739,23 @@ var readiness15 = {
           surface: "objects"
         },
         gate(async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Name, StartDateTime, EndDateTime FROM MngEvent WHERE EndDateTime != null LIMIT ${SAMPLE_ROWS11}`,
             org
           );
-          if (!rows3.length)
+          if (!rows4.length)
             return { pass: true, skip: true, detail: "No event has an end date yet." };
-          const bad = rows3.filter(
+          const bad = rows4.filter(
             (r) => Date.parse(String(r.EndDateTime)) < Date.parse(String(r.StartDateTime))
           );
           const scope2 = checkedNote7(
-            rows3.length,
+            rows4.length,
             "event with an end date",
             "events with an end date"
           );
           return bad.length ? {
             pass: false,
-            detail: `${bad.length} of ${rows3.length} ${bad.length === 1 ? "ends" : "end"} before ${bad.length === 1 ? "it starts" : "they start"}. ${scope2}`,
+            detail: `${bad.length} of ${rows4.length} ${bad.length === 1 ? "ends" : "end"} before ${bad.length === 1 ? "it starts" : "they start"}. ${scope2}`,
             examples: bad.slice(0, 5).map((r) => String(r.Name))
           } : { pass: true, detail: `Every one ends after it starts. ${scope2}` };
         })
@@ -117420,21 +117812,21 @@ var readiness15 = {
           );
           if (defs)
             return { pass: true, detail: `${plural(defs, "event compliance statement")} defined.` };
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT Name, ComplianceStatements FROM MngEvent LIMIT ${SAMPLE_ROWS11}`,
             org
           );
-          const withStatements = rows3.filter((r) => hasStatements(r.ComplianceStatements));
-          const scope2 = checkedNote7(rows3.length, "event", "events");
+          const withStatements = rows4.filter((r) => hasStatements(r.ComplianceStatements));
+          const scope2 = checkedNote7(rows4.length, "event", "events");
           if (!withStatements.length)
             return {
               pass: true,
               skip: true,
-              detail: rows3.length ? `No event carries compliance statements, and none are defined. ${scope2}` : "No events, and no compliance statements defined for them."
+              detail: rows4.length ? `No event carries compliance statements, and none are defined. ${scope2}` : "No events, and no compliance statements defined for them."
             };
           return {
             pass: false,
-            detail: `${withStatements.length} of ${rows3.length} events ${withStatements.length === 1 ? "carries" : "carry"} compliance statements but no definition exists. ${scope2}`,
+            detail: `${withStatements.length} of ${rows4.length} events ${withStatements.length === 1 ? "carries" : "carry"} compliance statements but no definition exists. ${scope2}`,
             examples: withStatements.slice(0, 5).map((r) => String(r.Name))
           };
         })
@@ -117633,14 +118025,14 @@ var readiness16 = {
           surface: "recordTypes"
         },
         gate(async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT SobjectType, Name FROM RecordType WHERE SobjectType IN ('Inquiry', 'Case') AND IsActive = true`,
             org
           );
           const cases = new Set(
-            rows3.filter((r) => r.SobjectType === "Case").map((r) => String(r.Name))
+            rows4.filter((r) => r.SobjectType === "Case").map((r) => String(r.Name))
           );
-          const inquiries2 = rows3.filter((r) => r.SobjectType === "Inquiry").map((r) => String(r.Name));
+          const inquiries2 = rows4.filter((r) => r.SobjectType === "Inquiry").map((r) => String(r.Name));
           if (!inquiries2.length)
             return { pass: true, skip: true, detail: "Inquiry has no active record types." };
           const bare2 = inquiries2.filter((n2) => !cases.has(n2));
@@ -117728,11 +118120,11 @@ var readiness16 = {
           surface: "triggerHandlers"
         },
         gate(async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT DeveloperName FROM Group WHERE Type = 'Queue' AND DeveloperName IN (${inList(QUEUES)})`,
             org
           );
-          const have = new Set(rows3.map((r) => String(r.DeveloperName)));
+          const have = new Set(rows4.map((r) => String(r.DeveloperName)));
           const missing = QUEUES.filter((q2) => !have.has(q2));
           return missing.length ? { pass: false, detail: `Missing queue: ${missing.join(", ")}.`, examples: missing } : { pass: true, detail: "Both queues exist." };
         })
@@ -117857,11 +118249,11 @@ var readiness17 = {
           surface: "licenses"
         },
         gate(async () => {
-          const rows3 = await query(
+          const rows4 = await query(
             `SELECT DeveloperName, MasterLabel, TotalLicenses, UsedLicenses FROM PermissionSetLicense WHERE DeveloperName IN (${inList(REQUIRED_PSLS.map((p) => p.name))})`,
             org
           );
-          const found = new Map(rows3.map((r) => [String(r.DeveloperName), r]));
+          const found = new Map(rows4.map((r) => [String(r.DeveloperName), r]));
           const problems = REQUIRED_PSLS.flatMap((p) => {
             const r = found.get(p.name);
             if (!r) return [`${p.label}: not in this org`];
@@ -117964,8 +118356,8 @@ var readiness17 = {
           surface: "permissionSets"
         },
         gate(async () => {
-          const rows3 = await standardSetAssignments(org);
-          const missing = STANDARD_PERMISSION_SETS.filter((p) => !rows3.get(p.name)).map(
+          const rows4 = await standardSetAssignments(org);
+          const missing = STANDARD_PERMISSION_SETS.filter((p) => !rows4.get(p.name)).map(
             (p) => p.label
           );
           return missing.length ? {
@@ -117990,22 +118382,22 @@ var readiness17 = {
           surface: "accountSummarization"
         },
         gate(async () => {
-          const rows3 = await optionalQuery2(
+          const rows4 = await optionalQuery2(
             `SELECT SystemModstamp FROM PrvdAccountTerritorySummary ORDER BY SystemModstamp DESC LIMIT 1`,
             org
           );
-          if (rows3 === null)
+          if (rows4 === null)
             return {
               pass: true,
               skip: true,
               detail: "Account Summarization isn't set up in this org."
             };
-          if (!rows3.length)
+          if (!rows4.length)
             return {
               pass: false,
               detail: "No account summaries exist, so Account Summarization has never run."
             };
-          const age = daysSince(rows3[0].SystemModstamp) ?? 0;
+          const age = daysSince(rows4[0].SystemModstamp) ?? 0;
           return {
             pass: age <= STALE_DAYS,
             detail: `The newest account summary was updated ${plural(age, "day")} ago.`
@@ -118027,13 +118419,13 @@ var readiness17 = {
           surface: "generated"
         },
         gate(async () => {
-          const rows3 = await optionalQuery2(
+          const rows4 = await optionalQuery2(
             `SELECT CreatedDate FROM PresentationContent ORDER BY CreatedDate DESC LIMIT 1`,
             org
           );
-          if (rows3 === null) return OFF4;
-          if (!rows3.length) return { pass: false, detail: "No briefings have been generated." };
-          const age = daysSince(rows3[0].CreatedDate) ?? 0;
+          if (rows4 === null) return OFF4;
+          if (!rows4.length) return { pass: false, detail: "No briefings have been generated." };
+          const age = daysSince(rows4[0].CreatedDate) ?? 0;
           return {
             pass: age <= STALE_DAYS,
             detail: `The newest briefing was created ${plural(age, "day")} ago.`
@@ -118093,14 +118485,14 @@ var readiness17 = {
           surface: "flows"
         },
         gate(async () => {
-          const rows3 = (await flows()).filter(
+          const rows4 = (await flows()).filter(
             (f) => f.Label !== SUMMARY_FLOW_LABEL && !TEXT_GEN_FLOW.test(String(f.ApiName))
           );
-          const active2 = rows3.filter((f) => f.ActiveVersionId);
+          const active2 = rows4.filter((f) => f.ActiveVersionId);
           if (!active2.length)
             return {
               pass: false,
-              detail: rows3.length ? `${plural(rows3.length, "schedule flow")} found, none active.` : "No schedule flow found."
+              detail: rows4.length ? `${plural(rows4.length, "schedule flow")} found, none active.` : "No schedule flow found."
             };
           const template = active2.some((f) => SCHEDULE_FLOW.test(String(f.ApiName)));
           return {
@@ -118254,12 +118646,12 @@ function fieldFix(r, field3, from, to, label2) {
 async function fieldsOf(org, objects, fields) {
   const out = /* @__PURE__ */ new Map();
   for (let i = 0; i < objects.length; i += 40) {
-    const rows3 = await query(
+    const rows4 = await query(
       `SELECT EntityDefinition.QualifiedApiName, QualifiedApiName FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName IN (${inList(objects.slice(i, i + 40))}) AND QualifiedApiName IN (${inList(fields)})`,
       org,
       true
     );
-    for (const r of rows3) {
+    for (const r of rows4) {
       const obj12 = String(
         r.EntityDefinition?.QualifiedApiName ?? ""
       ).toLowerCase();
@@ -118978,22 +119370,22 @@ var readiness19 = {
     const schema = loadDbSchema2(org);
     const profiles = lazy(() => fieldProfiles(org));
     const lscPsl = lazy(async () => {
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT Id, DeveloperName, MasterLabel, TotalLicenses, UsedLicenses, Status FROM PermissionSetLicense WHERE DeveloperName LIKE '%LSC4CE%' OR DeveloperName LIKE '%LifeScienceCommercial%'`,
         org
       );
-      return rows3.filter((r) => LSC_PSL2.test(String(r.DeveloperName)));
+      return rows4.filter((r) => LSC_PSL2.test(String(r.DeveloperName)));
     });
     const free = (p) => p.Status === "Active" && Number(p.TotalLicenses) > Number(p.UsedLicenses);
     const fieldUsers = async (extra) => {
       const names5 = await profiles();
       if (names5.length === 0) return null;
       const where3 = `IsActive = true AND Profile.Name IN (${inList(names5)}) ${extra}`;
-      const [total, rows3] = await Promise.all([
+      const [total, rows4] = await Promise.all([
         count(`SELECT COUNT() FROM User WHERE ${where3}`, org),
         query(`SELECT Id, Name FROM User WHERE ${where3} ORDER BY Name LIMIT 200`, org)
       ]);
-      return { total, rows: rows3 };
+      return { total, rows: rows4 };
     };
     return Promise.all([
       handlersCheck(
@@ -119041,7 +119433,7 @@ var readiness19 = {
             `AND Id NOT IN (SELECT AssigneeId FROM PermissionSetLicenseAssign WHERE PermissionSetLicenseId IN (${inList(psls.map((p) => String(p.Id)))}))`
           );
           if (!found) return { pass: true, skip: true, detail: "No iPad profiles found." };
-          const { total, rows: rows3 } = found;
+          const { total, rows: rows4 } = found;
           if (total === 0) return { pass: true, detail: "Every field user is licensed." };
           const open = psls.filter(free);
           const psl = open.length === 1 ? open[0] : void 0;
@@ -119049,9 +119441,9 @@ var readiness19 = {
             return {
               pass: false,
               detail: `${plural(total, "field user")} without it.`,
-              examples: labels(rows3)
+              examples: labels(rows4)
             };
-          const fixes = rows3.slice(0, MAX_FIXES).map((u) => ({
+          const fixes = rows4.slice(0, MAX_FIXES).map((u) => ({
             kind: "assignPsl",
             label: `Assign ${psl.MasterLabel} to ${u.Name}`,
             userId: String(u.Id),
@@ -119062,7 +119454,7 @@ var readiness19 = {
           return {
             pass: false,
             detail: `${plural(total, "field user")} without it.`,
-            examples: labels(rows3),
+            examples: labels(rows4),
             fixes
           };
         }
@@ -119217,14 +119609,14 @@ var readiness19 = {
             };
           if (!model || !territories.length)
             return { pass: true, skip: true, detail: "No account alignment yet." };
-          const chunks7 = chunkIds(territories.map((t) => String(t.Id)));
-          const share = Math.ceil(SAMPLE_ROWS12 / chunks7.length);
+          const chunks8 = chunkIds(territories.map((t) => String(t.Id)));
+          const share = Math.ceil(SAMPLE_ROWS12 / chunks8.length);
           let complete = true;
-          const sample = async (soql5) => (await Promise.all(
-            chunks7.map(async (ids) => {
-              const rows3 = await query(`${soql5(inList(ids))} LIMIT ${share}`, org);
-              if (rows3.length >= share) complete = false;
-              return rows3;
+          const sample = async (soql6) => (await Promise.all(
+            chunks8.map(async (ids) => {
+              const rows4 = await query(`${soql6(inList(ids))} LIMIT ${share}`, org);
+              if (rows4.length >= share) complete = false;
+              return rows4;
             })
           )).flat();
           const [info, alignments] = await Promise.all([
@@ -119295,7 +119687,7 @@ var readiness19 = {
           uiPath: "Admin Console > Territory Management Jobs"
         },
         async () => {
-          const rows3 = await failedJobs(org, [
+          const rows4 = await failedJobs(org, [
             "%Territor%Align%",
             "%Align%Territor%",
             "%ZipToTerritory%",
@@ -119303,10 +119695,10 @@ var readiness19 = {
             "%Affiliation%Align%"
           ]);
           const label2 = (r) => `${r.ApexClass?.Name}: ${String(r.ExtendedStatus ?? r.Status).slice(0, 80)}`;
-          return rows3.length ? {
+          return rows4.length ? {
             pass: false,
-            detail: `${plural(rows3.length, "failed run")} in the last 14 days.`,
-            examples: rows3.map(label2)
+            detail: `${plural(rows4.length, "failed run")} in the last 14 days.`,
+            examples: rows4.map(label2)
           } : { pass: true, detail: "No failed runs in the last 14 days." };
         }
       ),
@@ -119696,18 +120088,18 @@ async function runRules(rules, org) {
   const ids = new Set(rules.map((r) => r.id));
   const results = /* @__PURE__ */ new Map();
   const limit = semaphore(CONCURRENCY);
-  const run5 = (rule, path24) => {
+  const run5 = (rule, path25) => {
     let p = results.get(rule.id);
     if (p) return p;
     const prereqs = (rule.prerequisites ?? []).filter((id2) => ids.has(id2));
-    const loop = prereqs.find((id2) => id2 === rule.id || path24.includes(id2));
+    const loop = prereqs.find((id2) => id2 === rule.id || path25.includes(id2));
     p = loop ? Promise.resolve({
       ...ruleBase(rule),
       status: "unknown",
       detail: `Its prerequisites loop back through "${loop}".`
     }) : (async () => {
       const done = await Promise.all(
-        prereqs.map((id2) => run5(rules.find((r) => r.id === id2), [...path24, rule.id]))
+        prereqs.map((id2) => run5(rules.find((r) => r.id === id2), [...path25, rule.id]))
       );
       const failed2 = done.find((d) => d.status === "fail" || d.status === "skipped");
       if (failed2)
@@ -119776,14 +120168,14 @@ async function checkRuleNow(rule, org) {
   const details = outcome.details ?? {};
   const found = typeof details.count === "number" ? `Found ${details.count}.` : Array.isArray(details.records) ? `Found ${details.records.length}.` : void 0;
   if (outcome.passed) return { ...base2, status: "pass", ...found ? { detail: found } : {} };
-  let rows3 = details.records ?? [];
+  let rows4 = details.records ?? [];
   if (rule.check.error_detail_query) {
     try {
-      rows3 = await query(rule.check.error_detail_query, org, rule.check.type.startsWith("tooling"));
+      rows4 = await query(rule.check.error_detail_query, org, rule.check.type.startsWith("tooling"));
     } catch {
     }
   }
-  const examples = rows3.slice(0, MAX_EXAMPLES2).map(rowLabel);
+  const examples = rows4.slice(0, MAX_EXAMPLES2).map(rowLabel);
   return {
     ...base2,
     status: "fail",
@@ -119839,31 +120231,31 @@ async function runCheck(meta, fn) {
 // src/studio/user-trace.ts
 init_published();
 var STALE_SYNC_DAYS = 14;
-function rel3(r, path24) {
-  return path24.split(".").reduce((v, k) => v?.[k], r);
+function rel3(r, path25) {
+  return path25.split(".").reduce((v, k) => v?.[k], r);
 }
-var str19 = (v) => typeof v === "string" ? v : v == null ? "" : String(v);
+var str20 = (v) => typeof v === "string" ? v : v == null ? "" : String(v);
 var ieq2 = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
 var PUBLISHED_TIMEOUT_MS = 6e4;
 async function traceUser(userId, featureId, org) {
   assertId(userId);
   const feature = featureId ? getFeature(featureId) : void 0;
   if (featureId && !feature) throw new Error(`Unknown feature: ${featureId}`);
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, Name, Username, IsActive, ProfileId, Profile.Name, Profile.UserLicense.Name, UserRole.Name FROM User WHERE Id = '${userId}'`,
     org
   );
-  const u = rows3[0];
+  const u = rows4[0];
   if (!u) throw new Error(`User ${userId} not found`);
   const user = {
     id: userId,
-    name: str19(u.Name),
-    username: str19(u.Username),
+    name: str20(u.Name),
+    username: str20(u.Username),
     active: u.IsActive === true,
-    profileId: str19(u.ProfileId) || null,
-    profile: str19(rel3(u, "Profile.Name")) || null,
-    license: str19(rel3(u, "Profile.UserLicense.Name")) || null,
-    role: str19(rel3(u, "UserRole.Name")) || null
+    profileId: str20(u.ProfileId) || null,
+    profile: str20(rel3(u, "Profile.Name")) || null,
+    license: str20(rel3(u, "Profile.UserLicense.Name")) || null,
+    role: str20(rel3(u, "UserRole.Name")) || null
   };
   const base2 = gather(user, feature, org);
   const facts = {
@@ -119932,8 +120324,8 @@ function gather(user, feature, org) {
       `SELECT QualifiedApiName FROM EntityDefinition WHERE QualifiedApiName IN (${inList(objects)})`,
       org
     ).then(
-      (rows3) => {
-        const have = new Set(rows3.map((r) => str19(r.QualifiedApiName).toLowerCase()));
+      (rows4) => {
+        const have = new Set(rows4.map((r) => str20(r.QualifiedApiName).toLowerCase()));
         return {
           present: objects.filter((o) => have.has(o.toLowerCase())),
           absent: objects.filter((o) => !have.has(o.toLowerCase()))
@@ -119946,7 +120338,7 @@ function gather(user, feature, org) {
 }
 function setsNote(assignments) {
   const labels2 = [
-    ...new Set(assignments.map((a) => str19(rel3(a, "PermissionSet.Label"))).filter(Boolean))
+    ...new Set(assignments.map((a) => str20(rel3(a, "PermissionSet.Label"))).filter(Boolean))
   ];
   if (!labels2.length) return "No permission sets assigned.";
   const lsc = (l) => /life ?sci|\blsc\b/i.test(l);
@@ -120007,14 +120399,14 @@ function checkLscPsl(user, facts, _org) {
     async () => {
       const { assigned, available } = await facts.psls;
       const have = assigned.filter(
-        (a) => LSC_PSL2.test(str19(rel3(a, "PermissionSetLicense.DeveloperName")))
+        (a) => LSC_PSL2.test(str20(rel3(a, "PermissionSetLicense.DeveloperName")))
       );
       if (have.length)
         return {
           pass: true,
-          detail: have.map((a) => str19(rel3(a, "PermissionSetLicense.MasterLabel"))).join(", ")
+          detail: have.map((a) => str20(rel3(a, "PermissionSetLicense.MasterLabel"))).join(", ")
         };
-      const lsc = available.filter((p) => LSC_PSL2.test(str19(p.DeveloperName)));
+      const lsc = available.filter((p) => LSC_PSL2.test(str20(p.DeveloperName)));
       const withSeats = lsc.filter(
         (p) => p.Status === "Active" && Number(p.TotalLicenses) > Number(p.UsedLicenses)
       );
@@ -120022,22 +120414,22 @@ function checkLscPsl(user, facts, _org) {
       if (withSeats.length > 1) {
         return {
           pass: false,
-          detail: `None assigned. ${withSeats.length} LSC licenses have free seats: ${withSeats.map((p) => str19(p.MasterLabel)).join(", ")}.`
+          detail: `None assigned. ${withSeats.length} LSC licenses have free seats: ${withSeats.map((p) => str20(p.MasterLabel)).join(", ")}.`
         };
       }
       const fixes = open ? [
         {
           kind: "assignPsl",
-          label: `Assign ${str19(open.MasterLabel)} to ${user.name}`,
+          label: `Assign ${str20(open.MasterLabel)} to ${user.name}`,
           userId: user.id,
           userName: user.name,
-          pslId: str19(open.Id),
-          pslLabel: str19(open.MasterLabel)
+          pslId: str20(open.Id),
+          pslLabel: str20(open.MasterLabel)
         }
       ] : [];
       return {
         pass: false,
-        detail: open ? `None assigned. ${str19(open.MasterLabel)} has ${Number(open.TotalLicenses) - Number(open.UsedLicenses)} of ${open.TotalLicenses} seats free.` : lsc.length ? "None assigned, and no Life Sciences Commercial licenses are free \u2014 buy or release seats first." : "None assigned, and the org has no Life Sciences Commercial license.",
+        detail: open ? `None assigned. ${str20(open.MasterLabel)} has ${Number(open.TotalLicenses) - Number(open.UsedLicenses)} of ${open.TotalLicenses} seats free.` : lsc.length ? "None assigned, and no Life Sciences Commercial licenses are free \u2014 buy or release seats first." : "None assigned, and the org has no Life Sciences Commercial license.",
         fixes
       };
     }
@@ -120065,7 +120457,7 @@ function checkPermissions(user, feature, facts, org) {
         facts.objects
       ]);
       const setNames = [
-        ...new Set(assignments.map((a) => str19(rel3(a, "PermissionSet.Label"))).filter(Boolean))
+        ...new Set(assignments.map((a) => str20(rel3(a, "PermissionSet.Label"))).filter(Boolean))
       ];
       if (!feature?.objects.length) {
         return {
@@ -120079,12 +120471,12 @@ function checkPermissions(user, feature, facts, org) {
           skip: true,
           detail: `None of ${feature.title}'s objects are in this org (${absent.join(", ")}). The feature may not be enabled or licensed.`
         };
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT EntityDefinition.QualifiedApiName, IsReadable FROM UserEntityAccess WHERE UserId = '${user.id}' AND EntityDefinition.QualifiedApiName IN (${inList(objects)})`,
         org
       );
       const readable3 = new Set(
-        rows3.filter((r) => r.IsReadable === true).map((r) => str19(rel3(r, "EntityDefinition.QualifiedApiName")).toLowerCase())
+        rows4.filter((r) => r.IsReadable === true).map((r) => str20(rel3(r, "EntityDefinition.QualifiedApiName")).toLowerCase())
       );
       const missing = objects.filter((o) => !readable3.has(o.toLowerCase()));
       return {
@@ -120107,11 +120499,11 @@ function checkTerritory(user, facts) {
       uiPath: "Setup > Territories"
     },
     async () => {
-      const rows3 = await facts.territories;
-      const active2 = rows3.filter(
-        (r) => str19(rel3(r, "Territory2.Territory2Model.State")) === "Active"
+      const rows4 = await facts.territories;
+      const active2 = rows4.filter(
+        (r) => str20(rel3(r, "Territory2.Territory2Model.State")) === "Active"
       );
-      const names5 = active2.map((r) => str19(rel3(r, "Territory2.Name")));
+      const names5 = active2.map((r) => str20(rel3(r, "Territory2.Name")));
       if (active2.length)
         return {
           pass: true,
@@ -120119,7 +120511,7 @@ function checkTerritory(user, facts) {
         };
       return {
         pass: false,
-        detail: rows3.length ? `Only in territories of inactive models (${rows3.length}).` : "Not assigned to any territory."
+        detail: rows4.length ? `Only in territories of inactive models (${rows4.length}).` : "Not assigned to any territory."
       };
     }
   );
@@ -120128,7 +120520,7 @@ var MAX_FILTER_TERRITORIES = 5;
 var MAX_REACH_TERRITORIES = 200;
 function tableFor(records, sobject2, user, setNames) {
   const candidates = records.filter(
-    (r2) => r2.isActive && r2.fields.Type !== "CONFIGURATION" && ieq2(str19(r2.fields.SObject), sobject2) && reaches2(audienceOf(r2), user, setNames)
+    (r2) => r2.isActive && r2.fields.Type !== "CONFIGURATION" && ieq2(str20(r2.fields.SObject), sobject2) && reaches2(audienceOf(r2), user, setNames)
   ).sort((a, b) => a.developerName.localeCompare(b.developerName));
   const byProfile = candidates.find((r2) => {
     const a = audienceOf(r2);
@@ -120140,8 +120532,8 @@ function tableFor(records, sobject2, user, setNames) {
     entry: {
       developerName: r.developerName,
       sobject: sobject2,
-      type: str19(r.fields.Type),
-      whereSoql: str19(r.fields.WhereSoql).trim() || null,
+      type: str20(r.fields.Type),
+      whereSoql: str20(r.fields.WhereSoql).trim() || null,
       profileIds: /* @__PURE__ */ new Set(),
       profileNames: /* @__PURE__ */ new Set(),
       permissionSets: /* @__PURE__ */ new Set()
@@ -120150,12 +120542,12 @@ function tableFor(records, sobject2, user, setNames) {
   };
 }
 async function accountReach(user, facts, org) {
-  const [rows3, records, assignments] = await Promise.all([
+  const [rows4, records, assignments] = await Promise.all([
     facts.territories,
     facts.dbSchema,
     facts.assignments
   ]);
-  const territories = rows3.filter((r) => str19(rel3(r, "Territory2.Territory2Model.State")) === "Active").map((r) => ({ id: str19(r.Territory2Id), name: str19(rel3(r, "Territory2.Name")) })).sort((a, b) => a.name.localeCompare(b.name));
+  const territories = rows4.filter((r) => str20(rel3(r, "Territory2.Territory2Model.State")) === "Active").map((r) => ({ id: str20(r.Territory2Id), name: str20(rel3(r, "Territory2.Name")) })).sort((a, b) => a.name.localeCompare(b.name));
   if (!territories.length) return null;
   const list2 = inList(territories.slice(0, MAX_REACH_TERRITORIES).map((t) => t.id));
   const ot2a = `FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2Id IN (${list2})`;
@@ -120163,7 +120555,7 @@ async function accountReach(user, facts, org) {
   const pati = `FROM ProviderAcctTerritoryInfo WHERE Territory2Id IN (${list2})`;
   const hidden = `${pati} AND IsAvailableOffline = false`;
   const unaligned = `AccountId NOT IN (SELECT ObjectId ${ot2a})`;
-  const setNames = assignments.flatMap((a) => [str19(rel3(a, "PermissionSet.Label")), str19(rel3(a, "PermissionSet.Name"))]).filter(Boolean);
+  const setNames = assignments.flatMap((a) => [str20(rel3(a, "PermissionSet.Label")), str20(rel3(a, "PermissionSet.Name"))]).filter(Boolean);
   const accountTable = tableFor(records, "Account", user, setNames);
   const ot2aTable = tableFor(records, "ObjectTerritory2Association", user, setNames);
   const querier2 = {
@@ -120192,8 +120584,8 @@ async function accountReach(user, facts, org) {
     const acc = vol.tables.find((v) => v.sobject === "Account");
     return acc?.status === "counted" && !acc.lowerBound ? { territory: t.name, records: acc.records } : { territory: t.name, records: null, note: acc?.note ?? "not counted" };
   };
-  const names5 = (soql5, field3) => query(soql5, org).then(
-    (rows4) => [...new Set(rows4.map((r) => str19(rel3(r, field3))).filter(Boolean))],
+  const names5 = (soql6, field3) => query(soql6, org).then(
+    (rows5) => [...new Set(rows5.map((r) => str20(rel3(r, field3))).filter(Boolean))],
     () => []
   );
   const [
@@ -120348,7 +120740,7 @@ function checkDbSchema(user, feature, facts) {
         facts.assignments,
         facts.objects
       ]);
-      const setNames = assignments.flatMap((a) => [str19(rel3(a, "PermissionSet.Label")), str19(rel3(a, "PermissionSet.Name"))]).filter(Boolean);
+      const setNames = assignments.flatMap((a) => [str20(rel3(a, "PermissionSet.Label")), str20(rel3(a, "PermissionSet.Name"))]).filter(Boolean);
       const mine = records.filter(
         (r) => r.isActive && r.fields.Type !== "CONFIGURATION" && reaches2(audienceOf(r), user, setNames)
       );
@@ -120363,7 +120755,7 @@ function checkDbSchema(user, feature, facts) {
           skip: true,
           detail: `None of ${feature.title}'s objects are in this org (${absent.join(", ")}).`
         };
-      const synced = new Set(mine.map((r) => str19(r.fields.SObject).toLowerCase()));
+      const synced = new Set(mine.map((r) => str20(r.fields.SObject).toLowerCase()));
       const missing = objects.filter((o) => !synced.has(o.toLowerCase()));
       const primaryMissing = missing.includes(objects[0]);
       return {
@@ -120387,7 +120779,7 @@ function checkActions(user, feature, facts) {
     },
     async () => {
       const [records, assignments] = await Promise.all([facts.actions, facts.assignments]);
-      const setNames = assignments.flatMap((a) => [str19(rel3(a, "PermissionSet.Label")), str19(rel3(a, "PermissionSet.Name"))]).filter(Boolean);
+      const setNames = assignments.flatMap((a) => [str20(rel3(a, "PermissionSet.Label")), str20(rel3(a, "PermissionSet.Name"))]).filter(Boolean);
       const related = records.filter(
         (r) => r.isActive && matchesAny(
           `${r.developerName} ${r.label ?? ""} ${Object.values(r.fields).filter((v) => typeof v === "string").join(" ")}`,
@@ -120494,17 +120886,17 @@ function checkCache(user, facts) {
       uiPath: "Admin Console > Mobile > Metadata Cache"
     },
     async () => {
-      const rows3 = await facts.caches;
-      const active2 = rows3.find((r) => r.Status === "Active");
+      const rows4 = await facts.caches;
+      const active2 = rows4.find((r) => r.Status === "Active");
       if (!user.profile) return { pass: false, detail: "No profile to publish for." };
       if (!active2) {
-        const latest = rows3[0];
+        const latest = rows4[0];
         return {
           pass: false,
-          detail: latest ? `No Active cache for ${user.profile}; the latest is ${str19(latest.Status)}${latest.IntegrationErrorMessage ? ` (${str19(latest.IntegrationErrorMessage)})` : ""}.` : `${user.profile} has never been published.`
+          detail: latest ? `No Active cache for ${user.profile}; the latest is ${str20(latest.Status)}${latest.IntegrationErrorMessage ? ` (${str20(latest.IntegrationErrorMessage)})` : ""}.` : `${user.profile} has never been published.`
         };
       }
-      return { pass: true, detail: `Active since ${str19(active2.LastModifiedDate).slice(0, 10)}.` };
+      return { pass: true, detail: `Active since ${str20(active2.LastModifiedDate).slice(0, 10)}.` };
     }
   );
 }
@@ -120522,25 +120914,25 @@ function checkLastSync(user, facts) {
       uiPath: "Reports > Device Sync Summaries"
     },
     async () => {
-      const rows3 = await facts.syncs;
-      if (!rows3.length)
+      const rows4 = await facts.syncs;
+      if (!rows4.length)
         return { pass: false, detail: "No sync has ever been reported for this user." };
-      const done = rows3.find((r) => r.DownloadEnd);
-      const latest = rows3[0];
+      const done = rows4.find((r) => r.DownloadEnd);
+      const latest = rows4[0];
       if (!done)
         return {
           pass: false,
-          detail: `${plural(rows3.length, "sync")} reported, none finished downloading.`
+          detail: `${plural(rows4.length, "sync")} reported, none finished downloading.`
         };
-      const days = Math.floor((Date.now() - Date.parse(str19(done.DownloadEnd))) / 864e5);
-      const when = str19(done.DownloadEnd).slice(0, 10);
+      const days = Math.floor((Date.now() - Date.parse(str20(done.DownloadEnd))) / 864e5);
+      const when = str20(done.DownloadEnd).slice(0, 10);
       if (days > STALE_SYNC_DAYS)
         return { pass: false, detail: `Last finished sync was ${when} (${days} days ago).` };
-      const inProgress = Date.now() - Date.parse(str19(latest.DownloadStart || latest.CreatedDate)) < 30 * 6e4;
+      const inProgress = Date.now() - Date.parse(str20(latest.DownloadStart || latest.CreatedDate)) < 30 * 6e4;
       const failedSince = latest !== done && !latest.DownloadEnd && !inProgress;
       return {
         pass: !failedSince,
-        detail: failedSince ? `Last finished sync ${when}, but the latest attempt (${str19(latest.CreatedDate).slice(0, 10)}) didn't finish.` : `Last finished sync ${when}.`
+        detail: failedSince ? `Last finished sync ${when}, but the latest attempt (${str20(latest.CreatedDate).slice(0, 10)}) didn't finish.` : `Last finished sync ${when}.`
       };
     }
   );
@@ -120558,17 +120950,17 @@ function toMatch(r) {
     profile: profile ? String(profile) : null
   };
 }
-function chooseUser(term, rows3) {
-  const matches = rows3.map(toMatch);
+function chooseUser(term, rows4) {
+  const matches = rows4.map(toMatch);
   if (matches.length === 0) return { kind: "none" };
   if (matches.length === 1) return { kind: "one", user: matches[0] };
   const t = term.trim().toLowerCase();
-  const exact = rows3.filter((r, i) => {
+  const exact = rows4.filter((r, i) => {
     const m = matches[i];
     return m.id.toLowerCase() === t || m.username.toLowerCase() === t || String(r.Email ?? "").toLowerCase() === t || m.name.toLowerCase() === t;
   });
   if (exact.length === 1) return { kind: "one", user: toMatch(exact[0]) };
-  const active2 = rows3.filter((r) => r.IsActive === true);
+  const active2 = rows4.filter((r) => r.IsActive === true);
   if (active2.length === 1 && exact.length === 0) return { kind: "one", user: toMatch(active2[0]) };
   return { kind: "many", matches: matches.slice(0, MAX_MATCHES2) };
 }
@@ -120579,17 +120971,17 @@ async function findUser(term, run5) {
     return chooseUser(t, await run5(`${select} WHERE Id = ${inList([t])}`));
   }
   const like = t.replace(/[\\'%_]/g, (c) => `\\${c}`);
-  const rows3 = await run5(
+  const rows4 = await run5(
     `${select} WHERE IsActive = true AND (Name LIKE '%${like}%' OR Username LIKE '%${like}%' OR Email LIKE '%${like}%') ORDER BY Name LIMIT 25`
   );
-  if (rows3.length > 0) return chooseUser(t, rows3);
+  if (rows4.length > 0) return chooseUser(t, rows4);
   const inactive = await run5(
     `${select} WHERE IsActive = false AND (Name LIKE '%${like}%' OR Username LIKE '%${like}%' OR Email LIKE '%${like}%') ORDER BY Name LIMIT 25`
   );
   return chooseUser(t, inactive);
 }
 function findUserInOrg(term, org) {
-  return findUser(term, (soql5) => query(soql5, org));
+  return findUser(term, (soql6) => query(soql6, org));
 }
 function resolveFeatureId(text12) {
   const t = text12.trim().toLowerCase();
@@ -121042,7 +121434,7 @@ This may indicate that the Tooling API column names differ from expected. Use \`
             ]
           };
         }
-        const rows3 = [];
+        const rows4 = [];
         for (const record2 of records) {
           const r = record2;
           const fieldValues = fieldValuesByRecord.get(r.Id) || [];
@@ -121065,9 +121457,9 @@ This may indicate that the Tooling API column names differ from expected. Use \`
               continue;
             }
           }
-          rows3.push(row);
+          rows4.push(row);
         }
-        if (rows3.length === 0) {
+        if (rows4.length === 0) {
           return {
             content: [
               {
@@ -121089,7 +121481,7 @@ No records match filter "${filter}". Total records in org: ${records.length}.`
         let activeCount = 0;
         let dataCount = 0;
         let configCount = 0;
-        for (const row of rows3) {
+        for (const row of rows4) {
           if (row.active) activeCount++;
           if (row.type === "DATA") dataCount++;
           if (row.type === "CONFIGURATION") configCount++;
@@ -121098,7 +121490,7 @@ No records match filter "${filter}". Total records in org: ${records.length}.`
 `;
         }
         message += `
-**Total:** ${rows3.length} record(s) \u2014 ${activeCount} active, ${rows3.length - activeCount} inactive \u2014 ${dataCount} DATA, ${configCount} CONFIGURATION
+**Total:** ${rows4.length} record(s) \u2014 ${activeCount} active, ${rows4.length - activeCount} inactive \u2014 ${dataCount} DATA, ${configCount} CONFIGURATION
 `;
         message += `
 Use \`get_db_schema\` to see full details for a specific record.`;
@@ -121873,7 +122265,7 @@ ${fvError}`
           };
         }
         const assignmentsByRecord = await queryAssignments(recordIds, effectiveOrg);
-        const rows3 = [];
+        const rows4 = [];
         for (const record2 of records) {
           const r = record2;
           const recordId = r.Id;
@@ -121885,7 +122277,7 @@ ${fvError}`
           const uiType = getField("Type") || "";
           if (uiType && uiType !== "TAB") continue;
           const assignments = assignmentsByRecord.get(recordId) || [];
-          rows3.push({
+          rows4.push({
             id: recordId,
             name: r.DeveloperName,
             label: r.MasterLabel,
@@ -121895,8 +122287,8 @@ ${fvError}`
             profiles: assignments.map((a) => a.name)
           });
         }
-        rows3.sort((a, b) => (a.tabOrder ?? 999) - (b.tabOrder ?? 999));
-        if (rows3.length === 0) {
+        rows4.sort((a, b) => (a.tabOrder ?? 999) - (b.tabOrder ?? 999));
+        if (rows4.length === 0) {
           return {
             content: [
               {
@@ -121908,20 +122300,20 @@ No Tab-type UI Settings records found (${records.length} total UI records exist 
             ]
           };
         }
-        let message = `# Navigation Tabs (${rows3.length})
+        let message = `# Navigation Tabs (${rows4.length})
 
 `;
         message += `| Name | Label | Tab Name | Tab Order | Active | Profiles |
 `;
         message += `|------|-------|----------|-----------|--------|----------|
 `;
-        for (const row of rows3) {
+        for (const row of rows4) {
           const profiles = row.profiles.length > 0 ? row.profiles.join(", ") : "_(none)_";
           message += `| \`${row.name}\` | ${row.label} | ${row.tabName || "_(unset)_"} | ${row.tabOrder ?? "_(unset)_"} | ${row.active ? "Yes" : "No"} | ${profiles} |
 `;
         }
         message += `
-**Total:** ${rows3.length} tab(s)`;
+**Total:** ${rows4.length} tab(s)`;
         message += `
 
 Use \`add_navigation_tab\` to add a new tab, or \`update_admin_setting\` to modify an existing one.`;
@@ -122346,8 +122738,8 @@ var import_archiver = __toESM(require_archiver(), 1);
 init_private_tmp();
 import { execFile as execFile3 } from "child_process";
 import { promisify as promisify4 } from "util";
-import * as fs10 from "fs";
-import * as path9 from "path";
+import * as fs11 from "fs";
+import * as path10 from "path";
 var run2 = promisify4(execFile3);
 function detectFormat(filePaths) {
   if (filePaths.length === 0) {
@@ -122355,15 +122747,15 @@ function detectFormat(filePaths) {
   }
   if (filePaths.length === 1) {
     const single = filePaths[0];
-    if (fs10.existsSync(single) && fs10.statSync(single).isDirectory()) {
-      const zips = fs10.readdirSync(single).filter((f) => f.toLowerCase().endsWith(".zip")).sort().map((f) => path9.join(single, f));
+    if (fs11.existsSync(single) && fs11.statSync(single).isDirectory()) {
+      const zips = fs11.readdirSync(single).filter((f) => f.toLowerCase().endsWith(".zip")).sort().map((f) => path10.join(single, f));
       if (zips.length === 0) {
         throw new Error(`Directory contains no .zip files: ${single}`);
       }
       return { format: "html-zip", paths: zips };
     }
   }
-  const extensions = new Set(filePaths.map((p) => path9.extname(p).toLowerCase()));
+  const extensions = new Set(filePaths.map((p) => path10.extname(p).toLowerCase()));
   if (extensions.size > 1) {
     throw new Error(
       `Mixed file types are not supported. Got: ${[...extensions].join(", ")}. Provide files of a single type (.pptx, .pdf, or .zip).`
@@ -122388,7 +122780,7 @@ function detectFormat(filePaths) {
   }
 }
 async function validateHtmlZip(zipPath) {
-  if (!fs10.existsSync(zipPath)) {
+  if (!fs11.existsSync(zipPath)) {
     return { valid: false, error: `File not found: ${zipPath}` };
   }
   try {
@@ -122401,13 +122793,13 @@ async function validateHtmlZip(zipPath) {
     if (!hasHtml) {
       return {
         valid: false,
-        error: `ZIP is missing an .html file: ${path9.basename(zipPath)}`
+        error: `ZIP is missing an .html file: ${path10.basename(zipPath)}`
       };
     }
     if (!hasThumbnail) {
       return {
         valid: false,
-        error: `ZIP is missing thumbnail.jpg: ${path9.basename(zipPath)}`
+        error: `ZIP is missing thumbnail.jpg: ${path10.basename(zipPath)}`
       };
     }
     return { valid: true };
@@ -122420,7 +122812,7 @@ async function validateHtmlZip(zipPath) {
 }
 async function preparePresentation(filePaths, format, presentationName, conversionEngine = "libreoffice") {
   for (const fp of filePaths) {
-    if (!fs10.existsSync(fp)) {
+    if (!fs11.existsSync(fp)) {
       return {
         success: false,
         format,
@@ -122484,7 +122876,7 @@ async function rasterizePdf(inputPath, outputPath) {
         timeout: 12e4
       }
     );
-    if (!fs10.existsSync(outputPath)) {
+    if (!fs11.existsSync(outputPath)) {
       return { success: false, error: "Ghostscript produced no output" };
     }
     return { success: true };
@@ -122504,7 +122896,7 @@ async function preparePdf(pdfPath) {
       pages: [
         {
           pageNumber: 1,
-          name: path9.basename(pdfPath, ".pdf"),
+          name: path10.basename(pdfPath, ".pdf"),
           filePath: pdfPath,
           contentType: "application/pdf"
         }
@@ -122512,7 +122904,7 @@ async function preparePdf(pdfPath) {
     };
   }
   const outputDir = privateTmp(`pdf-${Date.now()}`);
-  const rasterizedPath = path9.join(outputDir, path9.basename(pdfPath));
+  const rasterizedPath = path10.join(outputDir, path10.basename(pdfPath));
   const result2 = await rasterizePdf(pdfPath, rasterizedPath);
   if (!result2.success) {
     return {
@@ -122529,7 +122921,7 @@ async function preparePdf(pdfPath) {
     pages: [
       {
         pageNumber: 1,
-        name: path9.basename(pdfPath, ".pdf"),
+        name: path10.basename(pdfPath, ".pdf"),
         filePath: rasterizedPath,
         contentType: "application/pdf"
       }
@@ -122552,7 +122944,7 @@ async function prepareHtmlZips(zipPaths) {
     }
     pages.push({
       pageNumber: i + 1,
-      name: path9.basename(zipPath, ".zip"),
+      name: path10.basename(zipPath, ".zip"),
       filePath: zipPath,
       contentType: "application/zip"
     });
@@ -122593,10 +122985,10 @@ async function getSofficePath() {
   }
 }
 async function convertPptxToSlides(pptxPath, outputDir, conversionEngine = "libreoffice") {
-  if (!fs10.existsSync(pptxPath)) {
+  if (!fs11.existsSync(pptxPath)) {
     return { success: false, slides: [], outputDir, error: `File not found: ${pptxPath}` };
   }
-  const ext = path9.extname(pptxPath).toLowerCase();
+  const ext = path10.extname(pptxPath).toLowerCase();
   if (ext !== ".pptx") {
     return { success: false, slides: [], outputDir, error: `File must be .pptx (got ${ext})` };
   }
@@ -122607,15 +122999,15 @@ async function convertPptxToSlides(pptxPath, outputDir, conversionEngine = "libr
 }
 async function convertPptxViaLibreOfficeHtml(pptxPath, outputDir) {
   const soffice = await getSofficePath();
-  const htmlDir = path9.join(outputDir, "html");
-  const svgDir = path9.join(outputDir, "svg");
-  const zipDir = path9.join(outputDir, "zip");
-  const thumbDir = path9.join(outputDir, "thumbnails");
-  const pdfDir = path9.join(outputDir, "pdf");
+  const htmlDir = path10.join(outputDir, "html");
+  const svgDir = path10.join(outputDir, "svg");
+  const zipDir = path10.join(outputDir, "zip");
+  const thumbDir = path10.join(outputDir, "thumbnails");
+  const pdfDir = path10.join(outputDir, "pdf");
   for (const dir of [outputDir, htmlDir, svgDir, zipDir, thumbDir, pdfDir]) {
-    fs10.mkdirSync(dir, { recursive: true });
+    fs11.mkdirSync(dir, { recursive: true });
   }
-  const pdfPath = path9.join(pdfDir, path9.basename(pptxPath, ".pptx") + ".pdf");
+  const pdfPath = path10.join(pdfDir, path10.basename(pptxPath, ".pptx") + ".pdf");
   try {
     await run2(soffice, ["--headless", "--convert-to", "pdf", "--outdir", pdfDir, pptxPath], {
       timeout: 12e4
@@ -122628,10 +123020,10 @@ async function convertPptxViaLibreOfficeHtml(pptxPath, outputDir) {
       error: `LibreOffice PDF conversion failed: ${error2 instanceof Error ? error2.message : String(error2)}`
     };
   }
-  if (!fs10.existsSync(pdfPath)) {
+  if (!fs11.existsSync(pdfPath)) {
     return { success: false, slides: [], outputDir, error: `PDF output not found at ${pdfPath}` };
   }
-  const pdfBytes = fs10.readFileSync(pdfPath);
+  const pdfBytes = fs11.readFileSync(pdfPath);
   const pdfDoc = await import_pdf_lib.PDFDocument.load(pdfBytes);
   const slideCount = pdfDoc.getPageCount();
   if (slideCount === 0) {
@@ -122643,8 +123035,8 @@ async function convertPptxViaLibreOfficeHtml(pptxPath, outputDir) {
     const [copiedPage] = await singlePageDoc.copyPages(pdfDoc, [i]);
     singlePageDoc.addPage(copiedPage);
     const singlePageBytes = await singlePageDoc.save();
-    const pagePdfPath = path9.join(pdfDir, `slide_${i + 1}.pdf`);
-    fs10.writeFileSync(pagePdfPath, singlePageBytes);
+    const pagePdfPath = path10.join(pdfDir, `slide_${i + 1}.pdf`);
+    fs11.writeFileSync(pagePdfPath, singlePageBytes);
     pagePdfPaths.push(pagePdfPath);
   }
   let diagnostics = `Slide count: ${slideCount}
@@ -122653,19 +123045,19 @@ async function convertPptxViaLibreOfficeHtml(pptxPath, outputDir) {
   for (let i = 0; i < slideCount; i++) {
     const slideNum = i + 1;
     const slideName = `Slide ${slideNum}`;
-    const slideDir = path9.join(htmlDir, `slide_${slideNum}`);
-    fs10.mkdirSync(slideDir, { recursive: true });
+    const slideDir = path10.join(htmlDir, `slide_${slideNum}`);
+    fs11.mkdirSync(slideDir, { recursive: true });
     let svgContent = null;
-    const expectedSvgPath = path9.join(svgDir, `slide_${slideNum}.svg`);
+    const expectedSvgPath = path10.join(svgDir, `slide_${slideNum}.svg`);
     try {
       await run2(
         soffice,
         ["--headless", "--convert-to", "svg", "--outdir", svgDir, pagePdfPaths[i]],
         { timeout: 6e4 }
       );
-      const actualSvgPath = path9.join(svgDir, `slide_${slideNum}.svg`);
-      if (fs10.existsSync(actualSvgPath)) {
-        svgContent = fs10.readFileSync(actualSvgPath, "utf-8");
+      const actualSvgPath = path10.join(svgDir, `slide_${slideNum}.svg`);
+      if (fs11.existsSync(actualSvgPath)) {
+        svgContent = fs11.readFileSync(actualSvgPath, "utf-8");
         diagnostics += `Slide ${slideNum}: SVG OK (${svgContent.length} chars)
 `;
       }
@@ -122675,21 +123067,21 @@ async function convertPptxViaLibreOfficeHtml(pptxPath, outputDir) {
     }
     if (svgContent) {
       const html = buildSvgSlideHtml(slideName, svgContent);
-      fs10.writeFileSync(path9.join(slideDir, "index.html"), html, "utf-8");
+      fs11.writeFileSync(path10.join(slideDir, "index.html"), html, "utf-8");
     } else {
       try {
-        const pngPath = path9.join(slideDir, `temp.png`);
+        const pngPath = path10.join(slideDir, `temp.png`);
         await run2("sips", ["-s", "format", "png", pagePdfPaths[i], "--out", pngPath], {
           timeout: 3e4
         });
-        const pngBuffer = fs10.readFileSync(pngPath);
+        const pngBuffer = fs11.readFileSync(pngPath);
         const pngBase64 = pngBuffer.toString("base64");
-        fs10.writeFileSync(
-          path9.join(slideDir, "index.html"),
+        fs11.writeFileSync(
+          path10.join(slideDir, "index.html"),
           buildSlideHtml(slideName, pngBase64),
           "utf-8"
         );
-        fs10.unlinkSync(pngPath);
+        fs11.unlinkSync(pngPath);
       } catch (error2) {
         return {
           success: false,
@@ -122700,15 +123092,15 @@ async function convertPptxViaLibreOfficeHtml(pptxPath, outputDir) {
         };
       }
     }
-    const thumbPath = path9.join(thumbDir, `slide_${slideNum}.jpg`);
+    const thumbPath = path10.join(thumbDir, `slide_${slideNum}.jpg`);
     try {
-      const tempJpg = path9.join(thumbDir, `slide_${slideNum}_temp.jpg`);
+      const tempJpg = path10.join(thumbDir, `slide_${slideNum}_temp.jpg`);
       await run2("sips", ["-s", "format", "jpeg", pagePdfPaths[i], "--out", tempJpg], {
         timeout: 15e3
       });
       await run2("sips", ["-z", "280", "220", tempJpg, "--out", thumbPath], { timeout: 15e3 });
-      if (fs10.existsSync(tempJpg) && tempJpg !== thumbPath) {
-        fs10.unlinkSync(tempJpg);
+      if (fs11.existsSync(tempJpg) && tempJpg !== thumbPath) {
+        fs11.unlinkSync(tempJpg);
       }
     } catch (error2) {
       return {
@@ -122719,7 +123111,7 @@ async function convertPptxViaLibreOfficeHtml(pptxPath, outputDir) {
         diagnostics
       };
     }
-    const zipPath = path9.join(zipDir, `slide_${slideNum}.zip`);
+    const zipPath = path10.join(zipDir, `slide_${slideNum}.zip`);
     try {
       await createSlideZipFromDir(zipPath, slideDir, thumbPath);
     } catch (error2) {
@@ -122767,14 +123159,14 @@ ${svgContent}
 </html>`;
 }
 async function convertPptxViaPandocHtml5(pptxPath, outputDir) {
-  const htmlDir = path9.join(outputDir, "html");
-  const zipDir = path9.join(outputDir, "zip");
-  const thumbDir = path9.join(outputDir, "thumbnails");
-  const pdfDir = path9.join(outputDir, "pdf");
+  const htmlDir = path10.join(outputDir, "html");
+  const zipDir = path10.join(outputDir, "zip");
+  const thumbDir = path10.join(outputDir, "thumbnails");
+  const pdfDir = path10.join(outputDir, "pdf");
   for (const dir of [outputDir, htmlDir, zipDir, thumbDir, pdfDir]) {
-    fs10.mkdirSync(dir, { recursive: true });
+    fs11.mkdirSync(dir, { recursive: true });
   }
-  const pandocHtmlPath = path9.join(outputDir, "pandoc_output.html");
+  const pandocHtmlPath = path10.join(outputDir, "pandoc_output.html");
   try {
     await run2(
       "pandoc",
@@ -122803,7 +123195,7 @@ async function convertPptxViaPandocHtml5(pptxPath, outputDir) {
       error: `Pandoc HTML5 conversion failed: ${error2 instanceof Error ? error2.message : String(error2)}`
     };
   }
-  if (!fs10.existsSync(pandocHtmlPath)) {
+  if (!fs11.existsSync(pandocHtmlPath)) {
     return {
       success: false,
       slides: [],
@@ -122811,7 +123203,7 @@ async function convertPptxViaPandocHtml5(pptxPath, outputDir) {
       error: "Pandoc produced no output file"
     };
   }
-  const fullHtml = fs10.readFileSync(pandocHtmlPath, "utf-8");
+  const fullHtml = fs11.readFileSync(pandocHtmlPath, "utf-8");
   const slideContents = splitPandocHtml5(fullHtml);
   let diagnostics = `Pandoc HTML5 output: ${fullHtml.length} bytes
 `;
@@ -122831,11 +123223,11 @@ async function convertPptxViaPandocHtml5(pptxPath, outputDir) {
   for (let i = 0; i < slideContents.length; i++) {
     const slideNum = i + 1;
     const slideName = `Slide ${slideNum}`;
-    const slideDir = path9.join(htmlDir, `slide_${slideNum}`);
-    fs10.mkdirSync(slideDir, { recursive: true });
-    fs10.writeFileSync(path9.join(slideDir, "index.html"), slideContents[i], "utf-8");
-    const thumbPath = thumbnailPaths[i] || path9.join(thumbDir, `slide_${slideNum}.jpg`);
-    const zipPath = path9.join(zipDir, `slide_${slideNum}.zip`);
+    const slideDir = path10.join(htmlDir, `slide_${slideNum}`);
+    fs11.mkdirSync(slideDir, { recursive: true });
+    fs11.writeFileSync(path10.join(slideDir, "index.html"), slideContents[i], "utf-8");
+    const thumbPath = thumbnailPaths[i] || path10.join(thumbDir, `slide_${slideNum}.jpg`);
+    const zipPath = path10.join(zipDir, `slide_${slideNum}.zip`);
     try {
       await createSlideZipFromDir(zipPath, slideDir, thumbPath);
     } catch (error2) {
@@ -122911,7 +123303,7 @@ ${slideContent}
 }
 async function generateThumbnails(pptxPath, pdfDir, thumbDir) {
   const soffice = await getSofficePath();
-  const pdfPath = path9.join(pdfDir, path9.basename(pptxPath, ".pptx") + ".pdf");
+  const pdfPath = path10.join(pdfDir, path10.basename(pptxPath, ".pptx") + ".pdf");
   try {
     await run2(soffice, ["--headless", "--convert-to", "pdf", "--outdir", pdfDir, pptxPath], {
       timeout: 12e4
@@ -122919,10 +123311,10 @@ async function generateThumbnails(pptxPath, pdfDir, thumbDir) {
   } catch {
     return [];
   }
-  if (!fs10.existsSync(pdfPath)) {
+  if (!fs11.existsSync(pdfPath)) {
     return [];
   }
-  const pdfBytes = fs10.readFileSync(pdfPath);
+  const pdfBytes = fs11.readFileSync(pdfPath);
   const pdfDoc = await import_pdf_lib.PDFDocument.load(pdfBytes);
   const pageCount = pdfDoc.getPageCount();
   const thumbnailPaths = [];
@@ -122931,17 +123323,17 @@ async function generateThumbnails(pptxPath, pdfDir, thumbDir) {
     const [copiedPage] = await singlePageDoc.copyPages(pdfDoc, [i]);
     singlePageDoc.addPage(copiedPage);
     const singlePageBytes = await singlePageDoc.save();
-    const pagePdfPath = path9.join(pdfDir, `slide_${i + 1}.pdf`);
-    fs10.writeFileSync(pagePdfPath, singlePageBytes);
-    const thumbPath = path9.join(thumbDir, `slide_${i + 1}.jpg`);
+    const pagePdfPath = path10.join(pdfDir, `slide_${i + 1}.pdf`);
+    fs11.writeFileSync(pagePdfPath, singlePageBytes);
+    const thumbPath = path10.join(thumbDir, `slide_${i + 1}.jpg`);
     try {
-      const tempJpg = path9.join(thumbDir, `slide_${i + 1}_temp.jpg`);
+      const tempJpg = path10.join(thumbDir, `slide_${i + 1}_temp.jpg`);
       await run2("sips", ["-s", "format", "jpeg", pagePdfPath, "--out", tempJpg], {
         timeout: 15e3
       });
       await run2("sips", ["-z", "280", "220", tempJpg, "--out", thumbPath], { timeout: 15e3 });
-      if (fs10.existsSync(tempJpg) && tempJpg !== thumbPath) {
-        fs10.unlinkSync(tempJpg);
+      if (fs11.existsSync(tempJpg) && tempJpg !== thumbPath) {
+        fs11.unlinkSync(tempJpg);
       }
       thumbnailPaths.push(thumbPath);
     } catch {
@@ -122977,25 +123369,25 @@ function buildSlideHtml(title, pngBase64) {
 </body>
 </html>`;
 }
-function escapeHtml(str33) {
-  return str33.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function escapeHtml(str34) {
+  return str34.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function createSlideZipFromDir(zipPath, slideDir, thumbnailPath) {
   return new Promise((resolve4, reject) => {
-    const output = fs10.createWriteStream(zipPath);
+    const output = fs11.createWriteStream(zipPath);
     const archive = (0, import_archiver.default)("zip", { zlib: { level: 9 } });
     output.on("close", () => resolve4());
     archive.on("error", (err) => reject(err));
     archive.pipe(output);
-    const files = fs10.readdirSync(slideDir);
+    const files = fs11.readdirSync(slideDir);
     for (const file of files) {
-      const filePath = path9.join(slideDir, file);
-      if (fs10.statSync(filePath).isFile()) {
+      const filePath = path10.join(slideDir, file);
+      if (fs11.statSync(filePath).isFile()) {
         const archiveName = file === "index.html" ? "01_slide.html" : file;
         archive.file(filePath, { name: archiveName });
       }
     }
-    if (fs10.existsSync(thumbnailPath)) {
+    if (fs11.existsSync(thumbnailPath)) {
       archive.file(thumbnailPath, { name: "01_thumbnail.jpg" });
     }
     archive.finalize();
@@ -123313,8 +123705,8 @@ The ${uploadedPages.length} file(s) were uploaded successfully as ContentVersion
 `;
       if (prepResult.outputDir) {
         try {
-          const fs24 = await import("fs");
-          fs24.rmSync(prepResult.outputDir, { recursive: true, force: true });
+          const fs25 = await import("fs");
+          fs25.rmSync(prepResult.outputDir, { recursive: true, force: true });
         } catch {
         }
       }
@@ -125069,7 +125461,13 @@ var OM_MODULE = "order-management";
 var OM_WARN_ONLY = /* @__PURE__ */ new Set([
   "om-submitted-stage-not-locked",
   "om-unlock-no-manager",
-  "om-locked-quote-no-view-line-items"
+  "om-locked-quote-no-view-line-items",
+  "om-unlock-approver-no-territory",
+  "om-pricing-selectors-disagree",
+  "om-browse-catalog-save-as-apexclass-invalid",
+  "om-approve-automated-process-user",
+  "sc-action-plan-template-multiple-versions",
+  "sc-photo-dbschemas-missing"
 ]);
 var OM_IN_USE_QUERY = "SELECT Id FROM ProductTerritoryAvailability WHERE Purpose = 'Quote' LIMIT 1";
 function omCheckableCauses(causes = getKnownCauses()) {
@@ -125166,15 +125564,19 @@ function renderOmReport(org, checks, inUse) {
     out += "\n";
   }
   const unchecked = omUncheckedCauses();
-  if (unchecked.length)
-    out += `Not checked here (${unchecked.length} known causes need a look by hand or an error message; \`diagnose_lsc_issue\` matches them): ${unchecked.map((c) => c.title).join("; ")}.
+  if (unchecked.length) {
+    out += "### Not checked here\n\n";
+    for (const c of unchecked)
+      out += `- **${c.title}:** ${c.no_check_reason ? oneLine2(c.no_check_reason) : "No automatic check is possible for this one."}
 `;
+    out += "\n`diagnose_lsc_issue` still matches these from an error message or a description of the symptom.\n";
+  }
   return out;
 }
 function register14(server2) {
   server2.tool(
     "check_om_config",
-    "Check Order Management (quoted orders, Store Check) configuration against the known setup mistakes: DB Schema pairs (Quote/QuoteLineItem, Pricebook2/PricebookEntry) half assigned to a profile, price adjustment schedules with no EffectiveFrom, the Life Sciences Commercial pricing recipe mappings, StagePathPermissionsHandler, the Submitted quote stage lock, unpublished Quote product alignments (ProductTerritoryAvailability with no ProductTerrDtlAvailability), quote owners with no manager for Request for Unlock, locked stages with no View Line Items, and Store Check visit routing. Read-only. CORRECT object names: Quote, QuoteLineItem, Pricebook2, PricebookEntry, ProductTerritoryAvailability, ProductTerrDtlAvailability, PriceAdjustmentSchedule, LifeSciStagePath, LifeSciStageOperation. WRONG names (DO NOT USE): Order__c, QuotedOrder__c, ProductAvailability__c.",
+    "Check Order Management (quoted orders, Store Check) configuration against the known setup mistakes: DB Schema pairs (Quote/QuoteLineItem, Pricebook2/PricebookEntry) half assigned to a profile, price adjustment schedules with no EffectiveFrom, the Life Sciences Commercial pricing recipe mappings, StagePathPermissionsHandler, the Submitted quote stage lock, unpublished Quote product alignments (ProductTerritoryAvailability with no ProductTerrDtlAvailability), quote owners with no manager for Request for Unlock, locked stages with no View Line Items, Store Check visit routing, Quote status and document permissions of quote owners, Revenue Management, Product Configurator, Store Check and Translation Workbench settings, pricing procedure selection, rounding and price adjustment matrix steps, approval flow run-as, standard price book entries, Quote status values, and required licences. Causes with no automatic check are listed with the reason. Read-only. CORRECT object names: Quote, QuoteLineItem, Pricebook2, PricebookEntry, ProductTerritoryAvailability, ProductTerrDtlAvailability, PriceAdjustmentSchedule, LifeSciStagePath, LifeSciStageOperation. WRONG names (DO NOT USE): Order__c, QuotedOrder__c, ProductAvailability__c.",
     {
       targetOrg: external_exports.string().optional().describe("Optional: specific org to check. Uses current target org if not specified.")
     },
@@ -126030,9 +126432,9 @@ async function updateExistingRecord(targetOrg, rd, srcByKey, resolveAssigneeId) 
 init_collect();
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync as existsSync13 } from "node:fs";
-import path10 from "node:path";
+import path11 from "node:path";
 function exportsDir() {
-  return process.env.LSC_EXPORTS_DIR || path10.resolve(process.cwd(), "exports");
+  return process.env.LSC_EXPORTS_DIR || path11.resolve(process.cwd(), "exports");
 }
 async function ensureExportsDir() {
   const dir = exportsDir();
@@ -126049,9 +126451,9 @@ async function loadSnapshotFromSource(source) {
     return JSON.parse(trimmed);
   }
   const candidates = [
-    path10.resolve(trimmed),
-    path10.resolve(process.cwd(), trimmed),
-    path10.resolve(exportsDir(), trimmed)
+    path11.resolve(trimmed),
+    path11.resolve(process.cwd(), trimmed),
+    path11.resolve(exportsDir(), trimmed)
   ];
   for (const p of candidates) {
     if (existsSync13(p)) {
@@ -126062,7 +126464,7 @@ async function loadSnapshotFromSource(source) {
 }
 async function writeExport(filename, data2) {
   const dir = await ensureExportsDir();
-  const p = path10.join(dir, filename);
+  const p = path11.join(dir, filename);
   await writeFile(p, JSON.stringify(data2, null, 2), "utf8");
   return p;
 }
@@ -126388,12 +126790,12 @@ async function startImportUiServer(opts) {
         return;
       }
       applyStarted = true;
-      const chunks7 = [];
-      req.on("data", (c) => chunks7.push(c));
+      const chunks8 = [];
+      req.on("data", (c) => chunks8.push(c));
       req.on("end", async () => {
         let selection = [];
         try {
-          const body = JSON.parse(Buffer.concat(chunks7).toString("utf8") || "{}");
+          const body = JSON.parse(Buffer.concat(chunks8).toString("utf8") || "{}");
           selection = Array.isArray(body.selection) ? body.selection : [];
         } catch {
           res.writeHead(400, { "content-type": "application/json" });
@@ -126761,11 +127163,11 @@ function applyMessage(result2, backupPath, resultPath) {
 }
 
 // src/tools/release-notes.ts
-import * as fs11 from "fs";
-import * as path11 from "path";
+import * as fs12 from "fs";
+import * as path12 from "path";
 function register17(server2) {
-  const releaseNotesDir = path11.join(
-    path11.dirname(new URL(import.meta.url).pathname),
+  const releaseNotesDir = path12.join(
+    path12.dirname(new URL(import.meta.url).pathname),
     "../../knowledge/release-notes"
   );
   server2.tool(
@@ -126779,7 +127181,7 @@ function register17(server2) {
     async ({ release }) => {
       let files = [];
       try {
-        files = fs11.readdirSync(releaseNotesDir).filter((f) => f.endsWith(".md")).sort().reverse();
+        files = fs12.readdirSync(releaseNotesDir).filter((f) => f.endsWith(".md")).sort().reverse();
       } catch {
         return {
           content: [
@@ -126820,9 +127222,9 @@ Use \`get_release_notes\` with a release slug to get the full content.`
         };
       }
       const slug = release.toLowerCase().replace(/['\s]+/g, "-").replace(/[^a-z0-9-]/g, "");
-      const filePath = path11.join(releaseNotesDir, `${slug}.md`);
+      const filePath = path12.join(releaseNotesDir, `${slug}.md`);
       try {
-        const content = fs11.readFileSync(filePath, "utf-8");
+        const content = fs12.readFileSync(filePath, "utf-8");
         return {
           content: [{ type: "text", text: content }]
         };
@@ -128007,14 +128409,14 @@ function missingFlows(flows) {
   }
   return out;
 }
-async function tooling(query2, org) {
+async function tooling2(query2, org) {
   const r = await runToolingQuery(query2, org);
   if (!r.success) return { rows: [], error: r.error || "query failed" };
   if (r.data?.truncated)
     return { rows: r.data.records ?? [], error: "result truncated" };
   return { rows: r.data?.records ?? [] };
 }
-async function soql2(query2, org) {
+async function soql3(query2, org) {
   const r = await runSoqlQuery(query2, org);
   if (!r.success) return { rows: [], error: r.error || "query failed" };
   if (r.data?.truncated)
@@ -128030,7 +128432,7 @@ async function collectEppvChecks(org, profileName3) {
     status: "skip",
     detail: `Couldn't check: ${err}`
   });
-  const programs = await soql2(
+  const programs = await soql3(
     `SELECT Id, Name, Status, StartDate, EndDate FROM CareProgram WHERE Category = ${q(EPPV_CATEGORY)} ORDER BY Name LIMIT 200`,
     org
   );
@@ -128057,7 +128459,7 @@ async function collectEppvChecks(org, profileName3) {
     const withProduct = /* @__PURE__ */ new Set();
     let err;
     for (const chunk2 of chunkIds(programIds)) {
-      const r = await soql2(
+      const r = await soql3(
         `SELECT CareProgramId FROM CareProgramProduct WHERE CareProgramId IN (${inList2(chunk2)})`,
         org
       );
@@ -128075,7 +128477,7 @@ async function collectEppvChecks(org, profileName3) {
         fix: bare2.length ? "A product can't be added once the announce date is today or earlier. Insert the program with dates at today+2, add the product, then set the dates to today." : void 0
       });
   }
-  const plans = await soql2(
+  const plans = await soql3(
     `SELECT Id, Name, ActionPlanState, TargetId, TargetReferenceRecordId, ActionPlanTemplateVersionId FROM ActionPlan WHERE ActionPlanType = ${q(EPPV_PLAN_TYPE)} LIMIT 2000`,
     org
   );
@@ -128132,7 +128534,7 @@ async function collectEppvChecks(org, profileName3) {
       const counts2 = /* @__PURE__ */ new Map();
       let err;
       for (const chunk2 of chunkIds(started)) {
-        const r = await soql2(
+        const r = await soql3(
           `SELECT ActionPlanId, COUNT(Id) c FROM PrvdEngmtComplianceCycle WHERE ActionPlanId IN (${inList2(chunk2)}) GROUP BY ActionPlanId`,
           org
         );
@@ -128164,7 +128566,7 @@ async function collectEppvChecks(org, profileName3) {
       });
     }
   }
-  const flows = await soql2(
+  const flows = await soql3(
     `SELECT ApiName, Label, ProcessType, TriggerType, IsActive, NamespacePrefix FROM FlowDefinitionView WHERE ${EPPV_FLOWS.map((f) => `ApiName LIKE '${f.prefix}%'`).join(" OR ")}`,
     org
   );
@@ -128181,7 +128583,7 @@ async function collectEppvChecks(org, profileName3) {
     });
   }
   const names5 = EPPV_DB_SCHEMA_OBJECTS.map((o) => `DbSchema_${o}`);
-  const db = await tooling(
+  const db = await tooling2(
     `SELECT Id, DeveloperName, IsActive FROM LifeSciConfigRecord WHERE DeveloperName IN (${inList2(names5)})`,
     org
   );
@@ -128230,7 +128632,7 @@ async function collectEppvChecks(org, profileName3) {
         detail: `WhereSoql set on: ${filtered.map((n2) => n2.replace("DbSchema_", "")).join(", ")}. The working setup has no filters on these.`
       });
   }
-  const ui = await tooling(
+  const ui = await tooling2(
     `SELECT Id, DeveloperName, IsActive, (SELECT FieldName, TextValue FROM LifeSciConfigFieldValues) FROM LifeSciConfigRecord WHERE LifeSciConfigCategoryId IN (SELECT Id FROM LifeSciConfigCategory WHERE Category = 'UISchema')`,
     org
   );
@@ -128257,7 +128659,7 @@ async function collectEppvChecks(org, profileName3) {
       fix: active2.length && assigned ? void 0 : "add_navigation_tab with tabName standard-AccountCompliance, enabled for the rep profile."
     });
   }
-  const qa = await tooling(
+  const qa = await tooling2(
     `SELECT Id, DeveloperName, IsActive, (SELECT FieldName, TextValue, PicklistValue FROM LifeSciConfigFieldValues) FROM LifeSciConfigRecord WHERE LifeSciConfigCategoryId IN (SELECT Id FROM LifeSciConfigCategory WHERE Category = 'QuickAction')`,
     org
   );
@@ -128283,7 +128685,7 @@ async function collectEppvChecks(org, profileName3) {
       fix: hit.length && assigned ? void 0 : `create_quick_action with action type ${EPPV_QUICK_ACTION}, location Visit, assigned to the rep profile.`
     });
   }
-  const cache3 = await soql2(
+  const cache3 = await soql3(
     `SELECT Id, Status, LastModifiedDate FROM LifeSciMobileMetadataRecord WHERE Status = 'Active' ORDER BY LastModifiedDate DESC LIMIT 5`,
     org
   );
@@ -128436,7 +128838,7 @@ function buildConsent(input) {
     return cp.provider ? `${cp.provider}: ${cp.value}` : cp.value;
   };
   const subscriptions = subs.map((s11) => {
-    const rows3 = [];
+    const rows4 = [];
     for (const sct of scts.filter((c) => c.subscriptionId === s11.id)) {
       const ids = cpIdsByChannel.get(sct.channelId) ?? [];
       ids.forEach((cpId, i) => {
@@ -128445,7 +128847,7 @@ function buildConsent(input) {
         const consent = consents.find(
           (c) => c.subscriptionChannelId === sct.id && c.contactPointId === cpId
         );
-        rows3.push({
+        rows4.push({
           title: `${channelName.get(sct.channelId) ?? ""} ${i + 1}`,
           channelId: sct.channelId,
           subscriptionChannelId: sct.id,
@@ -128455,8 +128857,8 @@ function buildConsent(input) {
         });
       });
     }
-    rows3.sort((a, b) => ci(a.title, b.title));
-    return { id: s11.id, name: s11.name, rows: rows3 };
+    rows4.sort((a, b) => ci(a.title, b.title));
+    return { id: s11.id, name: s11.name, rows: rows4 };
   }).sort((a, b) => ci(a.name, b.name));
   let global2;
   if (settings.globalChannel !== "Topic Only") {
@@ -128465,9 +128867,9 @@ function buildConsent(input) {
       const key5 = `${row.channelId}|${row.contactPointId}`;
       groups.set(key5, [...groups.get(key5) ?? [], row]);
     }
-    global2 = [...groups.values()].map((rows3) => {
-      const states = new Set(rows3.map((r) => r.state));
-      return { ...rows3[0], state: states.size === 1 ? rows3[0].state : "Partial" };
+    global2 = [...groups.values()].map((rows4) => {
+      const states = new Set(rows4.map((r) => r.state));
+      return { ...rows4[0], state: states.size === 1 ? rows4[0].state : "Partial" };
     }).sort((a, b) => ci(a.title, b.title));
   }
   const addable = channels.filter((c) => settings.multipleChannelValueEnabled || !cpIdsByChannel.get(c.id)?.length).map((c) => c.name);
@@ -128477,9 +128879,9 @@ var todayUtc = (now = /* @__PURE__ */ new Date()) => now.toISOString().slice(0, 
 
 // src/studio/screens/consent/consent.ts
 var s4 = (v) => v == null ? "" : String(v);
-async function tryQuery(soql5, org) {
+async function tryQuery(soql6, org) {
   try {
-    return await query(soql5, org);
+    return await query(soql6, org);
   } catch {
     return [];
   }
@@ -128586,8 +128988,8 @@ async function loadConsent(org, accountId, now = /* @__PURE__ */ new Date()) {
 init_helpers();
 init_helpers2();
 import { execFile as execFile4, spawn as spawn2 } from "child_process";
-import * as fs13 from "fs";
-import * as path13 from "path";
+import * as fs14 from "fs";
+import * as path14 from "path";
 import { promisify as promisify5 } from "util";
 
 // src/studio/unpublished-logic.ts
@@ -128614,13 +129016,13 @@ function isAfter(modifiedIso, boundaryMs) {
 function soqlTime2(ms2) {
   return new Date(ms2).toISOString().replace(/\.\d{3}Z$/, ".000Z");
 }
-var str20 = (v) => typeof v === "string" ? v : "";
+var str21 = (v) => typeof v === "string" ? v : "";
 var nested = (r, key5) => r[key5] && typeof r[key5] === "object" ? r[key5] : {};
 function modifiedBy(r) {
-  return str20(nested(r, "LastModifiedBy").Name) || null;
+  return str21(nested(r, "LastModifiedBy").Name) || null;
 }
 function isoTime(v) {
-  const at2 = Date.parse(str20(v));
+  const at2 = Date.parse(str21(v));
   return Number.isFinite(at2) ? new Date(at2).toISOString() : "";
 }
 function build(kind, name, label2, r, type, live = false) {
@@ -128636,82 +129038,82 @@ function build(kind, name, label2, r, type, live = false) {
     reach: { desktop: "now", ipad: live ? "live" : "publish" }
   };
 }
-function layoutItems(rows3, scope2) {
+function layoutItems(rows4, scope2) {
   const out = [];
-  for (const r of rows3) {
-    const entity = str20(nested(r, "EntityDefinition").QualifiedApiName) || str20(r.TableEnumOrId);
-    const label2 = str20(r.Name);
+  for (const r of rows4) {
+    const entity = str21(nested(r, "EntityDefinition").QualifiedApiName) || str21(r.TableEnumOrId);
+    const label2 = str21(r.Name);
     if (!entity || !label2) continue;
     const name = resolveName(scope2, `${entity}-${label2}`);
     if (name !== null) out.push(build("layout", name, label2, r, "Layout"));
   }
   return out;
 }
-function compactLayoutItems(rows3, scope2) {
+function compactLayoutItems(rows4, scope2) {
   const out = [];
-  for (const r of rows3) {
-    const object3 = str20(r.SobjectType);
-    const dev = str20(r.DeveloperName);
+  for (const r of rows4) {
+    const object3 = str21(r.SobjectType);
+    const dev = str21(r.DeveloperName);
     if (!object3 || !dev) continue;
     const name = resolveName(scope2, `${object3}.${dev}`);
     if (name !== null)
-      out.push(build("compactLayout", name, str20(r.MasterLabel) || dev, r, "CompactLayout"));
+      out.push(build("compactLayout", name, str21(r.MasterLabel) || dev, r, "CompactLayout"));
   }
   return out;
 }
-function flexiPageItems(rows3, scope2) {
+function flexiPageItems(rows4, scope2) {
   const out = [];
-  for (const r of rows3) {
-    const dev = str20(r.DeveloperName);
+  for (const r of rows4) {
+    const dev = str21(r.DeveloperName);
     if (!dev) continue;
     const name = resolveName(scope2, dev);
     if (name !== null)
-      out.push(build("flexiPage", name, str20(r.MasterLabel) || dev, r, "FlexiPage"));
+      out.push(build("flexiPage", name, str21(r.MasterLabel) || dev, r, "FlexiPage"));
   }
   return out;
 }
-function appItems(rows3, app) {
+function appItems(rows4, app) {
   if (!app) return [];
   const out = [];
-  for (const r of rows3) {
-    const dev = str20(r.DeveloperName);
+  for (const r of rows4) {
+    const dev = str21(r.DeveloperName);
     if (!dev) continue;
-    const ns3 = str20(r.NamespacePrefix);
+    const ns3 = str21(r.NamespacePrefix);
     const fullName = ns3 ? `${ns3}__${dev}` : dev;
     if (fullName !== app) continue;
-    out.push(build("app", fullName, str20(r.Label) || dev, r, "CustomApplication"));
+    out.push(build("app", fullName, str21(r.Label) || dev, r, "CustomApplication"));
   }
   return out;
 }
-function recordTypeItems(rows3, scope2) {
+function recordTypeItems(rows4, scope2) {
   const out = [];
-  for (const r of rows3) {
-    const object3 = str20(r.SobjectType);
-    const dev = str20(r.DeveloperName);
+  for (const r of rows4) {
+    const object3 = str21(r.SobjectType);
+    const dev = str21(r.DeveloperName);
     if (!object3 || !dev) continue;
     const name = resolveName(scope2, `${object3}.${dev}`);
-    if (name !== null) out.push(build("recordType", name, str20(r.Name) || dev, r, "RecordType"));
+    if (name !== null) out.push(build("recordType", name, str21(r.Name) || dev, r, "RecordType"));
   }
   return out;
 }
-function listViewItems(rows3, scope2) {
+function listViewItems(rows4, scope2) {
   const out = [];
-  for (const r of rows3) {
-    const object3 = str20(r.SobjectType);
-    const dev = str20(r.DeveloperName);
+  for (const r of rows4) {
+    const object3 = str21(r.SobjectType);
+    const dev = str21(r.DeveloperName);
     if (!object3 || !dev) continue;
     const name = resolveName(scope2, `${object3}.${dev}`);
-    if (name !== null) out.push(build("listView", name, str20(r.Name) || dev, r, "ListView", true));
+    if (name !== null) out.push(build("listView", name, str21(r.Name) || dev, r, "ListView", true));
   }
   return out;
 }
-function tabItems(rows3, scope2) {
+function tabItems(rows4, scope2) {
   const out = [];
-  for (const r of rows3) {
-    const dev = str20(r.DeveloperName);
+  for (const r of rows4) {
+    const dev = str21(r.DeveloperName);
     if (!dev) continue;
     const name = resolveName(scope2, dev);
-    if (name !== null) out.push(build("tab", name, str20(r.MasterLabel) || dev, r, "CustomTab"));
+    if (name !== null) out.push(build("tab", name, str21(r.MasterLabel) || dev, r, "CustomTab"));
   }
   return out;
 }
@@ -128771,9 +129173,9 @@ function cacheError(r) {
   if (/fail|error/i.test(text4(r.Status))) return `Status: ${text4(r.Status)}`;
   return null;
 }
-function cachesByProfile(rows3) {
+function cachesByProfile(rows4) {
   const out = /* @__PURE__ */ new Map();
-  for (const r of rows3) {
+  for (const r of rows4) {
     const profileId = text4(r.ProfileId);
     if (!profileId) continue;
     const at2 = Date.parse(text4(r.LastModifiedDate));
@@ -128925,8 +129327,8 @@ init_helpers2();
 
 // src/studio/metadata/live-app.ts
 init_cli();
-import * as fs12 from "fs";
-import * as path12 from "path";
+import * as fs13 from "fs";
+import * as path13 from "path";
 init_helpers2();
 
 // src/studio/metadata/app-ops.ts
@@ -129083,11 +129485,11 @@ function cached3(map, key5, ttl, load) {
 }
 function allApps(org) {
   return cached3(appListCache, org, TTL_MS, async () => {
-    const rows3 = await query(
+    const rows4 = await query(
       "SELECT ApplicationId, Name, NamespacePrefix, Label FROM AppMenuItem WHERE Type = 'TabSet'",
       org
     );
-    return rows3.map((r) => {
+    return rows4.map((r) => {
       const ns3 = String(r.NamespacePrefix ?? "");
       const name = String(r.Name ?? "");
       return {
@@ -129110,9 +129512,9 @@ async function profileApps(profile, org) {
   return apps.filter((a) => ids.has(a.id.slice(0, 15)));
 }
 function appFiles2(dir) {
-  if (!fs12.existsSync(dir)) return [];
-  return fs12.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
-    const full = path12.join(dir, e.name);
+  if (!fs13.existsSync(dir)) return [];
+  return fs13.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = path13.join(dir, e.name);
     return e.isDirectory() ? appFiles2(full) : e.name.endsWith(".app-meta.xml") ? [full] : [];
   });
 }
@@ -129128,15 +129530,15 @@ async function tabsOfApps(apps, org) {
   const { outputDir } = result2.data;
   try {
     for (const file of appFiles2(outputDir)) {
-      const fullName = path12.basename(file).replace(/\.app-meta\.xml$/, "");
-      const root2 = parseXml2(fs12.readFileSync(file, "utf-8"));
+      const fullName = path13.basename(file).replace(/\.app-meta\.xml$/, "");
+      const root2 = parseXml2(fs13.readFileSync(file, "utf-8"));
       out.set(fullName, {
         tabs: [...appFixedTabs(root2, fullName), ...appTabs(root2, fullName)],
         root: root2
       });
     }
   } finally {
-    fs12.rmSync(outputDir, { recursive: true, force: true });
+    fs13.rmSync(outputDir, { recursive: true, force: true });
   }
   return out;
 }
@@ -129197,11 +129599,11 @@ async function appProfiles(fullName, org) {
     const app = (await allApps(org)).find((a) => a.fullName === fullName);
     if (!app) return null;
     assertId(app.id);
-    const rows3 = await query(
+    const rows4 = await query(
       `SELECT Parent.Profile.Name FROM SetupEntityAccess WHERE SetupEntityType = 'TabSet' AND SetupEntityId = '${app.id}' AND Parent.IsOwnedByProfile = true`,
       org
     );
-    const names5 = rows3.flatMap((r) => {
+    const names5 = rows4.flatMap((r) => {
       const p = r.Parent?.Profile?.Name;
       return p ? [profileName(p)] : [];
     });
@@ -129243,13 +129645,13 @@ async function liveCache(profile, org) {
   const found = profiles.find((p) => text5(p.Name).toLowerCase() === profile.toLowerCase());
   if (!found) throw new Error(`Profile not found: ${profile}`);
   const profileId = text5(found.Id);
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, CreatedDate, LastModifiedDate FROM LifeSciMobileMetadataRecord
      WHERE ProfileId = '${profileId}' AND ParentMobileMetadataRecId != null AND Status = 'Active'
      ORDER BY LastModifiedDate DESC LIMIT 1`,
     org
   );
-  const r = rows3[0];
+  const r = rows4[0];
   if (!r) return { profileId, cache: null };
   const generatedAt = Date.parse(text5(r.LastModifiedDate));
   const startedAt = Date.parse(text5(r.CreatedDate));
@@ -129342,13 +129744,13 @@ async function fetchConfigEdits(org, since) {
   return out;
 }
 async function flexiPageRows(since, org) {
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, DeveloperName, MasterLabel, LastModifiedDate FROM FlexiPage WHERE ${since}`,
     org,
     true
   );
-  if (rows3.length === 0) return rows3;
-  const earliest = rows3.map((r) => text5(r.LastModifiedDate)).sort()[0];
+  if (rows4.length === 0) return rows4;
+  const earliest = rows4.map((r) => text5(r.LastModifiedDate)).sort()[0];
   const who = /* @__PURE__ */ new Map();
   try {
     const trail = await query(
@@ -129361,9 +129763,9 @@ async function flexiPageRows(since, org) {
       if (label2 && name && !who.has(label2)) who.set(label2, name);
     }
   } catch {
-    return rows3;
+    return rows4;
   }
-  return rows3.map((r) => {
+  return rows4.map((r) => {
     const name = who.get(text5(r.MasterLabel).trim().toLowerCase()) ?? who.get(text5(r.DeveloperName).trim().toLowerCase());
     return name ? { ...r, LastModifiedBy: { Name: name } } : r;
   });
@@ -129377,7 +129779,7 @@ async function collectUnpublished(profile, org, known) {
   }
   const boundary = cache3.startedAt;
   const since = `LastModifiedDate > ${soqlTime2(boundary)}`;
-  const recent2 = (rows3) => rows3.filter((r) => isAfter(r.LastModifiedDate, boundary));
+  const recent2 = (rows4) => rows4.filter((r) => isAfter(r.LastModifiedDate, boundary));
   const scopes = {
     layouts: nameIndex(known?.layouts),
     compactLayouts: nameIndex(known?.compactLayouts),
@@ -129579,11 +129981,11 @@ async function gatherOverview(org) {
         uiPath: "Setup > Installed Packages > Manage Licenses"
       },
       async () => {
-        const rows3 = await query(
+        const rows4 = await query(
           `SELECT NamespacePrefix, AllowedLicenses, UsedLicenses FROM PackageLicense WHERE NamespacePrefix = 'lsc4ce'`,
           org
         );
-        const r = rows3[0];
+        const r = rows4[0];
         const allowed = Number(r?.AllowedLicenses);
         if (!r || !(allowed > 0))
           return { pass: true, skip: true, detail: "Unlimited or no package license found." };
@@ -129694,13 +130096,13 @@ async function gatherOverview(org) {
         uiPath: "Setup > Territory Models"
       },
       async () => {
-        const rows3 = await query(`SELECT Id, Name, State FROM Territory2Model`, org);
-        if (rows3.length === 0)
+        const rows4 = await query(`SELECT Id, Name, State FROM Territory2Model`, org);
+        if (rows4.length === 0)
           return { pass: true, skip: true, detail: "No territory models in this org." };
-        const active2 = rows3.filter((r) => r.State === "Active");
+        const active2 = rows4.filter((r) => r.State === "Active");
         return {
           pass: active2.length === 1,
-          detail: `${active2.length} of ${plural(rows3.length, "model")} active`,
+          detail: `${active2.length} of ${plural(rows4.length, "model")} active`,
           examples: active2.map((r) => String(r.Name))
         };
       }
@@ -129723,14 +130125,14 @@ async function gatherOverview(org) {
         const ids = (await lscProfiles2()).map((p) => p.id);
         if (!ids.length) return { pass: true, skip: true, detail: "No iPad profiles found." };
         const where3 = `FROM User WHERE IsActive = true AND UserType = 'Standard' AND ProfileId IN (${inList(ids)}) AND Id NOT IN (SELECT UserId FROM UserTerritory2Association WHERE Territory2.Territory2ModelId = '${model.Id}')`;
-        const [total, rows3] = await Promise.all([
+        const [total, rows4] = await Promise.all([
           count(`SELECT COUNT() ${where3}`, org),
           query(`SELECT Id, Name ${where3} ORDER BY Name LIMIT 200`, org)
         ]);
         return {
           pass: total === 0,
           detail: total ? `${plural(total, "user")} with no territory` : void 0,
-          examples: rows3.map((r) => String(r.Name))
+          examples: rows4.map((r) => String(r.Name))
         };
       }
     ),
@@ -129845,22 +130247,22 @@ async function profilesBehind(org, byProfile, names5) {
 }
 var pslLabel = (p) => `${p.name} (${p.used}/${p.total})`;
 async function fetchPsls(org) {
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT MasterLabel, DeveloperName, TotalLicenses, UsedLicenses FROM PermissionSetLicense WHERE Status = 'Active' AND TotalLicenses > 0 AND (DeveloperName LIKE '%LSC%' OR DeveloperName LIKE 'LifeSci%')`,
     org
   );
-  return rows3.map((r) => ({
+  return rows4.map((r) => ({
     name: String(r.MasterLabel ?? r.DeveloperName),
     used: Number(r.UsedLicenses ?? 0),
     total: Number(r.TotalLicenses)
   }));
 }
 async function fetchLscProfiles(org) {
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Profile.Name pn, ProfileId pid, COUNT(Id) cnt FROM User WHERE IsActive = true AND UserType = 'Standard' AND Id IN (SELECT AssigneeId FROM PermissionSetLicenseAssign WHERE ${LSC_PSL3}) GROUP BY Profile.Name, ProfileId ORDER BY COUNT(Id) DESC`,
     org
   );
-  return rows3.filter((r) => r.pid).map((r) => ({ id: String(r.pid), name: String(r.pn), users: Number(r.cnt ?? r.expr0 ?? 0) }));
+  return rows4.filter((r) => r.pid).map((r) => ({ id: String(r.pid), name: String(r.pn), users: Number(r.cnt ?? r.expr0 ?? 0) }));
 }
 function fetchSettings(org) {
   return collectCategoryRecords(
@@ -129919,11 +130321,11 @@ async function fetchCloneGaps(org) {
     for (const p of g.missing) {
       const covered = /* @__PURE__ */ new Set();
       for (const chunk2 of chunkIds(users)) {
-        const rows3 = await query(
+        const rows4 = await query(
           `SELECT AssigneeId FROM PermissionSetAssignment WHERE AssigneeId IN (${inList(chunk2)}) AND PermissionSet.${p} = true`,
           org
         );
-        for (const r of rows3) covered.add(String(r.AssigneeId));
+        for (const r of rows4) covered.add(String(r.AssigneeId));
       }
       const lacking = users.filter((u) => !covered.has(u));
       if (lacking.length) missing.push(p);
@@ -130027,13 +130429,13 @@ function jobOutcome(parent, children2) {
 }
 async function publishStatus(parentId, org) {
   if (!ID_PATTERN.test(parentId)) throw new Error(`Invalid record Id: ${parentId}`);
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, Status, IntegrationStatus, IntegrationErrorMessage, ErrorLog, MetadataDocumentId, Profile.Name FROM LifeSciMobileMetadataRecord WHERE Id = '${parentId}' OR ParentMobileMetadataRecId = '${parentId}'`,
     org
   );
-  const parent = rows3.find((r) => r.Id === parentId);
+  const parent = rows4.find((r) => r.Id === parentId);
   if (!parent) throw new Error("The publish job no longer exists.");
-  const children2 = rows3.filter((r) => r.Id !== parentId);
+  const children2 = rows4.filter((r) => r.Id !== parentId);
   const profiles = children2.map((r) => String(r.Profile?.Name ?? "")).filter(Boolean);
   const { state, error: error2 } = jobOutcome(parent, children2);
   return { parentId, state, status: String(parent.Status ?? "Unknown"), profiles, error: error2 };
@@ -130244,12 +130646,12 @@ async function collectMetadataCache(org) {
 }
 async function cacheLog(recordId, org) {
   if (!ID_PATTERN.test(recordId)) throw new Error(`Invalid record Id: ${recordId}`);
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, Profile.Name, ErrorLog FROM LifeSciMobileMetadataRecord WHERE Id = '${recordId}' OR ParentMobileMetadataRecId = '${recordId}'`,
     org
   );
   return {
-    logs: rows3.map((r) => ({
+    logs: rows4.map((r) => ({
       id: String(r.Id),
       profile: (r.Profile?.Name ?? null) || null,
       log: cacheErrorText(r.ErrorLog)
@@ -130264,11 +130666,11 @@ var FILE_PREVIEW_BYTES = 1 << 20;
 var downloads = /* @__PURE__ */ new Map();
 async function ensureZip(recordId, org) {
   if (!ID_PATTERN.test(recordId)) throw new Error(`Invalid record Id: ${recordId}`);
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, Name, Profile.Name, LastModifiedDate, MetadataDocument.LatestPublishedVersionId, MetadataDocument.ContentSize FROM LifeSciMobileMetadataRecord WHERE Id = '${recordId}'`,
     org
   );
-  const r = rows3[0];
+  const r = rows4[0];
   if (!r) throw new Error("This cache record no longer exists.");
   const doc = r.MetadataDocument ?? null;
   if (!doc?.LatestPublishedVersionId)
@@ -130277,28 +130679,28 @@ async function ensureZip(recordId, org) {
     );
   const version3 = doc.LatestPublishedVersionId;
   if (!ID_PATTERN.test(version3)) throw new Error(`Invalid file Id: ${version3}`);
-  const dir = path13.join(zipRoot(), version3);
-  const zipPath = path13.join(dir, "cache.zip");
+  const dir = path14.join(zipRoot(), version3);
+  const zipPath = path14.join(dir, "cache.zip");
   const sizeBytes = typeof doc.ContentSize === "number" ? doc.ContentSize : null;
-  if (!fs13.existsSync(zipPath)) {
+  if (!fs14.existsSync(zipPath)) {
     let pending = downloads.get(version3);
     if (!pending) {
       pending = (async () => {
-        fs13.mkdirSync(dir, { recursive: true });
+        fs14.mkdirSync(dir, { recursive: true });
         try {
           pruneCache(zipRoot(), { keep: ZIPS_KEPT, maxBytes: ZIP_MAX_BYTES, protect: [dir] });
         } catch {
         }
         const partial2 = `${zipPath}.part`;
         await download(version3, partial2, org, sizeBytes);
-        fs13.renameSync(partial2, zipPath);
+        fs14.renameSync(partial2, zipPath);
       })().finally(() => downloads.delete(version3));
       downloads.set(version3, pending);
     }
     await pending;
   } else {
     const now = /* @__PURE__ */ new Date();
-    fs13.utimesSync(dir, now, now);
+    fs14.utimesSync(dir, now, now);
   }
   return {
     recordId,
@@ -130349,16 +130751,16 @@ async function cacheFile(recordId, file, org) {
 function readEntry(zipPath, file, limit) {
   return new Promise((resolve4, reject) => {
     const child = spawn2("unzip", ["-p", zipPath, file]);
-    const chunks7 = [];
+    const chunks8 = [];
     let size = 0;
     let done = false;
     const finish = () => {
       if (done) return;
       done = true;
-      resolve4(Buffer.concat(chunks7).subarray(0, limit));
+      resolve4(Buffer.concat(chunks8).subarray(0, limit));
     };
     child.stdout.on("data", (c) => {
-      chunks7.push(c);
+      chunks8.push(c);
       size += c.length;
       if (size >= limit) {
         finish();
@@ -130454,14 +130856,14 @@ function buildList(input) {
     const cur = newest2.get(sid);
     if (!cur || s5(inv.CreatedDate) > s5(cur.CreatedDate)) newest2.set(sid, inv);
   }
-  const rows3 = [];
+  const rows4 = [];
   for (const [sid, inv] of newest2) {
     const sv = surveys.get(sid);
     const ver = versions.get(s5(sv.ActiveVersionId));
     const resp = input.responses.filter((r) => s5(r.InvitationId) === s5(inv.Id)).sort((a, b) => s5(b.LastModifiedDate).localeCompare(s5(a.LastModifiedDate)))[0];
     const raw = s5(resp?.Status).toLowerCase();
     const done = raw === "completed" || raw === "completedandmigrated";
-    rows3.push({
+    rows4.push({
       id: sid,
       invitationId: s5(inv.Id),
       name: s5(sv.Name),
@@ -130474,7 +130876,7 @@ function buildList(input) {
       expires: s5(inv.InviteExpiryDateTime) || void 0
     });
   }
-  return rows3.sort((a, b) => a.name.localeCompare(b.name, void 0, { sensitivity: "base" }));
+  return rows4.sort((a, b) => a.name.localeCompare(b.name, void 0, { sensitivity: "base" }));
 }
 
 // src/studio/screens/surveys/surveys.ts
@@ -130520,9 +130922,9 @@ async function surveyFlows(org, cacheRecordId) {
   const hit = flowCache.get(cacheRecordId);
   if (hit) return hit;
   const { files } = await cacheContents(cacheRecordId, org);
-  const path24 = files.find((f) => /(^|\/)metadata\/flows\.json$/.test(f.path))?.path;
-  if (!path24) throw new Error("This metadata cache has no flows file.");
-  const file = await cacheFile(cacheRecordId, path24, org);
+  const path25 = files.find((f) => /(^|\/)metadata\/flows\.json$/.test(f.path))?.path;
+  if (!path25) throw new Error("This metadata cache has no flows file.");
+  const file = await cacheFile(cacheRecordId, path25, org);
   if (file.truncated) throw new Error("The flows file in this cache is too large to read here.");
   const all = JSON.parse(file.text);
   const surveys = {};
@@ -130622,7 +131024,7 @@ function decodeLayoutName(fullName, object3) {
   }
 }
 var lit = (s11) => `'${s11.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
-var first = (rows3, key5 = "Id") => rows3[0] && typeof rows3[0][key5] === "string" ? rows3[0][key5] : null;
+var first = (rows4, key5 = "Id") => rows4[0] && typeof rows4[0][key5] === "string" ? rows4[0][key5] : null;
 async function lookup(ref3, org) {
   switch (ref3.type) {
     case "layout": {
@@ -130690,11 +131092,11 @@ async function lookup(ref3, org) {
     }
     case "flow": {
       if (!SF_ID.test(ref3.id)) return null;
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT ActiveVersionId, LatestVersionId FROM FlowDefinitionView WHERE DurableId = ${lit(ref3.id)} LIMIT 1`,
         org
       );
-      return first(rows3, "ActiveVersionId") ?? first(rows3, "LatestVersionId");
+      return first(rows4, "ActiveVersionId") ?? first(rows4, "LatestVersionId");
     }
     case "validationRule":
     case "apexTrigger":
@@ -130761,7 +131163,7 @@ var trimNs = (name) => name.includes(":") ? name.split(":")[1] : name;
 var isInline = (component2) => /^lscMobileInline_/.test(trimNs(component2));
 var asArray = (v) => v === void 0 ? [] : Array.isArray(v) ? v : [v];
 var TARGETS = { HomePage: "lightning__HomePage", RecordPage: "lightning__RecordPage" };
-function parseJsMeta(xml, pageType) {
+function parseJsMeta(xml2, pageType) {
   const parser2 = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: "@_",
@@ -130769,7 +131171,7 @@ function parseJsMeta(xml, pageType) {
   });
   let doc;
   try {
-    doc = parser2.parse(xml);
+    doc = parser2.parse(xml2);
   } catch {
     return [];
   }
@@ -130816,7 +131218,7 @@ var unused = (d, ipadNote = "The iPad ignores this.") => ({
   ipad: "unused",
   ipadNote
 });
-var str21 = (name, label2, description) => used({ name, label: label2, type: "String", ...description ? { description } : {} });
+var str22 = (name, label2, description) => used({ name, label: label2, type: "String", ...description ? { description } : {} });
 var bool2 = (name, label2, def = "false", description) => used({ name, label: label2, type: "Boolean", default: def, ...description ? { description } : {} });
 var int3 = (name, label2, min = 1, max = 9999, description) => used({ name, label: label2, type: "Integer", min, max, ...description ? { description } : {} });
 var MOBILE_HEIGHT = used({
@@ -130833,29 +131235,29 @@ var INLINE_LWC_NOTE = "The iPad runs this inline LWC but passes it only its heig
 var NO_PROPERTIES_NOTE = "The iPad draws this component but doesn't read any of its properties.";
 var UNTRACED_NOTE = "Studio hasn't traced which properties the iPad reads for this component.";
 var GRL_KEYS = [
-  str21("objectName", "Object"),
-  str21("fieldSetName", "Field set"),
-  str21("label", "Label"),
-  str21("whereClause", "Where clause"),
-  str21("relationshipFieldName", "Relationship field"),
-  str21("allowedRecordTypes", "Allowed record types"),
-  str21("newActionComponent", "New action component"),
-  str21("handlerForUpdateDelete", "Update and delete handler"),
-  str21("viewAllComponent", "View all component"),
-  str21("DisplayAsMobile", "Display as (mobile)")
+  str22("objectName", "Object"),
+  str22("fieldSetName", "Field set"),
+  str22("label", "Label"),
+  str22("whereClause", "Where clause"),
+  str22("relationshipFieldName", "Relationship field"),
+  str22("allowedRecordTypes", "Allowed record types"),
+  str22("newActionComponent", "New action component"),
+  str22("handlerForUpdateDelete", "Update and delete handler"),
+  str22("viewAllComponent", "View all component"),
+  str22("DisplayAsMobile", "Display as (mobile)")
 ];
 var range = (prefix, label2, n2) => Array.from({ length: n2 }, (_2, i) => bool2(`${prefix}${i + 1}`, `${label2} ${i + 1}`, "false"));
 var DYNAMIC_LIST_PROPS = [
-  str21("relatedListApiName", "Related list"),
-  str21("parentFieldApiName", "Parent field"),
-  str21("relatedListLabel", "Label"),
-  str21(
+  str22("relatedListApiName", "Related list"),
+  str22("parentFieldApiName", "Parent field"),
+  str22("relatedListLabel", "Label"),
+  str22(
     "relatedListDisplayType",
     "Display type",
     "The iPad draws a grid whatever this says; it only picks the list component."
   ),
-  str21("sortFieldAlias", "Sort column"),
-  str21("sortFieldOrder", "Sort order"),
+  str22("sortFieldAlias", "Sort column"),
+  str22("sortFieldOrder", "Sort order"),
   int3("maxRecordsToDisplay", "Records to show", 1, 9999, "Same as Rows to show."),
   bool2(
     "showActionBar",
@@ -130896,10 +131298,10 @@ var CURATED = {
   // SFComponentAccordion/SFComponentAccordion.swift:94 (defaultSectionName)
   "flexipage:accordion": {
     label: "Accordion",
-    properties: [str21("defaultSectionName", "Section open at first")]
+    properties: [str22("defaultSectionName", "Section open at first")]
   },
   // DynamicForms/ViewModels/FieldSectionLayoutViewModel.swift:23 (label)
-  "flexipage:fieldSection": { label: "Field section", properties: [str21("label", "Label")] },
+  "flexipage:fieldSection": { label: "Field section", properties: [str22("label", "Label")] },
   // OCE/Classes/UI/RichText/RichTextCoordinator.swift:32-33 (richTextValue, decorate); :41 decorate matters off the Home page
   "flexipage:richText": {
     label: "Rich text",
@@ -130932,7 +131334,7 @@ var CURATED = {
         9999,
         "The iPad shows 5 rows unless the list is dynamic or an advanced grid."
       ),
-      str21("relatedListComponentOverride", "Component override")
+      str22("relatedListComponentOverride", "Component override")
     ]
   },
   // Core/DynamicRelatedLists/DynamicRelatedListProperties.swift:15-26, 96-100; SFComponentRelatedListVC.swift:769-779
@@ -130946,7 +131348,7 @@ var CURATED = {
         9999,
         "The iPad shows 5 rows unless the list is dynamic or an advanced grid."
       ),
-      str21("relatedListComponentOverride", "Component override"),
+      str22("relatedListComponentOverride", "Component override"),
       ...DYNAMIC_LIST_PROPS
     ]
   },
@@ -130954,7 +131356,7 @@ var CURATED = {
     label: "Related list",
     properties: [
       int3("rowsToDisplay", "Rows to show", 1, 9999),
-      str21("relatedListComponentOverride", "Component override"),
+      str22("relatedListComponentOverride", "Component override"),
       ...DYNAMIC_LIST_PROPS
     ]
   },
@@ -130970,10 +131372,10 @@ var CURATED = {
     label: "Report chart",
     properties: [
       used({ name: "reportName", label: "Report", type: "String", required: true }),
-      str21("label", "Label"),
+      str22("label", "Label"),
       int3("cacheAge", "Cache age", 0, 9999999),
       bool2("showRefreshButton", "Show refresh button"),
-      str21(
+      str22(
         "reportFilter",
         "Report filter column",
         "On a record page the report is filtered to the record on this column."
@@ -130984,8 +131386,8 @@ var CURATED = {
   "flexipage:filterListCard": {
     label: "List view",
     properties: [
-      str21("entityName", "Object"),
-      str21("filterName", "List view"),
+      str22("entityName", "Object"),
+      str22("filterName", "List view"),
       int3("pageSize", "Records per page", 1, 9999),
       bool2("enableInlineEdit", "Inline edit"),
       bool2("hideActionBar", "Hide action bar"),
@@ -130995,14 +131397,14 @@ var CURATED = {
   // OCE/Classes/UI/Tableau/TableauViewCoordinator.swift:17-18, 32-33 (vizUrl, height; height defaults to 500)
   "tableau:tableauViz": {
     label: "Tableau",
-    properties: [str21("vizUrl", "Viz URL"), int3("height", "Height", 1, 9999)]
+    properties: [str22("vizUrl", "Viz URL"), int3("height", "Height", 1, 9999)]
   },
   // OCEDemo/DynamicUI/Tableau Components/SFComponentEmbeddedMetric.swift:22-27, 52-57
   "analytics_embedding:metric": {
     label: "CRM Analytics metric",
     properties: [
-      str21("metricId", "Metric"),
-      str21("semanticModelId", "Semantic model"),
+      str22("metricId", "Metric"),
+      str22("semanticModelId", "Semantic model"),
       bool2("showAppliedFilters", "Show applied filters"),
       bool2("showChart", "Show chart"),
       bool2("showInsightSummary", "Show insight summary"),
@@ -131013,8 +131415,8 @@ var CURATED = {
   "analytics_embedding:dashboard": {
     label: "CRM Analytics dashboard",
     properties: [
-      str21("dashboardId", "Dashboard"),
-      str21("filterString", "Filters"),
+      str22("dashboardId", "Dashboard"),
+      str22("filterString", "Filters"),
       int3("height", "Height", 1, 9999)
     ]
   },
@@ -131022,8 +131424,8 @@ var CURATED = {
   "analytics_embedding:visualization": {
     label: "CRM Analytics visualization",
     properties: [
-      str21("visualizationApiName", "Visualization"),
-      str21("filterString", "Filters"),
+      str22("visualizationApiName", "Visualization"),
+      str22("filterString", "Filters"),
       int3("height", "Height", 1, 9999)
     ]
   },
@@ -131066,9 +131468,9 @@ var CURATED = {
   "flowruntime:interview": {
     label: "Flow",
     properties: [
-      str21("flowName", "Flow", "Required: the iPad shows nothing without it."),
-      str21("flowLayout", "Layout"),
-      str21("flowArguments", "Arguments", "JSON list of arguments.")
+      str22("flowName", "Flow", "Required: the iPad shows nothing without it."),
+      str22("flowLayout", "Layout"),
+      str22("flowArguments", "Arguments", "JSON list of arguments.")
     ]
   },
   // DynamicUI/DynamicUI/Compliance Statements/ComplianceStatementsComponentVC.swift:99-100
@@ -131080,8 +131482,8 @@ var CURATED = {
   profilingQuestions: {
     label: "Profiling questions",
     properties: [
-      str21("formTemplate", "Form template"),
-      str21("profilingMode", "Mode", "view or edit")
+      str22("formTemplate", "Form template"),
+      str22("profilingMode", "Mode", "view or edit")
     ],
     unlisted: "unknown",
     note: UNTRACED_NOTE
@@ -131103,14 +131505,14 @@ var CURATED = {
   CustomerInfoDashboard: {
     label: "Customer info",
     properties: [
-      str21("accountFieldSet", "Account field set"),
-      str21("addressFieldSet", "Address field set")
+      str22("accountFieldSet", "Account field set"),
+      str22("addressFieldSet", "Address field set")
     ]
   },
   // module/KAM/KAM/BusinessObjective/AccountPlan/SFComponentSituationalAnalysis.swift:88
   accountPlanAnalysis: {
     label: "Account plan analysis",
-    properties: [str21("relatedListApiName", "Related list")]
+    properties: [str22("relatedListApiName", "Related list")]
   },
   // module/Meetings/module/MeetingsModule.swift:294; DynamicUI/GenericRelatedList/Models/GenericRelatedList.Configuration.swift:57-67 (objectName and fieldSetName are required)
   LSCVideoCallRecordingList: { label: "Video call recordings", properties: GRL_KEYS },
@@ -131163,13 +131565,13 @@ var SUFFIX_CURATED = [
     }
   ],
   // OCE/Classes/AccountTeamComponent/SFComponentAccountTeam.swift:87 (case-insensitive)
-  ["accountTeamView", { label: "Account team", properties: [str21("fieldSetName", "Field set")] }],
+  ["accountTeamView", { label: "Account team", properties: [str22("fieldSetName", "Field set")] }],
   // OCEDemo/Tabs/NextBestCustomer/NextBestCustomersViewModel.swift:166-175
   [
     "NbcTopCards",
     {
       label: "Next Best Customers",
-      properties: [int3("totalCards", "Cards to show", 1, 9999), str21("graphName", "Graph")]
+      properties: [int3("totalCards", "Cards to show", 1, 9999), str22("graphName", "Graph")]
     }
   ],
   // OCEDemo/DynamicUI/SFComponentCustomerRatingsVC.swift:72-78
@@ -131178,7 +131580,7 @@ var SUFFIX_CURATED = [
     {
       label: "Customer ratings",
       properties: [
-        str21("layoutName", "Layout", "Required: the iPad shows nothing without it."),
+        str22("layoutName", "Layout", "Required: the iPad shows nothing without it."),
         bool2("isAbleToCreateATP", "Can create ATP"),
         bool2("showProductRatingsInGroups", "Show product ratings in groups")
       ]
@@ -131190,11 +131592,11 @@ var SUFFIX_CURATED = [
     {
       label: "Sales chart",
       properties: [
-        str21("title", "Title"),
-        str21("salesDataType", "Sales data type"),
-        str21("rangeOfUnits", "Range of units"),
-        str21("dataSet", "Data set"),
-        str21("type", "Chart type"),
+        str22("title", "Title"),
+        str22("salesDataType", "Sales data type"),
+        str22("rangeOfUnits", "Range of units"),
+        str22("dataSet", "Data set"),
+        str22("type", "Chart type"),
         ...range("measure", "Measure", 8),
         ...range("filter", "Filter", 8)
       ]
@@ -131215,8 +131617,8 @@ var SUFFIX_CURATED = [
     {
       label: "Gantt chart",
       properties: [
-        str21("ganttCustomMetadataRecordName", "Configuration record"),
-        str21("metadataConfigName", "Configuration name")
+        str22("ganttCustomMetadataRecordName", "Configuration record"),
+        str22("metadataConfigName", "Configuration name")
       ]
     }
   ],
@@ -131255,11 +131657,11 @@ var SUFFIX_CURATED = [
   // module/Orders/Orders/ViewOrder/View/SFComponentTransactionSummary.swift:120; CreateOrder/Utils/OrderLineColumnBuilder.swift:159
   [
     "transactionSummary",
-    { label: "Transaction summary", properties: [str21("footerFields", "Footer fields")] }
+    { label: "Transaction summary", properties: [str22("footerFields", "Footer fields")] }
   ],
   [
     "salesTxnLineTable",
-    { label: "Sales transactions", properties: [str21("displayFields", "Display fields")] }
+    { label: "Sales transactions", properties: [str22("displayFields", "Display fields")] }
   ]
 ];
 function curatedFor(component2) {
@@ -131281,12 +131683,12 @@ function markBundleProps(component2, defs) {
 async function jsMetaOf(component2, org) {
   const [ns3, name] = component2.includes(":") ? component2.split(":") : ["c", component2];
   const nsClause = ns3 === "c" ? "LightningComponentBundle.NamespacePrefix = null" : `LightningComponentBundle.NamespacePrefix = '${ns3}'`;
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Source FROM LightningComponentResource WHERE FilePath LIKE '%.js-meta.xml' AND LightningComponentBundle.DeveloperName = '${name}' AND ${nsClause} LIMIT 1`,
     org,
     true
   );
-  const source = rows3[0]?.Source;
+  const source = rows4[0]?.Source;
   return typeof source === "string" && source.trim() ? source : null;
 }
 var STANDARD_NAMESPACES = /* @__PURE__ */ new Set([
@@ -131308,13 +131710,13 @@ async function collectComponentProps(component2, pageType, org) {
   const drawn2 = componentInfo(component2).supported;
   const ns3 = component2.includes(":") ? component2.split(":")[0] : "c";
   const fromBundle = async () => {
-    let xml = null;
+    let xml2 = null;
     try {
-      xml = await jsMetaOf(component2, org);
+      xml2 = await jsMetaOf(component2, org);
     } catch {
-      xml = null;
+      xml2 = null;
     }
-    return xml ? markBundleProps(component2, parseJsMeta(xml, pageType)) : null;
+    return xml2 ? markBundleProps(component2, parseJsMeta(xml2, pageType)) : null;
   };
   if (!drawn2) {
     const bundle = STANDARD_NAMESPACES.has(ns3) ? null : await fromBundle();
@@ -131468,9 +131870,9 @@ function buildCatalog(input) {
   ];
 }
 var ACTIVITY_CHILDREN = /* @__PURE__ */ new Set(["Event", "EventRelation", "Task", "TaskRelation"]);
-var str22 = (v) => typeof v === "string" ? v : "";
+var str23 = (v) => typeof v === "string" ? v : "";
 async function inlineLwcs(org, pageType) {
-  const rows3 = await query(
+  const rows4 = await query(
     "SELECT DeveloperName, NamespacePrefix, MasterLabel FROM LightningComponentBundle WHERE DeveloperName LIKE 'lscMobileInline%'",
     org,
     true
@@ -131483,35 +131885,35 @@ async function inlineLwcs(org, pageType) {
   ).catch(() => []);
   for (const m of metas) {
     const b = m.LightningComponentBundle ?? {};
-    const source = str22(m.Source);
+    const source = str23(m.Source);
     if (!source.trim()) continue;
-    const ns3 = str22(b.NamespacePrefix);
+    const ns3 = str23(b.NamespacePrefix);
     declares.set(
-      `${ns3}:${str22(b.DeveloperName)}`,
+      `${ns3}:${str23(b.DeveloperName)}`,
       parseJsMeta(source, pageType === "HomePage" ? "HomePage" : "RecordPage").some(
         (d) => d.name === "mobileHeight"
       )
     );
   }
-  return rows3.filter((r) => /^lscMobileInline_\w+$/i.test(str22(r.DeveloperName))).map((r) => {
-    const name = str22(r.DeveloperName);
-    const ns3 = str22(r.NamespacePrefix);
+  return rows4.filter((r) => /^lscMobileInline_\w+$/i.test(str23(r.DeveloperName))).map((r) => {
+    const name = str23(r.DeveloperName);
+    const ns3 = str23(r.NamespacePrefix);
     const height = declares.get(`${ns3}:${name}`);
     return {
       component: ns3 ? `${ns3}:${name}` : name,
-      label: str22(r.MasterLabel) || `LWC \xB7 ${name.slice(16)}`,
+      label: str23(r.MasterLabel) || `LWC \xB7 ${name.slice(16)}`,
       ...height === false ? { height } : {}
     };
   });
 }
 async function syncedObjects2(org) {
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT ObjectValue, TextValue FROM LifeSciConfigFieldValue
      WHERE FieldName = 'SObject' AND LifeSciConfigRecord.IsActive = true AND LifeSciConfigRecord.LifeSciConfigCategory.Category = 'DbSchema'`,
     org,
     true
   );
-  return new Set(rows3.map((r) => str22(r.ObjectValue) || str22(r.TextValue)).filter(Boolean));
+  return new Set(rows4.map((r) => str23(r.ObjectValue) || str23(r.TextValue)).filter(Boolean));
 }
 async function collectCatalog(pageType, sobject2, org) {
   if (sobject2 !== null && !/^\w+$/.test(sobject2))
@@ -131872,8 +132274,8 @@ var KINDS = {
     noun: "Territories"
   }
 };
-function rel4(r, path24) {
-  return path24.split(".").reduce((v, k) => v?.[k], r);
+function rel4(r, path25) {
+  return path25.split(".").reduce((v, k) => v?.[k], r);
 }
 async function userAccess(userId, org) {
   assertId(userId);
@@ -131944,13 +132346,13 @@ async function accessOptions(org, search) {
     )
   ]);
   const truncated = {};
-  const cut = async (key5, rows3, totalQuery) => {
-    if (rows3.length <= OPTION_LIMIT) return rows3;
+  const cut = async (key5, rows4, totalQuery) => {
+    if (rows4.length <= OPTION_LIMIT) return rows4;
     truncated[key5] = {
       listed: OPTION_LIMIT,
-      total: await count(totalQuery, org).catch(() => rows3.length)
+      total: await count(totalQuery, org).catch(() => rows4.length)
     };
-    return rows3.slice(0, OPTION_LIMIT);
+    return rows4.slice(0, OPTION_LIMIT);
   };
   const [setRows, groupRows, territoryRows] = await Promise.all([
     cut("permissionSets", sets, `SELECT COUNT() FROM PermissionSet WHERE ${setWhere}`),
@@ -132238,16 +132640,16 @@ function recent(kind, name, featureId, r, detail) {
     modifiedBy: nameOf2(r)
   };
 }
-async function newest(soql5, limit, org, tooling2, source, full) {
-  const rows3 = await query(`${soql5} LIMIT ${limit + 1}`, org, tooling2);
-  if (rows3.length <= limit) return rows3;
+async function newest(soql6, limit, org, tooling3, source, full) {
+  const rows4 = await query(`${soql6} LIMIT ${limit + 1}`, org, tooling3);
+  if (rows4.length <= limit) return rows4;
   full.push(source);
-  return rows3.slice(0, limit);
+  return rows4.slice(0, limit);
 }
 var newer = (a, b) => !a || String(b.LastModifiedDate) > String(a.LastModifiedDate) ? b : a;
 async function recentConfig(since, org, full) {
   const rel5 = "LifeSciConfigRecord.DeveloperName, LifeSciConfigRecord.MasterLabel, LifeSciConfigRecord.LifeSciConfigCategoryId";
-  const [rows3, values, assignments, cats] = await Promise.all([
+  const [rows4, values, assignments, cats] = await Promise.all([
     newest(
       `SELECT Id, DeveloperName, MasterLabel, LifeSciConfigCategoryId, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigRecord WHERE LastModifiedDate >= ${since} ORDER BY LastModifiedDate DESC`,
       200,
@@ -132276,7 +132678,7 @@ async function recentConfig(since, org, full) {
   ]);
   const category = new Map(cats.map((c) => [c.Id, c.Category]));
   const byId = /* @__PURE__ */ new Map();
-  for (const r of rows3) {
+  for (const r of rows4) {
     byId.set(String(r.Id), {
       dev: r.DeveloperName,
       label: r.MasterLabel,
@@ -132311,7 +132713,7 @@ async function recentConfig(since, org, full) {
   });
 }
 async function recentHandlers(since, org, full) {
-  const rows3 = await newest(
+  const rows4 = await newest(
     `SELECT DeveloperName, MasterLabel, LastModifiedDate, LastModifiedBy.Name FROM LifeScienceTriggerHandler WHERE LastModifiedDate >= ${since} ORDER BY LastModifiedDate DESC`,
     100,
     org,
@@ -132319,7 +132721,7 @@ async function recentHandlers(since, org, full) {
     "Trigger handlers",
     full
   );
-  return rows3.map(
+  return rows4.map(
     (r) => recent(
       "triggerHandler",
       r.MasterLabel || r.DeveloperName,
@@ -132336,7 +132738,7 @@ async function recentHandlers(since, org, full) {
   );
 }
 async function recentValidationRules(since, org, full) {
-  const rows3 = await newest(
+  const rows4 = await newest(
     `SELECT ValidationName, EntityDefinition.QualifiedApiName, LastModifiedDate, LastModifiedBy.Name FROM ValidationRule WHERE LastModifiedDate >= ${since} AND EntityDefinition.QualifiedApiName IN (${inList(LSC_OBJECTS)}) ORDER BY LastModifiedDate DESC`,
     100,
     org,
@@ -132344,7 +132746,7 @@ async function recentValidationRules(since, org, full) {
     "Validation rules",
     full
   );
-  return rows3.map((r) => {
+  return rows4.map((r) => {
     const object3 = r.EntityDefinition?.QualifiedApiName;
     return recent(
       "validationRule",
@@ -132356,7 +132758,7 @@ async function recentValidationRules(since, org, full) {
   });
 }
 async function recentApexTriggers(since, org, full) {
-  const rows3 = await newest(
+  const rows4 = await newest(
     `SELECT Name, TableEnumOrId, LastModifiedDate, LastModifiedBy.Name FROM ApexTrigger WHERE LastModifiedDate >= ${since} AND TableEnumOrId IN (${inList(LSC_OBJECTS)}) ORDER BY LastModifiedDate DESC`,
     100,
     org,
@@ -132364,7 +132766,7 @@ async function recentApexTriggers(since, org, full) {
     "Apex triggers",
     full
   );
-  return rows3.map(
+  return rows4.map(
     (r) => recent(
       "apexTrigger",
       r.Name,
@@ -132375,7 +132777,7 @@ async function recentApexTriggers(since, org, full) {
   );
 }
 async function recentLayouts(since, org, full) {
-  const rows3 = await newest(
+  const rows4 = await newest(
     `SELECT Name, TableEnumOrId, LastModifiedDate, LastModifiedBy.Name FROM Layout WHERE LastModifiedDate >= ${since} AND TableEnumOrId IN (${inList(LSC_OBJECTS)}) AND NamespacePrefix = null ORDER BY LastModifiedDate DESC`,
     100,
     org,
@@ -132383,7 +132785,7 @@ async function recentLayouts(since, org, full) {
     "Page layouts",
     full
   );
-  return rows3.map(
+  return rows4.map(
     (r) => recent(
       "layout",
       r.Name,
@@ -132400,13 +132802,13 @@ async function recentFlows(since, org, full) {
     (a, b) => Date.parse(String(b.LastModifiedDate)) - Date.parse(String(a.LastModifiedDate))
   );
   if (inWindow.length > limit) full.push("Flows");
-  const rows3 = inWindow.slice(0, limit).map((r) => ({
+  const rows4 = inWindow.slice(0, limit).map((r) => ({
     ApiName: r.ApiName,
     Label: r.Label,
     TriggerObjectOrEventLabel: r.TriggerObjectOrEventLabel,
     LastModifiedDate: r.LastModifiedDate
   }));
-  return rows3.map((r) => {
+  return rows4.map((r) => {
     const object3 = r.TriggerObjectOrEventLabel;
     return recent(
       "flow",
@@ -132461,13 +132863,13 @@ async function attachModifiers(changes, org) {
     const names5 = [...byName.keys()];
     const object3 = kind === "triggerHandler" ? "LifeScienceTriggerHandler" : "LifeSciConfigRecord";
     for (let i = 0; i < names5.length; i += 80) {
-      const rows3 = await query(
+      const rows4 = await query(
         `SELECT Id, DeveloperName, LastModifiedDate, LastModifiedBy.Name FROM ${object3} WHERE DeveloperName IN (${inList(names5.slice(i, i + 80).map((n2) => byName.get(n2).developerName))})`,
         org,
         true
       );
-      const latest = new Map(rows3.map((r) => [String(r.Id), r]));
-      if (kind === "record" && rows3.length) {
+      const latest = new Map(rows4.map((r) => [String(r.Id), r]));
+      if (kind === "record" && rows4.length) {
         const ids = inList([...latest.keys()]);
         const children2 = await Promise.all(
           ["LifeSciConfigFieldValue", "LifeSciConfigAssignment"].map(
@@ -132495,19 +132897,19 @@ async function attachModifiers(changes, org) {
 }
 
 // src/studio/drift-store.ts
-import fs14 from "node:fs/promises";
+import fs15 from "node:fs/promises";
 import os2 from "node:os";
-import path14 from "node:path";
+import path15 from "node:path";
 var ID_RE = /^[0-9TZ-]{10,40}$/;
 function dataDir() {
-  return process.env.LSC_STUDIO_DATA_DIR || path14.join(os2.homedir(), ".lsc-studio");
+  return process.env.LSC_STUDIO_DATA_DIR || path15.join(os2.homedir(), ".lsc-studio");
 }
 function orgDir(org) {
-  return path14.join(dataDir(), "snapshots", org.replace(/[^a-zA-Z0-9._@-]/g, "_"));
+  return path15.join(dataDir(), "snapshots", org.replace(/[^a-zA-Z0-9._@-]/g, "_"));
 }
 function fileFor(org, id2) {
   if (!ID_RE.test(id2)) throw new Error("Unknown snapshot");
-  return path14.join(orgDir(org), `${id2}.json`);
+  return path15.join(orgDir(org), `${id2}.json`);
 }
 function countsOf(config2) {
   return {
@@ -132527,25 +132929,25 @@ async function saveSnapshot(org, config2, label2) {
     createdAt,
     counts: countsOf(config2)
   };
-  await fs14.mkdir(orgDir(org), { recursive: true });
+  await fs15.mkdir(orgDir(org), { recursive: true });
   const stored = { meta, config: config2 };
-  await fs14.writeFile(fileFor(org, id2), JSON.stringify(stored));
+  await fs15.writeFile(fileFor(org, id2), JSON.stringify(stored));
   return meta;
 }
 async function read(file) {
-  return JSON.parse(await fs14.readFile(file, "utf8"));
+  return JSON.parse(await fs15.readFile(file, "utf8"));
 }
 async function listSnapshots(org) {
   let names5;
   try {
-    names5 = await fs14.readdir(orgDir(org));
+    names5 = await fs15.readdir(orgDir(org));
   } catch {
     return [];
   }
   const metas = [];
   for (const name of names5.filter((n2) => n2.endsWith(".json"))) {
     try {
-      metas.push((await read(path14.join(orgDir(org), name))).meta);
+      metas.push((await read(path15.join(orgDir(org), name))).meta);
     } catch {
     }
   }
@@ -132559,7 +132961,7 @@ async function loadSnapshot(org, id2) {
   }
 }
 async function deleteSnapshot(org, id2) {
-  await fs14.rm(fileFor(org, id2), { force: true });
+  await fs15.rm(fileFor(org, id2), { force: true });
 }
 
 // src/studio/drift.ts
@@ -132674,8 +133076,8 @@ async function snapshot(rec, org) {
   const names5 = async (sobject2, level) => {
     const ids = assignments.filter((a) => a.AssignmentLevel === level).map((a) => String(a.AssignedToId));
     if (!ids.length) return [];
-    const rows3 = await query(`SELECT Id, Name FROM ${sobject2} WHERE Id IN (${inList(ids)})`, org);
-    return rows3.map((r) => String(r.Name));
+    const rows4 = await query(`SELECT Id, Name FROM ${sobject2} WHERE Id IN (${inList(ids)})`, org);
+    return rows4.map((r) => String(r.Name));
   };
   return {
     recordId,
@@ -132694,8 +133096,8 @@ async function snapshot(rec, org) {
 }
 async function resolveNames(sobject2, names5, org) {
   if (!names5.length) return { found: [], missing: [] };
-  const rows3 = await query(`SELECT Id, Name FROM ${sobject2} WHERE Name IN (${inList(names5)})`, org);
-  const byName = new Map(rows3.map((r) => [String(r.Name).toLowerCase(), String(r.Id)]));
+  const rows4 = await query(`SELECT Id, Name FROM ${sobject2} WHERE Name IN (${inList(names5)})`, org);
+  const byName = new Map(rows4.map((r) => [String(r.Name).toLowerCase(), String(r.Id)]));
   return {
     found: names5.filter((n2) => byName.has(n2.toLowerCase())).map((n2) => ({ name: n2, id: byName.get(n2.toLowerCase()) })),
     missing: names5.filter((n2) => !byName.has(n2.toLowerCase()))
@@ -132901,7 +133303,7 @@ async function applyCreate(fix, org, progress) {
   const recordId = created.data.id;
   wrote();
   const children2 = [];
-  const fail = async (step2, error2) => {
+  const fail2 = async (step2, error2) => {
     for (const c of children2.reverse()) await deleteToolingRecord(c.sobject, c.id, org);
     await deleteToolingRecord("LifeSciConfigRecord", recordId, org);
     progress?.fail("write");
@@ -132921,7 +133323,7 @@ async function applyCreate(fix, org, progress) {
       },
       org
     );
-    if (!res.success || !res.data?.id) return fail(`set ${f.name}`, res.error);
+    if (!res.success || !res.data?.id) return fail2(`set ${f.name}`, res.error);
     children2.push({ sobject: "LifeSciConfigFieldValue", id: res.data.id });
     wrote();
   }
@@ -132935,13 +133337,13 @@ async function applyCreate(fix, org, progress) {
       { LifeSciConfigRecordId: recordId, AssignedToId: a.id, AssignmentLevel: a.level },
       org
     );
-    if (!res.success || !res.data?.id) return fail(`assign ${a.name}`, res.error);
+    if (!res.success || !res.data?.id) return fail2(`assign ${a.name}`, res.error);
     children2.push({ sobject: "LifeSciConfigAssignment", id: res.data.id });
     wrote();
   }
   if (fix.active) {
     const res = await updateToolingRecord("LifeSciConfigRecord", recordId, { IsActive: true }, org);
-    if (!res.success) return fail("activate it", res.error);
+    if (!res.success) return fail2("activate it", res.error);
     wrote();
   }
   progress?.end("write");
@@ -133213,8 +133615,8 @@ function newRelatedList(name, nameField = "NAME") {
     children: [leaf("excludeButtons", "New"), leaf("fields", nameField), leaf("relatedList", name)]
   };
 }
-function parseFragment2(xml, tag) {
-  const node = parseXml2(xml);
+function parseFragment2(xml2, tag) {
+  const node = parseXml2(xml2);
   if (node.tag !== tag) throw new Error(`Expected a ${tag} element.`);
   return node;
 }
@@ -133552,9 +133954,9 @@ function appTabWarnings(ops2) {
 
 // src/studio/metadata/copy-fix.ts
 init_cli();
-import * as fs15 from "fs";
+import * as fs16 from "fs";
 import * as os3 from "os";
-import * as path15 from "path";
+import * as path16 from "path";
 
 // src/studio/diff.ts
 var CONTEXT = 2;
@@ -133775,9 +134177,9 @@ init_xml2();
 var soqlString7 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 var rtLabel = (rt) => rt ? `Record type ${rt.slice(rt.indexOf(".") + 1)}` : "Default (no record type)";
 function appFiles3(dir) {
-  if (!fs15.existsSync(dir)) return [];
-  return fs15.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
-    const full = path15.join(dir, e.name);
+  if (!fs16.existsSync(dir)) return [];
+  return fs16.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = path16.join(dir, e.name);
     return e.isDirectory() ? appFiles3(full) : e.name.endsWith(".app-meta.xml") ? [full] : [];
   });
 }
@@ -133798,18 +134200,18 @@ async function withApps(org, names5, fn, progress) {
   const { outputDir } = result2.data;
   try {
     const apps = appFiles3(outputDir).map((filePath) => {
-      const xml = fs15.readFileSync(filePath, "utf-8");
+      const xml2 = fs16.readFileSync(filePath, "utf-8");
       return {
-        name: path15.basename(filePath).replace(/\.app-meta\.xml$/, ""),
+        name: path16.basename(filePath).replace(/\.app-meta\.xml$/, ""),
         filePath,
-        xml,
-        root: parseXml2(xml)
+        xml: xml2,
+        root: parseXml2(xml2)
       };
     });
     progress?.end("apps");
     return await fn(apps);
   } finally {
-    fs15.rmSync(outputDir, { recursive: true, force: true });
+    fs16.rmSync(outputDir, { recursive: true, force: true });
   }
 }
 async function appsNaming(pages, org) {
@@ -133908,12 +134310,12 @@ async function planLayoutCreate(fix, org, layout, profile, taken) {
     PUBLISH_WARNING
   );
   if (await isProductionOrg(org)) preview.production = true;
-  const dir = path15.dirname(layout.filePath);
+  const dir = path16.dirname(layout.filePath);
   return {
     preview,
     moves,
     layout: {
-      copyPath: path15.join(dir, `${copy}.layout-meta.xml`),
+      copyPath: path16.join(dir, `${copy}.layout-meta.xml`),
       copyXml,
       profilePath: profile.filePath,
       profileXml: serializeXml(layoutAssignmentFile(profile.root, copy, moves))
@@ -134078,7 +134480,7 @@ async function planPage(fix, org, page, apps, taken) {
     preview,
     moves,
     page: {
-      copyPath: path15.join(path15.dirname(page.filePath), `${copy}.flexipage-meta.xml`),
+      copyPath: path16.join(path16.dirname(page.filePath), `${copy}.flexipage-meta.xml`),
       copyXml,
       apps: changedApps
     }
@@ -134204,17 +134606,17 @@ async function deleteCopy(fix, org) {
   return res.success ? null : errorOf(res);
 }
 async function deployTogether(files, org, onStatus) {
-  const dir = fs15.mkdtempSync(path15.join(os3.tmpdir(), "studio-copy-deploy-"));
+  const dir = fs16.mkdtempSync(path16.join(os3.tmpdir(), "studio-copy-deploy-"));
   try {
     for (const f of files) {
-      const folder = path15.join(dir, path15.basename(path15.dirname(f.filePath)));
-      fs15.mkdirSync(folder, { recursive: true });
-      fs15.writeFileSync(path15.join(folder, path15.basename(f.filePath)), f.xml, "utf-8");
+      const folder = path16.join(dir, path16.basename(path16.dirname(f.filePath)));
+      fs16.mkdirSync(folder, { recursive: true });
+      fs16.writeFileSync(path16.join(folder, path16.basename(f.filePath)), f.xml, "utf-8");
     }
     const result2 = await deployMetadata(dir, org, onStatus);
     return result2.success ? { success: true } : { success: false, error: errorOf(result2) };
   } finally {
-    fs15.rmSync(dir, { recursive: true, force: true });
+    fs16.rmSync(dir, { recursive: true, force: true });
   }
 }
 async function create(fix, p, org, progress) {
@@ -134267,9 +134669,9 @@ init_helpers2();
 // src/studio/scripts/lwc.ts
 init_cli();
 init_helpers2();
-import * as fs16 from "fs";
+import * as fs17 from "fs";
 import * as os4 from "os";
-import * as path16 from "path";
+import * as path17 from "path";
 
 // src/studio/scripts/library.ts
 init_cli();
@@ -134283,7 +134685,7 @@ var day3 = (iso2) => {
   const d = new Date(String(iso2 ?? ""));
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
 };
-var str23 = (v) => v === null || v === void 0 || v === "" ? null : String(v);
+var str24 = (v) => v === null || v === void 0 || v === "" ? null : String(v);
 function isMissingObject2(e) {
   return /INVALID_TYPE|sObject type .* is not supported|doesn't exist|does not exist|No such column|NOT_FOUND/i.test(
     String(e?.message ?? e)
@@ -134293,18 +134695,18 @@ async function readBundles(org, names5) {
   const out = /* @__PURE__ */ new Map();
   const valid = [...new Set(names5.filter((n2) => /^\w+$/.test(n2)))];
   for (let i = 0; i < valid.length; i += 150) {
-    const rows3 = await query(
+    const rows4 = await query(
       `SELECT Id, DeveloperName, NamespacePrefix, ManageableState, LastModifiedDate FROM LightningComponentBundle WHERE DeveloperName IN (${inList(valid.slice(i, i + 150))})`,
       org,
       true
     );
-    for (const r of rows3) {
+    for (const r of rows4) {
       out.set(String(r.DeveloperName).toLowerCase(), {
         id: String(r.Id),
         developerName: String(r.DeveloperName),
-        namespace: str23(r.NamespacePrefix),
-        manageableState: str23(r.ManageableState),
-        lastModifiedDate: str23(r.LastModifiedDate)
+        namespace: str24(r.NamespacePrefix),
+        manageableState: str24(r.ManageableState),
+        lastModifiedDate: str24(r.LastModifiedDate)
       });
     }
   }
@@ -134327,7 +134729,7 @@ async function readSharing(org) {
       org,
       true
     );
-    const internalAccess = str23(row?.InternalSharingModel);
+    const internalAccess = str24(row?.InternalSharingModel);
     if (internalAccess === "Private") {
       return {
         internalAccess,
@@ -134390,8 +134792,8 @@ function summaryFrom(r, bundle, s11) {
   const type = r.Type;
   const diags = analyzeScript(code, {
     type,
-    objectName: str23(r.ObjectName),
-    operationEventType: str23(r.OperationEventType)
+    objectName: str24(r.ObjectName),
+    operationEventType: str24(r.OperationEventType)
   });
   const findingCount = {
     error: diags.filter((d) => d.severity === "error").length,
@@ -134402,11 +134804,11 @@ function summaryFrom(r, bundle, s11) {
     name: String(r.Name ?? ""),
     componentName: String(r.ComponentName ?? ""),
     type,
-    objectName: str23(r.ObjectName),
-    operationEventType: str23(r.OperationEventType),
+    objectName: str24(r.ObjectName),
+    operationEventType: str24(r.OperationEventType),
     createdDate: String(r.CreatedDate ?? ""),
     lastModifiedDate: String(r.LastModifiedDate ?? ""),
-    lastModifiedBy: str23(r.LastModifiedBy?.Name),
+    lastModifiedBy: str24(r.LastModifiedBy?.Name),
     codeSize: code.length,
     lwc: {
       exists: !!bundle,
@@ -134421,10 +134823,10 @@ function summaryFrom(r, bundle, s11) {
 }
 var SCRIPT_FIELDS = "Id, Name, ComponentName, Type, ObjectName, OperationEventType, CodeText, CreatedDate, LastModifiedDate, LastModifiedBy.Name";
 async function readStageObjects(org) {
-  let rows3 = [];
+  let rows4 = [];
   let note;
   try {
-    rows3 = await query(
+    rows4 = await query(
       "SELECT Id, Name, ObjectName, IsControlledByStagePath, ValidationCustomScriptId, ChecklistCustomScriptId FROM LifeSciStageObject ORDER BY Name",
       org
     );
@@ -134433,7 +134835,7 @@ async function readStageObjects(org) {
       note = "The stage objects couldn't be read, so which scripts are assigned isn't shown.";
   }
   const pathObjects = /* @__PURE__ */ new Set();
-  if (rows3.length) {
+  if (rows4.length) {
     try {
       for (const p of await query(
         "SELECT StageObjectId FROM LifeSciStagePath GROUP BY StageObjectId",
@@ -134443,17 +134845,17 @@ async function readStageObjects(org) {
     } catch (e) {
       if (!isMissingObject2(e))
         note = "The stage paths couldn't be read, so whether assigned scripts can run isn't checked.";
-      for (const r of rows3) pathObjects.add(String(r.Id));
+      for (const r of rows4) pathObjects.add(String(r.Id));
     }
   }
   return {
-    stageObjects: rows3.map((r) => ({
+    stageObjects: rows4.map((r) => ({
       id: String(r.Id),
       name: String(r.Name ?? ""),
       objectName: String(r.ObjectName ?? ""),
       controlledByStagePath: r.IsControlledByStagePath === true,
-      validationScriptId: str23(r.ValidationCustomScriptId),
-      checklistScriptId: str23(r.ChecklistCustomScriptId)
+      validationScriptId: str24(r.ValidationCustomScriptId),
+      checklistScriptId: str24(r.ChecklistCustomScriptId)
     })),
     pathObjects,
     note
@@ -134487,9 +134889,9 @@ async function collectScriptLibrary(org) {
     codeTextWritable: false,
     note
   });
-  let rows3;
+  let rows4;
   try {
-    rows3 = await query(
+    rows4 = await query(
       `SELECT ${SCRIPT_FIELDS} FROM LifeScienceCustomScript ORDER BY CreatedDate, Id`,
       org
     );
@@ -134505,7 +134907,7 @@ async function collectScriptLibrary(org) {
     readStageObjects(org),
     readBundles(
       org,
-      rows3.map((r) => String(r.ComponentName ?? ""))
+      rows4.map((r) => String(r.ComponentName ?? ""))
     ).catch(() => {
       notes.push("The LWC bundles couldn't be read, so whether each script has one isn't shown.");
       return /* @__PURE__ */ new Map();
@@ -134514,8 +134916,8 @@ async function collectScriptLibrary(org) {
     codeTextWritable(org)
   ]);
   if (stage.note) notes.push(stage.note);
-  const s11 = statusing(rows3, stage.stageObjects, stage.pathObjects);
-  const scripts = rows3.map((r) => summaryFrom(r, bundles.get(String(r.ComponentName ?? "").toLowerCase()), s11)).sort(
+  const s11 = statusing(rows4, stage.stageObjects, stage.pathObjects);
+  const scripts = rows4.map((r) => summaryFrom(r, bundles.get(String(r.ComponentName ?? "").toLowerCase()), s11)).sort(
     (a, b) => (TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9) || a.createdDate.localeCompare(b.createdDate) || a.id.localeCompare(b.id)
   );
   return {
@@ -134634,20 +135036,20 @@ var bundleMetaXml = (label2, apiVersion2) => `<?xml version="1.0" encoding="UTF-
 async function createBundle(org, componentName, label2, code, onStatus) {
   const problem = lwcNameProblem(componentName);
   if (problem) return { ok: false, error: problem };
-  const dir = fs16.mkdtempSync(path16.join(os4.tmpdir(), "studio-script-bundle-"));
+  const dir = fs17.mkdtempSync(path17.join(os4.tmpdir(), "studio-script-bundle-"));
   try {
-    const folder = path16.join(dir, "lwc", componentName);
-    fs16.mkdirSync(folder, { recursive: true });
-    fs16.writeFileSync(path16.join(folder, `${componentName}.js`), code, "utf-8");
-    fs16.writeFileSync(
-      path16.join(folder, `${componentName}.js-meta.xml`),
+    const folder = path17.join(dir, "lwc", componentName);
+    fs17.mkdirSync(folder, { recursive: true });
+    fs17.writeFileSync(path17.join(folder, `${componentName}.js`), code, "utf-8");
+    fs17.writeFileSync(
+      path17.join(folder, `${componentName}.js-meta.xml`),
       bundleMetaXml(label2, await orgApiVersion(org)),
       "utf-8"
     );
     const res = await (onStatus ? deployMetadata(dir, org, onStatus) : deployMetadata(dir, org));
     return res.success ? { ok: true } : { ok: false, error: res.error ?? "The deploy failed." };
   } finally {
-    fs16.rmSync(dir, { recursive: true, force: true });
+    fs17.rmSync(dir, { recursive: true, force: true });
   }
 }
 async function deleteBundle(org, componentName) {
@@ -134655,10 +135057,10 @@ async function deleteBundle(org, componentName) {
   return res.success ? { ok: true } : { ok: false, error: res.error ?? "The bundle couldn't be deleted." };
 }
 function findDir(root2, name) {
-  for (const entry of fs16.readdirSync(root2, { withFileTypes: true })) {
+  for (const entry of fs17.readdirSync(root2, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
-    const full = path16.join(root2, entry.name);
-    if (entry.name === name && path16.basename(path16.dirname(full)) === "lwc") return full;
+    const full = path17.join(root2, entry.name);
+    if (entry.name === name && path17.basename(path17.dirname(full)) === "lwc") return full;
     const found = findDir(full, name);
     if (found) return found;
   }
@@ -134675,13 +135077,13 @@ async function writeByDeploy(org, componentName, code, onStatus) {
     return { ok: false, error: `Couldn't read the component: ${got.error ?? "unknown error"}` };
   const root2 = got.data.outputDir;
   try {
-    const folder = fs16.existsSync(root2) ? findDir(root2, componentName) : void 0;
+    const folder = fs17.existsSync(root2) ? findDir(root2, componentName) : void 0;
     if (!folder) return { ok: false, error: `${componentName} wasn't found in the org.` };
-    fs16.writeFileSync(path16.join(folder, `${componentName}.js`), code, "utf-8");
+    fs17.writeFileSync(path17.join(folder, `${componentName}.js`), code, "utf-8");
     const res = await (onStatus ? deployMetadata(folder, org, onStatus) : deployMetadata(folder, org));
     return res.success ? { ok: true } : { ok: false, error: res.error ?? "The deploy failed." };
   } finally {
-    fs16.rmSync(root2, { recursive: true, force: true });
+    fs17.rmSync(root2, { recursive: true, force: true });
   }
 }
 async function writeBundleJs(org, componentName, code, onStatus) {
@@ -134947,9 +135349,9 @@ async function createScript(org, input, hooks = {}) {
   return { ok: true, scriptId, createdBundle };
 }
 async function stageReferences(org, scriptId) {
-  let rows3 = [];
+  let rows4 = [];
   try {
-    rows3 = await query(
+    rows4 = await query(
       `SELECT Id, Name, ValidationCustomScriptId, ChecklistCustomScriptId FROM LifeSciStageObject WHERE ValidationCustomScriptId = '${scriptId}' OR ChecklistCustomScriptId = '${scriptId}'`,
       org
     );
@@ -134957,7 +135359,7 @@ async function stageReferences(org, scriptId) {
     return [];
   }
   const out = [];
-  for (const r of rows3) {
+  for (const r of rows4) {
     const id2 = String(r.Id);
     const name = String(r.Name ?? "");
     if (r.ValidationCustomScriptId && String(r.ValidationCustomScriptId).startsWith(scriptId.slice(0, 15)))
@@ -135192,11 +135594,11 @@ async function stageNames(org, ids) {
   const out = /* @__PURE__ */ new Map();
   if (ids.length === 0) return out;
   ids.forEach(assertId);
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, Name, ObjectName, ValidationCustomScriptId, ChecklistCustomScriptId FROM LifeSciStageObject WHERE Id IN (${ids.map((i) => `'${i}'`).join(",")})`,
     org
   );
-  for (const r of rows3) out.set(String(r.Id).slice(0, 15), r);
+  for (const r of rows4) out.set(String(r.Id).slice(0, 15), r);
   return out;
 }
 async function previewCreateScript(fix, org, progress) {
@@ -136435,7 +136837,7 @@ function lookup2(stack, name) {
   }
   return void 0;
 }
-var str24 = (v) => v === void 0 || v === null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+var str25 = (v) => v === void 0 || v === null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
 var falsy = (v) => !v || Array.isArray(v) && v.length === 0;
 var TAG = /\{\{(\{|&|#|\^|\/|!|>|=)?\s*([^}]*?)\s*\}?\}\}/g;
 function findClose(tpl, name, from) {
@@ -136481,7 +136883,7 @@ function render(tpl, stack) {
       re.lastIndex = close.end;
       continue;
     }
-    const v = str24(lookup2(stack, name));
+    const v = str25(lookup2(stack, name));
     out += kind === "{" || kind === "&" ? v : escape2(v);
   }
   return out + tpl.slice(at2);
@@ -136976,8 +137378,8 @@ function checkDraft(id2) {
       });
     const base2 = f.includes("/") ? `${f.slice(0, f.indexOf("/"))}/` : "";
     for (const ref3 of local) {
-      const path24 = ref3.startsWith("../") ? ref3.slice(3) : `${base2}${ref3}`;
-      if (!have.has(decodeURI(path24).toLowerCase()) && !THUMBS.test(path24))
+      const path25 = ref3.startsWith("../") ? ref3.slice(3) : `${base2}${ref3}`;
+      if (!have.has(decodeURI(path25).toLowerCase()) && !THUMBS.test(path25))
         checks.push({ level: "error", file: f, message: `${ref3} isn't in the draft.` });
     }
   }
@@ -137209,7 +137611,7 @@ var fieldValue = (k, v) => {
   if (k === "pinchZoom" || k === "doubleTapZoom" || k === "canEmail" || k === "locked") return !!v;
   return v === "" || v === void 0 ? null : v;
 };
-function planWrites(current2, rows3, to, parts) {
+function planWrites(current2, rows4, to, parts) {
   const plan3 = emptyPlan();
   const has = (p) => parts.includes(p);
   const fields = {};
@@ -137223,26 +137625,26 @@ function planWrites(current2, rows3, to, parts) {
   if (has("pages") && partKey(current2, "pages") !== partKey(to, "pages")) {
     const keep = new Set(to.pages.map((p) => p.pageId));
     for (const p of current2.pages) {
-      const link = rows3.links.get(p.pageId);
+      const link = rows4.links.get(p.pageId);
       if (!keep.has(p.pageId) && link) plan3.deleteLinks.push(link.id);
     }
     to.pages.forEach((p, i) => {
       const order = i + 1;
-      const link = rows3.links.get(p.pageId);
+      const link = rows4.links.get(p.pageId);
       if (!link) plan3.createLinks.push({ PresentationPageId: p.pageId, DisplayOrder: order });
       else if (link.order !== order) plan3.reorderLinks.push({ Id: link.id, DisplayOrder: order });
     });
   }
   if (has("mandatory")) {
     for (const p of to.pages) {
-      const was = rows3.pageState.get(p.pageId);
+      const was = rows4.pageState.get(p.pageId);
       if (was && was.mandatory !== p.mandatory)
         plan3.mandatory.push({ Id: p.pageId, IsMandatory: p.mandatory });
     }
   }
   if (has("products")) {
     for (const p of to.pages) {
-      const was = rows3.pageState.get(p.pageId);
+      const was = rows4.pageState.get(p.pageId);
       if (!was) continue;
       const next = new Set(p.products.map((x) => x.id));
       for (const id2 of next)
@@ -137256,7 +137658,7 @@ function planWrites(current2, rows3, to, parts) {
     const next = new Set(to.topics.map((t) => t.id));
     for (const id2 of next) if (!was.has(id2)) plan3.createTopics.push(id2);
     for (const id2 of was) {
-      const row = rows3.topics.get(id2);
+      const row = rows4.topics.get(id2);
       if (!next.has(id2) && row) plan3.deleteTopics.push(row);
     }
   }
@@ -137430,15 +137832,15 @@ var LIBRARY_LIMIT = 2e3;
 var OPTION_LIMIT2 = 2e3;
 var LIBRARY_THUMBNAILS = 24;
 var MISSING = /INVALID_TYPE|sObject type|not supported|isn't supported|doesn't exist|does not exist/i;
-function chunks5(xs, n2) {
+function chunks6(xs, n2) {
   const out = [];
   for (let i = 0; i < xs.length; i += n2) out.push(xs.slice(i, i + n2));
   return out;
 }
-async function inChunks(ids, build2, org) {
+async function inChunks2(ids, build2, org) {
   const valid = [...new Set(ids)].filter((id2) => ID_PATTERN.test(id2));
   if (!valid.length) return [];
-  return (await Promise.all(chunks5(valid, 200).map((c) => query(build2(inList(c)), org)))).flat();
+  return (await Promise.all(chunks6(valid, 200).map((c) => query(build2(inList(c)), org)))).flat();
 }
 var relName = (r, rel5) => s8(r[rel5]?.Name);
 async function loadLibrary(org) {
@@ -137455,21 +137857,21 @@ async function loadLibrary(org) {
       return { presentations: [], unavailable: "This org has no Intelligent Content objects." };
     throw err;
   }
-  const rows3 = res.records.slice(0, LIBRARY_LIMIT);
-  const ids = rows3.map((r) => s8(r.Id));
+  const rows4 = res.records.slice(0, LIBRARY_LIMIT);
+  const ids = rows4.map((r) => s8(r.Id));
   const [links, topics, shares] = await Promise.all([
-    inChunks(
+    inChunks2(
       ids,
       (l) => `SELECT PresentationId, DisplayOrder, PresentationPage.PageNumber, PresentationPage.ContentDocumentId
          FROM PresentationLinkedPage WHERE PresentationId IN (${l}) ORDER BY PresentationId, DisplayOrder`,
       org
     ),
-    inChunks(
+    inChunks2(
       ids,
       (l) => `SELECT EntityId, Topic.Name FROM TopicAssignment WHERE EntityId IN (${l})`,
       org
     ).catch(() => []),
-    inChunks(
+    inChunks2(
       ids,
       (l) => `SELECT ParentId, UserOrGroupId FROM PresentationShare WHERE ParentId IN (${l}) AND RowCause IN ('Manual', 'LSC4CEAutoShare')`,
       org
@@ -137493,7 +137895,7 @@ async function loadLibrary(org) {
     set.add(g.groupId);
     territoriesOf.set(s8(r.ParentId), set);
   }
-  const presentations = rows3.map((r) => ({
+  const presentations = rows4.map((r) => ({
     id: s8(r.Id),
     name: s8(r.Name),
     status: s8(r.Status),
@@ -137520,13 +137922,13 @@ async function loadLibrary(org) {
 }
 async function territoryGroups(ids, org) {
   const groupIds = ids.filter((id2) => id2.startsWith("00G"));
-  const rows3 = await inChunks(
+  const rows4 = await inChunks2(
     groupIds,
     (l) => `SELECT Id, RelatedId, Type FROM Group WHERE Id IN (${l}) AND Type IN ('Territory', 'TerritoryAndSubordinates')`,
     org
   );
   return new Map(
-    rows3.map((g) => [
+    rows4.map((g) => [
       s8(g.Id),
       {
         groupId: s8(g.Id),
@@ -137559,12 +137961,12 @@ async function readState(org, presentationId, extraPages = []) {
   if (!row || s8(row.Status) === "Deleted") return null;
   const pageIds = [.../* @__PURE__ */ new Set([...links.map((l) => s8(l.PresentationPageId)), ...extraPages])];
   const [pages, products] = await Promise.all([
-    inChunks(
+    inChunks2(
       pageIds,
       (l) => `SELECT Id, Name, IsMandatory FROM PresentationPage WHERE Id IN (${l})`,
       org
     ),
-    inChunks(
+    inChunks2(
       pageIds,
       (l) => `SELECT Id, PresentationPageId, ProductId, Product.Name FROM PresentationPageProduct WHERE PresentationPageId IN (${l})`,
       org
@@ -137593,7 +137995,7 @@ async function readState(org, presentationId, extraPages = []) {
     org
   );
   const territoryIds = [...new Set([...groups.values()].map((g) => g.territoryId))];
-  const territories = await inChunks(
+  const territories = await inChunks2(
     territoryIds,
     (l) => `SELECT Id, Name FROM Territory2 WHERE Id IN (${l})`,
     org
@@ -137656,14 +138058,14 @@ async function readState(org, presentationId, extraPages = []) {
   };
 }
 async function sharedPages(org, presentationId, pageIds) {
-  const rows3 = await inChunks(
+  const rows4 = await inChunks2(
     pageIds,
     (l) => `SELECT PresentationPageId, Presentation.Name FROM PresentationLinkedPage
        WHERE PresentationPageId IN (${l}) AND PresentationId != '${presentationId}'`,
     org
   );
   const out = {};
-  for (const r of rows3) (out[s8(r.PresentationPageId)] ??= []).push(relName(r, "Presentation"));
+  for (const r of rows4) (out[s8(r.PresentationPageId)] ??= []).push(relName(r, "Presentation"));
   return out;
 }
 async function picklist(object3, field3, org) {
@@ -137676,12 +138078,12 @@ async function picklist(object3, field3, org) {
   }
 }
 async function options(org, presentationId, notes) {
-  const cut = (rows3, what) => {
-    if (rows3.length > OPTION_LIMIT2)
+  const cut = (rows4, what) => {
+    if (rows4.length > OPTION_LIMIT2)
       notes.push(
         `Only the first ${OPTION_LIMIT2.toLocaleString("en-US")} ${what} are offered; search finds them by name.`
       );
-    return rows3.slice(0, OPTION_LIMIT2);
+    return rows4.slice(0, OPTION_LIMIT2);
   };
   const [pages, topics, products, model] = await Promise.all([
     query(
@@ -137705,12 +138107,12 @@ async function options(org, presentationId, notes) {
   const pageRows = cut(pages, "pages");
   const pageIds = pageRows.map((p) => s8(p.Id));
   const [where3, pageProducts] = await Promise.all([
-    inChunks(
+    inChunks2(
       pageIds,
       (l) => `SELECT PresentationPageId, Presentation.Name FROM PresentationLinkedPage WHERE PresentationPageId IN (${l})`,
       org
     ).catch(() => []),
-    inChunks(
+    inChunks2(
       pageIds,
       (l) => `SELECT PresentationPageId, ProductId, Product.Name FROM PresentationPageProduct WHERE PresentationPageId IN (${l})`,
       org
@@ -137732,12 +138134,12 @@ async function options(org, presentationId, notes) {
     ]);
   let territories = [];
   if (model[0]) {
-    const rows3 = await query(
+    const rows4 = await query(
       `SELECT Id, Name, ParentTerritory2Id FROM Territory2 WHERE Territory2ModelId = '${s8(model[0].Id)}' ORDER BY Name LIMIT ${OPTION_LIMIT2 + 1}`,
       org
     ).catch(() => []);
-    const terr = cut(rows3, "territories");
-    const groups = await inChunks(
+    const terr = cut(rows4, "territories");
+    const groups = await inChunks2(
       terr.map((t) => s8(t.Id)),
       (l) => `SELECT Id, RelatedId, Type FROM Group WHERE RelatedId IN (${l}) AND Type IN ('Territory', 'TerritoryAndSubordinates')`,
       org
@@ -137828,14 +138230,14 @@ async function loadNewOptions(org) {
 async function pageThumbnails(org, pageIds) {
   const ids = pageIds.filter((id2) => ID_PATTERN.test(id2));
   if (!ids.length) return {};
-  const rows3 = await inChunks(
+  const rows4 = await inChunks2(
     ids,
     (l) => `SELECT Id, Type, PageNumber, ContentDocumentId FROM PresentationPage WHERE Id IN (${l})`,
     org
   );
   const out = {};
-  for (const type of new Set(rows3.map((r) => s8(r.Type)))) {
-    const links = rows3.filter((r) => s8(r.Type) === type).map((r) => ({
+  for (const type of new Set(rows4.map((r) => s8(r.Type)))) {
+    const links = rows4.filter((r) => s8(r.Type) === type).map((r) => ({
       PresentationPageId: s8(r.Id),
       PresentationPage: { PageNumber: r.PageNumber, ContentDocumentId: r.ContentDocumentId }
     }));
@@ -137909,7 +138311,7 @@ async function plan2(fix, org, progress, apply = false) {
 async function previewEditPresentation(fix, org, progress) {
   return (await plan2(fix, org, progress)).preview;
 }
-function chunks6(xs, n2) {
+function chunks7(xs, n2) {
   const out = [];
   for (let i = 0; i < xs.length; i += n2) out.push(xs.slice(i, i + n2));
   return out;
@@ -137922,7 +138324,7 @@ function failure(results, fallback) {
 }
 async function composite(method, type, records, org) {
   const ids = [];
-  for (const part of chunks6(records, 200)) {
+  for (const part of chunks7(records, 200)) {
     const res = await apiRequest(
       await dataPath2(org, "/composite/sobjects"),
       method,
@@ -137937,7 +138339,7 @@ async function composite(method, type, records, org) {
   return ids;
 }
 async function remove(ids, org) {
-  for (const part of chunks6(
+  for (const part of chunks7(
     ids.filter((id2) => ID_PATTERN.test(id2)),
     200
   )) {
@@ -137957,12 +138359,12 @@ async function addPageShares(pageIds, groupIds, org) {
   const groups = groupIds.filter((id2) => ID_PATTERN.test(id2));
   if (!pages.length || !groups.length) return;
   const existing = /* @__PURE__ */ new Set();
-  for (const part of chunks6(pages, 200)) {
-    const rows3 = await query(
+  for (const part of chunks7(pages, 200)) {
+    const rows4 = await query(
       `SELECT ParentId, UserOrGroupId FROM PresentationPageShare WHERE ParentId IN (${inList(part)}) AND UserOrGroupId IN (${inList(groups)})`,
       org
     );
-    for (const r of rows3) existing.add(`${s9(r.ParentId)}:${s9(r.UserOrGroupId)}`);
+    for (const r of rows4) existing.add(`${s9(r.ParentId)}:${s9(r.UserOrGroupId)}`);
   }
   const records = pages.flatMap(
     (p) => groups.filter((g) => !existing.has(`${p}:${g}`)).map((g) => ({
@@ -137997,13 +138399,13 @@ async function removePageShares(presentationId, pageIds, groupIds, org) {
       for (const g of groupsOf.get(s9(l.PresentationId)) ?? [])
         stillSees.add(`${s9(l.PresentationPageId)}:${g}`);
   }
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, ParentId, UserOrGroupId FROM PresentationPageShare WHERE ParentId IN (${inList(pages)})
      AND UserOrGroupId IN (${inList(groups)}) AND RowCause IN ('Manual', 'LSC4CEAutoShare')`,
     org
   );
   await remove(
-    rows3.filter((r) => !stillSees.has(`${s9(r.ParentId)}:${s9(r.UserOrGroupId)}`)).map((r) => s9(r.Id)),
+    rows4.filter((r) => !stillSees.has(`${s9(r.ParentId)}:${s9(r.UserOrGroupId)}`)).map((r) => s9(r.Id)),
     org
   );
 }
@@ -138440,7 +138842,7 @@ async function tearDown(org, presentationId, created, before, progress) {
   if (!created.pageIds.length && !created.contentDocumentIds.length) return;
   await step(progress, "pages", async () => {
     const pages = created.pageIds.filter((id2) => ID_PATTERN.test(id2));
-    const [links, rows3] = pages.length ? await Promise.all([
+    const [links, rows4] = pages.length ? await Promise.all([
       query(
         `SELECT PresentationPageId FROM PresentationLinkedPage WHERE PresentationPageId IN (${inList(pages)})`,
         org
@@ -138452,7 +138854,7 @@ async function tearDown(org, presentationId, created, before, progress) {
     ]) : [[], []];
     const used2 = new Set(links.map((r) => s10(r.PresentationPageId)));
     const keepDocs = new Set(
-      rows3.filter((r) => used2.has(s10(r.Id))).map((r) => s10(r.ContentDocumentId))
+      rows4.filter((r) => used2.has(s10(r.Id))).map((r) => s10(r.ContentDocumentId))
     );
     await remove(
       pages.filter((id2) => !used2.has(id2)),
@@ -138740,7 +139142,7 @@ async function previewSetProfileAssignments(fix, org, progress) {
   );
   if (!record2) return { ...preview, blocked: `${fix.recordLabel} no longer exists.` };
   const recordId = String(record2.Id);
-  const rows3 = await step(
+  const rows4 = await step(
     progress,
     "read",
     () => query(
@@ -138749,7 +139151,7 @@ async function previewSetProfileAssignments(fix, org, progress) {
       true
     )
   );
-  const ids = [...new Set(rows3.map((r) => String(r.AssignedToId)))];
+  const ids = [...new Set(rows4.map((r) => String(r.AssignedToId)))];
   const names5 = new Map(
     ids.length ? (await query(`SELECT Id, Name FROM Profile WHERE Id IN (${inList(ids)})`, org)).map((p) => [
       String(p.Id),
@@ -138757,7 +139159,7 @@ async function previewSetProfileAssignments(fix, org, progress) {
     ]) : []
   );
   const current2 = new Map(
-    rows3.filter((r) => names5.has(String(r.AssignedToId))).map((r) => {
+    rows4.filter((r) => names5.has(String(r.AssignedToId))).map((r) => {
       const name = names5.get(String(r.AssignedToId));
       return [name.toLowerCase(), { id: String(r.Id), name }];
     })
@@ -139063,7 +139465,7 @@ var sameValue2 = (a, b) => String(a ?? "") === String(b ?? "");
 function isScalar(v) {
   return v === null || ["string", "number", "boolean"].includes(typeof v);
 }
-var str25 = (v) => typeof v === "string" && v.trim() ? v.trim() : void 0;
+var str26 = (v) => typeof v === "string" && v.trim() ? v.trim() : void 0;
 var strings = (v) => Array.isArray(v) ? v.filter((x) => typeof x === "string" && !!x.trim()).map((x) => x.trim()) : [];
 async function fixesForToolCall(name, input, org) {
   try {
@@ -139107,12 +139509,12 @@ async function configRecordBy(where3, org) {
 }
 async function profilesOf2(target3, org) {
   if (!MOBILE_CATEGORIES.has(target3.category)) return void 0;
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT AssignedToId FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId = '${target3.id}' AND AssignmentLevel = 'Profile'`,
     org,
     true
   );
-  const ids = [...new Set(rows3.map((r) => String(r.AssignedToId)))];
+  const ids = [...new Set(rows4.map((r) => String(r.AssignedToId)))];
   if (!ids.length) return void 0;
   const names5 = (await query(`SELECT Name FROM Profile WHERE Id IN (${inList(ids)})`, org)).map(
     (p) => String(p.Name)
@@ -139175,7 +139577,7 @@ async function withAffects(target3, fixes, org) {
   return fixes.map((fix) => affects ? { fix, affects } : { fix });
 }
 async function updateAdminSetting(input, org) {
-  const recordId = str25(input.recordId);
+  const recordId = str26(input.recordId);
   if (!recordId) return unsupported("No recordId.");
   assertId(recordId);
   const target3 = await configRecordBy(`Id = '${recordId}'`, org);
@@ -139209,7 +139611,7 @@ async function updateAdminSetting(input, org) {
   return result(await withAffects(target3, fixes, org), `${target3.label} already has these values.`);
 }
 async function dbSchemaTarget(name, org) {
-  const given = str25(name);
+  const given = str26(name);
   if (!given) return unsupported("No DB Schema record name.");
   const fullName = normalizeDbSchemaName(given);
   assertNames(fullName);
@@ -139254,7 +139656,7 @@ async function toggleDbSchema(input, org) {
   );
 }
 async function toggleTriggerHandler(input, org) {
-  const developerName = str25(input.handlerName);
+  const developerName = str26(input.handlerName);
   if (!developerName) return unsupported("No handlerName.");
   assertNames(developerName);
   if (typeof input.active !== "boolean") return unsupported("active isn't true or false.");
@@ -139286,7 +139688,7 @@ function result(changes, nothingToDo) {
   return changes.length ? { changes } : { changes: [], note: nothingToDo };
 }
 async function permissionSetAccess(assigning, input, org) {
-  const wanted = str25(input.permissionSetName);
+  const wanted = str26(input.permissionSetName);
   if (!wanted) return unsupported("No permissionSetName.");
   const esc4 = (s11) => s11.replace(/[\\']/g, (c) => `\\${c}`);
   const sets = await query(
@@ -139486,8 +139888,8 @@ async function collectObjectSync(org) {
     queryableObjects(org).catch(() => [])
   ]);
   const duplicates = findDuplicates(records);
-  const rows3 = records.map((r) => toRow2(r, duplicates)).sort((a, b) => a.label.localeCompare(b.label));
-  return { org, rows: rows3, objects };
+  const rows4 = records.map((r) => toRow2(r, duplicates)).sort((a, b) => a.label.localeCompare(b.label));
+  return { org, rows: rows4, objects };
 }
 var MAX_WHERE_LENGTH2 = 4e3;
 var SAMPLE_ID = "'000000000000000AAA'";
@@ -139496,13 +139898,13 @@ var SAMPLE_TERRITORY_ID = "0MI000000000000AAA";
 function sampleFilter(where3) {
   const tags = [...new Set((where3.match(/\{[A-Za-z0-9_.]+\}/g) ?? []).map((t) => t.toUpperCase()))];
   where3 = where3.split(/\r?\n/).join(" ");
-  let soql5 = resolveScalarTags(where3, {
+  let soql6 = resolveScalarTags(where3, {
     userId: SAMPLE_USER_ID,
     territoryName: "Sample",
     territoryId: SAMPLE_TERRITORY_ID
   });
-  soql5 = soql5.replace(/'\{[A-Za-z0-9_.]+\}'/g, SAMPLE_ID).replace(/\{[A-Za-z0-9_.]+\}/g, SAMPLE_ID);
-  return { soql: soql5, tags };
+  soql6 = soql6.replace(/'\{[A-Za-z0-9_.]+\}'/g, SAMPLE_ID).replace(/\{[A-Za-z0-9_.]+\}/g, SAMPLE_ID);
+  return { soql: soql6, tags };
 }
 var worst = (parts) => parts.some((p) => p.state === "fail") ? "fail" : parts.some((p) => p.state === "warn") ? "warn" : parts.every((p) => p.state === "skipped") ? "skipped" : "pass";
 function errorText3(err) {
@@ -139590,15 +139992,15 @@ async function checkRecord(r, org) {
     });
     return done();
   }
-  const { soql: soql5, tags } = sampleFilter(where3);
-  if (soql5.length > MAX_WHERE_LENGTH2)
+  const { soql: soql6, tags } = sampleFilter(where3);
+  if (soql6.length > MAX_WHERE_LENGTH2)
     parts.push({
       name: "Filter length",
       state: "warn",
-      detail: `${soql5.length.toLocaleString()} characters; the app splits or drops filters over ${MAX_WHERE_LENGTH2.toLocaleString()}.`
+      detail: `${soql6.length.toLocaleString()} characters; the app splits or drops filters over ${MAX_WHERE_LENGTH2.toLocaleString()}.`
     });
   try {
-    await query(`SELECT Id FROM ${sobject2} WHERE ${soql5} LIMIT 1`, org, false, {
+    await query(`SELECT Id FROM ${sobject2} WHERE ${soql6} LIMIT 1`, org, false, {
       maxRows: 1,
       allowTruncated: true
     });
@@ -139631,7 +140033,7 @@ init_inline_lwc();
 import { createHash as createHash4 } from "node:crypto";
 import { mkdir as mkdir2, rm, writeFile as writeFile2 } from "node:fs/promises";
 import { createRequire } from "node:module";
-import path17 from "node:path";
+import path18 from "node:path";
 
 // src/studio/lwc/shims.ts
 var SHIM_FILES = {};
@@ -140539,7 +140941,7 @@ init_private_tmp();
 var BUILD_VERSION = 5;
 var MAX_CACHED = 30;
 var cache = /* @__PURE__ */ new Map();
-function str26(v) {
+function str27(v) {
   return typeof v === "string" ? v : "";
 }
 function lightningNames(sources2) {
@@ -140555,10 +140957,10 @@ function lightningNames(sources2) {
 function packageModules(pkg) {
   const require2 = createRequire(import.meta.url);
   const pkgJson = require2.resolve(`${pkg}/package.json`);
-  const root2 = path17.dirname(pkgJson);
+  const root2 = path18.dirname(pkgJson);
   const modules = require2(pkgJson).lwc?.modules ?? [];
   return modules.map(
-    (m) => "dir" in m ? { dir: path17.join(root2, m.dir) } : { name: m.name, path: path17.join(root2, m.path) }
+    (m) => "dir" in m ? { dir: path18.join(root2, m.dir) } : { name: m.name, path: path18.join(root2, m.path) }
   );
 }
 var baseNames;
@@ -140568,21 +140970,21 @@ async function baseComponents() {
   const src = packageModules("lightning-base-components").find(
     (m) => "dir" in m
   );
-  baseNames = new Set(src ? await readdir(path17.join(src.dir, "lightning")) : []);
+  baseNames = new Set(src ? await readdir(path18.join(src.dir, "lightning")) : []);
   return baseNames;
 }
 async function loadBundles(org, bundles) {
   const valid = bundles.filter((b) => /^\w+$/.test(b));
   if (!valid.length) return [];
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT LightningComponentBundle.DeveloperName, FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName IN (${inList(valid)})`,
     org,
     true
   );
-  return rows3.map((r) => ({
-    bundle: str26(r.LightningComponentBundle?.DeveloperName),
-    path: str26(r.FilePath),
-    source: str26(r.Source)
+  return rows4.map((r) => ({
+    bundle: str27(r.LightningComponentBundle?.DeveloperName),
+    path: str27(r.FilePath),
+    source: str27(r.Source)
   }));
 }
 async function loadLabels(org, files) {
@@ -140590,24 +140992,24 @@ async function loadLabels(org, files) {
   for (const f of files)
     for (const m of f.source.matchAll(/["']@salesforce\/label\/c\.(\w+)["']/g)) names5.add(m[1]);
   if (!names5.size) return {};
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Name, Value FROM ExternalString WHERE Name IN (${inList([...names5])})`,
     org,
     true
   ).catch(() => []);
-  return Object.fromEntries(rows3.map((r) => [str26(r.Name), str26(r.Value)]));
+  return Object.fromEntries(rows4.map((r) => [str27(r.Name), str27(r.Value)]));
 }
 function orgFilePath(f) {
   const rel5 = f.path.replace(/^lwc\//, "");
   const parts = rel5.split("/");
   if (parts[0] !== f.bundle || parts.some((p) => !p || p === "." || p === "..") || !/^[\w.-]+$/.test(parts[parts.length - 1]))
     return null;
-  return path17.join("c", ...parts);
+  return path18.join("c", ...parts);
 }
 async function writeTree(dir, files) {
   for (const [rel5, source] of Object.entries(files)) {
-    const file = path17.join(dir, rel5);
-    await mkdir2(path17.dirname(file), { recursive: true });
+    const file = path18.join(dir, rel5);
+    await mkdir2(path18.dirname(file), { recursive: true });
     await writeFile2(file, source);
   }
 }
@@ -140617,7 +141019,7 @@ async function buildInlineLwc(name, files, labels2 = {}) {
     import("@lwc/rollup-plugin")
   ]);
   const key5 = createHash4("sha256").update(JSON.stringify([BUILD_VERSION, name, files, labels2])).digest("hex").slice(0, 16);
-  const dir = path17.join(privateTmp("lsc-studio-lwc"), key5);
+  const dir = path18.join(privateTmp("lsc-studio-lwc"), key5);
   const base2 = await baseComponents();
   const { modules, tags } = lightningNames(files.map((f) => f.source));
   const missing = [.../* @__PURE__ */ new Set([...modules, ...tags])].filter((n2) => !base2.has(n2) && !SHIMMED_LIGHTNING.has(n2)).sort();
@@ -140629,13 +141031,13 @@ async function buildInlineLwc(name, files, labels2 = {}) {
     const rel5 = orgFilePath(f);
     if (rel5 && !rel5.endsWith(".js-meta.xml")) orgFiles[rel5] = f.source;
   }
-  const entry = path17.join(dir, "entry.js");
+  const entry = path18.join(dir, "entry.js");
   await rm(dir, { recursive: true, force: true });
   try {
-    await writeTree(path17.join(dir, "shims"), shimFiles);
-    await writeTree(path17.join(dir, "org"), orgFiles);
+    await writeTree(path18.join(dir, "shims"), shimFiles);
+    await writeTree(path18.join(dir, "org"), orgFiles);
     await writeFile2(
-      path17.join(dir, "package.json"),
+      path18.join(dir, "package.json"),
       JSON.stringify({ name: "studio-inline-lwc", private: true, lwc: { modules: [] } })
     );
     await writeFile2(
@@ -140694,10 +141096,10 @@ document.getElementById("root").appendChild(el);
       plugins: [
         salesforce(false),
         lwc({
-          rootDir: path17.join(dir, "org"),
+          rootDir: path18.join(dir, "org"),
           modules: [
-            { dir: path17.join(dir, "shims") },
-            { dir: path17.join(dir, "org") },
+            { dir: path18.join(dir, "shims") },
+            { dir: path18.join(dir, "org") },
             ...packageModules("lightning-base-components")
           ],
           defaultModules: [
@@ -140762,8 +141164,8 @@ async function compileInlineLwc(org, name) {
 // src/studio/lwc/request.ts
 init_session();
 var MAX_LWC_RESPONSE_BYTES = 5 * 1024 * 1024;
-function staysInUiApi(path24) {
-  const route = path24.split("?")[0];
+function staysInUiApi(path25) {
+  const route = path25.split("?")[0];
   if (/%(2e|2f|5c)/i.test(route) || route.includes("//")) return false;
   return !route.split("/").some((seg) => seg === "." || seg === "..");
 }
@@ -141094,7 +141496,7 @@ function buildTelemetryQuery(availableFields2, filters2) {
 
 // src/perf/nfr.ts
 var import_yaml3 = __toESM(require_dist2(), 1);
-import * as fs17 from "fs";
+import * as fs18 from "fs";
 var METRICS = {
   predictedRecordsTotal: { label: "Predicted records synced (total)", unit: "records" },
   predictedRecordsPerTable: { label: "Predicted records synced (largest table)", unit: "records" },
@@ -141156,7 +141558,7 @@ ${issues}`);
   return parsed.data;
 }
 function loadNfrProfile(filePath) {
-  return parseNfrProfile(fs17.readFileSync(filePath, "utf-8"));
+  return parseNfrProfile(fs18.readFileSync(filePath, "utf-8"));
 }
 function effectiveThresholds(profile, persona) {
   return {
@@ -141194,8 +141596,8 @@ function soqlString9(value4) {
 function likeValue(text12) {
   return soqlString9(text12).replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
-async function rows(org, soql5) {
-  const result2 = await org.soql(soql5);
+async function rows2(org, soql6) {
+  const result2 = await org.soql(soql6);
   if (!result2.success) throw new Error(result2.error || "Query failed");
   return result2.data?.records ?? [];
 }
@@ -141216,7 +141618,7 @@ var CANDIDATE_POOL = 25;
 async function withAccountVolume(org, users) {
   if (users.length === 0) return users;
   try {
-    const assigned = await rows(
+    const assigned = await rows2(
       org,
       `SELECT UserId, Territory2Id FROM UserTerritory2Association WHERE UserId IN (${inList3(users.map((u) => u.id))}) AND ${ACTIVE_MODEL}`
     );
@@ -141241,9 +141643,9 @@ var idKey = (id2) => id2.slice(0, 15);
 var syncWindow = (days) => `CreatedDate = LAST_N_DAYS:${Math.max(1, Math.floor(days))}`;
 async function dataSyncRows(org, build2, days) {
   try {
-    return await rows(org, build2(`${syncWindow(days)} AND Type != 'clm'`));
+    return await rows2(org, build2(`${syncWindow(days)} AND Type != 'clm'`));
   } catch {
-    return rows(org, build2(syncWindow(days)));
+    return rows2(org, build2(syncWindow(days)));
   }
 }
 async function recentSyncCounts(org, userIds, days) {
@@ -141274,12 +141676,12 @@ async function heaviestOfProfile(org, profile, limit, exclude) {
   if (limit <= 0) return [];
   const p = soqlString9(profile);
   const notIn = (field3, ids) => ids.length ? ` AND ${field3} NOT IN (${inList3(ids)})` : "";
-  const ranked = await rows(
+  const ranked = await rows2(
     org,
     `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE User.Profile.Name = '${p}' AND User.IsActive = true AND User.UserType = 'Standard' AND ${ACTIVE_MODEL}${notIn("UserId", exclude)} GROUP BY UserId ORDER BY COUNT(Id) DESC LIMIT ${Math.max(limit, CANDIDATE_POOL)}`
   );
   const counts2 = new Map(ranked.map((r) => [String(r.UserId), territoryCount(r)]));
-  const loaded = counts2.size ? await rows(
+  const loaded = counts2.size ? await rows2(
     org,
     `SELECT Id, Username, Name, Profile.Name FROM User WHERE Id IN (${inList3([...counts2.keys()])})`
   ) : [];
@@ -141288,7 +141690,7 @@ async function heaviestOfProfile(org, profile, limit, exclude) {
     loaded.map((u) => toPerfUser(u, counts2.get(String(u.Id)) ?? 0))
   )).sort(byLoad).slice(0, limit);
   if (users.length < limit) {
-    const fill = await rows(
+    const fill = await rows2(
       org,
       `SELECT Id, Username, Name, Profile.Name FROM User WHERE IsActive = true AND UserType = 'Standard' AND Profile.Name = '${p}'${notIn("Id", [...exclude, ...users.map((u) => u.id)])} ORDER BY Name LIMIT ${limit - users.length}`
     );
@@ -141311,8 +141713,8 @@ async function syncingOfProfile(org, profile, limit, days) {
   const syncs2 = new Map(synced.map((r) => [idKey(String(r.CreatedById)), territoryCount(r)]));
   const ids = synced.map((r) => String(r.CreatedById));
   const [loaded, counts2] = await Promise.all([
-    rows(org, `SELECT Id, Username, Name, Profile.Name FROM User WHERE Id IN (${inList3(ids)})`),
-    rows(
+    rows2(org, `SELECT Id, Username, Name, Profile.Name FROM User WHERE Id IN (${inList3(ids)})`),
+    rows2(
       org,
       `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE UserId IN (${inList3(ids)}) AND ${ACTIVE_MODEL} GROUP BY UserId`
     )
@@ -141352,12 +141754,12 @@ async function findHeaviestUsers(org, filters2) {
     where3.push(`(Name LIKE '%${v}%' OR Username LIKE '%${v}%')`);
   }
   if (filters2.profile) where3.push(`Profile.Name = '${soqlString9(filters2.profile)}'`);
-  const users = await rows(
+  const users = await rows2(
     org,
     `SELECT Id, Username, Name, Profile.Name FROM User WHERE ${where3.join(" AND ")} ORDER BY Name LIMIT 200`
   );
   if (users.length === 0) return [];
-  const counts2 = await rows(
+  const counts2 = await rows2(
     org,
     `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE UserId IN (${inList3(users.map((u) => String(u.Id)))}) AND ${ACTIVE_MODEL} GROUP BY UserId`
   );
@@ -141397,13 +141799,13 @@ async function lookupUsers(org, refs, days) {
     names5.length ? `Username IN (${inList3(names5)})` : "",
     ids.length ? `Id IN (${inList3(ids)})` : ""
   ].filter(Boolean).join(" OR ");
-  const found = await rows(
+  const found = await rows2(
     org,
     `SELECT Id, Username, Name, IsActive, Profile.Name FROM User WHERE ${where3}`
   );
   const territories = /* @__PURE__ */ new Map();
   const [assignments, syncs2] = await Promise.all([
-    found.length ? rows(
+    found.length ? rows2(
       org,
       `SELECT UserId, Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId IN (${inList3(found.map((u) => String(u.Id)))}) AND ${ACTIVE_MODEL} ORDER BY Territory2.Name`
     ) : Promise.resolve([]),
@@ -141543,18 +141945,18 @@ async function personaTerritories(org, persona) {
 }
 
 // src/perf/compiled-schema.ts
-import * as fs19 from "fs";
+import * as fs20 from "fs";
 import * as os6 from "os";
-import * as path19 from "path";
+import * as path20 from "path";
 import { createHash as createHash6 } from "crypto";
 
 // src/perf/device/metadata.ts
 init_session();
 init_zip();
 import { createHash as createHash5 } from "crypto";
-import * as fs18 from "fs";
+import * as fs19 from "fs";
 import * as os5 from "os";
-import * as path18 from "path";
+import * as path19 from "path";
 function chunkBytesForRam(ramGB) {
   return ramGB >= 4 ? 10 * 1024 * 1024 : 2 * 1024 * 1024;
 }
@@ -141612,9 +142014,9 @@ async function downloadArchive(session, info, dir, opts = {}) {
   const now = opts.now ?? (() => performance.now());
   const chunk2 = Math.max(1, opts.chunkBytes ?? DEFAULT_CHUNK_BYTES);
   const url = info.versionDataURL ?? `/sfc/servlet.shepherd/version/download/${info.contentVersionId}`;
-  const file = path18.join(dir, "metadata.zip");
+  const file = path19.join(dir, "metadata.zip");
   const hash = createHash5("md5");
-  const fd = fs18.openSync(file, "w");
+  const fd = fs19.openSync(file, "w");
   const start = now();
   let received = 0;
   let requests = 0;
@@ -141642,7 +142044,7 @@ async function downloadArchive(session, info, dir, opts = {}) {
         );
       }
       total = contentRangeTotal(res.headers["content-range"]) ?? total;
-      fs18.writeSync(fd, res.body);
+      fs19.writeSync(fd, res.body);
       hash.update(res.body);
       received += res.body.length;
       if (res.status === 200) break;
@@ -141651,7 +142053,7 @@ async function downloadArchive(session, info, dir, opts = {}) {
       if (total === void 0 && res.body.length < chunk2) break;
     }
   } finally {
-    fs18.closeSync(fd);
+    fs19.closeSync(fd);
   }
   const md5 = hash.digest("hex");
   const seconds = (now() - start) / 1e3;
@@ -141681,13 +142083,13 @@ function readMetadataFiles(zipFile) {
 }
 async function downloadMetadata(session, metadataRecordId, opts = {}) {
   const info = await requestMetadataDownload(session, metadataRecordId, opts.signal);
-  const dir = fs18.mkdtempSync(path18.join(os5.tmpdir(), "lsc-sim-md-"));
+  const dir = fs19.mkdtempSync(path19.join(os5.tmpdir(), "lsc-sim-md-"));
   try {
     const dl = await downloadArchive(session, info, dir, opts);
     const files = readMetadataFiles(dl.file);
     return { info, files, bytes: dl.bytes, seconds: dl.seconds, requests: dl.requests + 1 };
   } finally {
-    fs18.rmSync(dir, { recursive: true, force: true });
+    fs19.rmSync(dir, { recursive: true, force: true });
   }
 }
 
@@ -141696,7 +142098,7 @@ init_private_tmp();
 function obj9(v) {
   return v && typeof v === "object" && !Array.isArray(v) ? v : {};
 }
-function str27(v) {
+function str28(v) {
   return typeof v === "string" && v ? v : void 0;
 }
 function splitList3(v) {
@@ -141715,7 +142117,7 @@ function tablesFromArchive(files, user, access) {
   const winners = /* @__PURE__ */ new Map();
   const consider2 = (key5, raw, matchedBy) => {
     const e = obj9(raw);
-    const sobject2 = str27(e.SObject) ?? (matchedBy === "profile" ? key5 : key5.replace(/__c$/, ""));
+    const sobject2 = str28(e.SObject) ?? (matchedBy === "profile" ? key5 : key5.replace(/__c$/, ""));
     const lower2 = sobject2.toLowerCase();
     if (excluded.has(lower2) || e.IsActive === false) return;
     if (access && access.governed.has(lower2) && !access.readable.has(lower2)) return;
@@ -141724,10 +142126,10 @@ function tablesFromArchive(files, user, access) {
       if (!sets.some((n2) => assigned.has(n2.toLowerCase()))) return;
     }
     const entry = {
-      developerName: str27(e.DeveloperName) ?? key5,
+      developerName: str28(e.DeveloperName) ?? key5,
       sobject: sobject2,
-      type: str27(e.Type) ?? "",
-      whereSoql: str27(e.WhereSoql) ?? null,
+      type: str28(e.Type) ?? "",
+      whereSoql: str28(e.WhereSoql) ?? null,
       profileIds: /* @__PURE__ */ new Set(),
       profileNames: /* @__PURE__ */ new Set(),
       permissionSets: /* @__PURE__ */ new Set()
@@ -141767,14 +142169,14 @@ async function findProfileArchive(org, profileId) {
   );
   if (!rec.success) throw new Error(`LifeSciMobileMetadataRecord query failed: ${rec.error}`);
   const row = rec.data?.records?.[0];
-  const docId = str27(row?.MetadataDocumentId);
+  const docId = str28(row?.MetadataDocumentId);
   if (!row || !docId) return null;
   const ver = await org.soql(
     `SELECT Id, Checksum, ContentSize FROM ContentVersion WHERE ContentDocumentId = '${soqlString10(docId)}' AND IsLatest = true LIMIT 1`
   );
   if (!ver.success) throw new Error(`ContentVersion query failed: ${ver.error}`);
   const v = ver.data?.records?.[0];
-  const checksum = str27(v?.Checksum);
+  const checksum = str28(v?.Checksum);
   if (!v || !checksum) return null;
   return {
     recordId: row.Id,
@@ -141814,7 +142216,7 @@ function diskCacheDir() {
   return privateTmp("lsc-perf-md-cache");
 }
 function md5OfFile(file) {
-  return createHash6("md5").update(fs19.readFileSync(file)).digest("hex");
+  return createHash6("md5").update(fs20.readFileSync(file)).digest("hex");
 }
 function remember(key5, files) {
   memoryCache.delete(key5);
@@ -141829,11 +142231,11 @@ function cachedFiles(ref3) {
     remember(key5, hit);
     return hit;
   }
-  const file = path19.join(diskCacheDir(), `${ref3.checksum.replace(/[^a-f0-9]/g, "")}.zip`);
+  const file = path20.join(diskCacheDir(), `${ref3.checksum.replace(/[^a-f0-9]/g, "")}.zip`);
   try {
-    if (!fs19.existsSync(file)) return null;
+    if (!fs20.existsSync(file)) return null;
     if (md5OfFile(file) !== ref3.checksum) {
-      fs19.rmSync(file, { force: true });
+      fs20.rmSync(file, { force: true });
       return null;
     }
     const files = readMetadataFiles(file);
@@ -141847,11 +142249,11 @@ function storeArchive(ref3, zip, files) {
   remember(`${ref3.contentVersionId}|${ref3.checksum}`, files);
   try {
     const dir = diskCacheDir();
-    fs19.mkdirSync(dir, { recursive: true });
-    const dest = path19.join(dir, `${ref3.checksum.replace(/[^a-f0-9]/g, "")}.zip`);
+    fs20.mkdirSync(dir, { recursive: true });
+    const dest = path20.join(dir, `${ref3.checksum.replace(/[^a-f0-9]/g, "")}.zip`);
     const tmp = `${dest}.${process.pid}.${Date.now()}.tmp`;
-    fs19.copyFileSync(zip, tmp);
-    fs19.renameSync(tmp, dest);
+    fs20.copyFileSync(zip, tmp);
+    fs20.renameSync(tmp, dest);
   } catch {
   }
 }
@@ -141863,14 +142265,14 @@ async function downloadProfileFiles(session, ref3) {
     versionDataURL: `/services/data/${session.apiVersion}/sobjects/ContentVersion/${ref3.contentVersionId}/VersionData`,
     userSpecificPermissions: {}
   };
-  const dir = fs19.mkdtempSync(path19.join(os6.tmpdir(), "lsc-perf-md-"));
+  const dir = fs20.mkdtempSync(path20.join(os6.tmpdir(), "lsc-perf-md-"));
   try {
     const dl = await downloadArchive(session, info, dir);
     const files = readMetadataFiles(dl.file);
     storeArchive(ref3, dl.file, files);
     return { files, bytes: dl.bytes };
   } finally {
-    fs19.rmSync(dir, { recursive: true, force: true });
+    fs20.rmSync(dir, { recursive: true, force: true });
   }
 }
 function createCompiledSchemaSource(deps) {
@@ -142091,7 +142493,7 @@ async function loadTelemetry(org, describeFields2, filters2) {
   const scopes = await telemetryScopes(org, filters2);
   const days = Math.max(1, Math.floor(filters2.days));
   const base2 = { days, profileName: filters2.profileName };
-  let rows3 = [];
+  let rows4 = [];
   let capped = false;
   if (scopes.length > 0) {
     const first2 = await mapWithConcurrency(
@@ -142099,7 +142501,7 @@ async function loadTelemetry(org, describeFields2, filters2) {
       DEFAULT_PROFILE_OPTIONS.concurrency,
       (scope2) => telemetryRows(org, fields, { ...base2, ...scope2 })
     );
-    rows3 = first2.flat();
+    rows4 = first2.flat();
     capped = first2.some((r) => r.length >= TELEMETRY_ROW_LIMIT);
   }
   let sliceDays;
@@ -142121,14 +142523,14 @@ async function loadTelemetry(org, describeFields2, filters2) {
         }
       }))
     );
-    rows3 = (await mapWithConcurrency(
+    rows4 = (await mapWithConcurrency(
       jobs3,
       DEFAULT_PROFILE_OPTIONS.concurrency,
       (job) => telemetryRows(org, fields, { ...base2, ...job.scope, range: job.range, limit: perSlice })
     )).flat();
   }
   const seen = /* @__PURE__ */ new Set();
-  const samples = rows3.filter((r) => !seen.has(String(r.Id)) && seen.add(String(r.Id))).map((r) => toSyncSample(r)).filter((s11) => s11 !== null).sort((a, b) => a.createdDate < b.createdDate ? 1 : a.createdDate > b.createdDate ? -1 : 0);
+  const samples = rows4.filter((r) => !seen.has(String(r.Id)) && seen.add(String(r.Id))).map((r) => toSyncSample(r)).filter((s11) => s11 !== null).sort((a, b) => a.createdDate < b.createdDate ? 1 : a.createdDate > b.createdDate ? -1 : 0);
   const coverage = {
     mode: capped ? "sampled" : "all",
     limit: TELEMETRY_ROW_LIMIT,
@@ -142537,7 +142939,7 @@ init_session();
 function obj10(v) {
   return v && typeof v === "object" && !Array.isArray(v) ? v : {};
 }
-function str28(v) {
+function str29(v) {
   return typeof v === "string" && v ? v : void 0;
 }
 function isEmptyRecord(v) {
@@ -142617,12 +143019,12 @@ function sobjectFields(sobjects, table) {
   const entry = obj10(sobjects[table]);
   return (Array.isArray(entry.fields) ? entry.fields : []).flatMap((raw) => {
     const f = obj10(raw);
-    const fullName = str28(f.fullName);
+    const fullName = str29(f.fullName);
     if (!fullName) return [];
     return [
       {
         fullName,
-        type: str28(f.type),
+        type: str29(f.type),
         length: typeof f.length === "number" ? f.length : Number(f.length) || void 0,
         dataTranslationEnabled: f.dataTranslationEnabled === true
       }
@@ -142646,12 +143048,12 @@ function buildUserAccessEntities(permissions, assignedPermissionSets) {
     if (name && !entities.includes(name)) entities.push(name);
   };
   const profile = obj10(permissions.profile);
-  add(str28(profile.fullName));
+  add(str29(profile.fullName));
   customPermissionNames(profile).forEach(add);
   const assigned = assignedPermissionSets?.length ? new Set(assignedPermissionSets.map((n2) => n2.toLowerCase())) : void 0;
   for (const raw of Array.isArray(permissions.permissionSets) ? permissions.permissionSets : []) {
     const ps = obj10(raw);
-    const name = str28(ps.fullName);
+    const name = str29(ps.fullName);
     if (assigned && (!name || !assigned.has(name.toLowerCase()))) continue;
     add(name);
     customPermissionNames(ps).forEach(add);
@@ -142681,13 +143083,13 @@ function buildSchema(input) {
   const candidates = [];
   for (const [key5, raw] of Object.entries(files.db)) {
     const e = obj10(raw);
-    const sobject2 = str28(e.SObject) ?? key5;
+    const sobject2 = str29(e.SObject) ?? key5;
     const availKey = lowerAvailable.get(sobject2.toLowerCase());
     if (!availKey || excluded.has(sobject2.toLowerCase())) continue;
     if (e.IsActive === false) continue;
     candidates.push({
       sobject: sobject2,
-      developerName: str28(e.DeveloperName) ?? key5,
+      developerName: str29(e.DeveloperName) ?? key5,
       raw: e,
       fromPermissionSet: false,
       fields: available[availKey] ?? []
@@ -142697,7 +143099,7 @@ function buildSchema(input) {
   const psAvailable = /* @__PURE__ */ new Map();
   for (const raw of Array.isArray(files.permissions.permissionSets) ? files.permissions.permissionSets : []) {
     const ps = obj10(raw);
-    const name = str28(ps.fullName);
+    const name = str29(ps.fullName);
     const af = obj10(ps.availableFields);
     if (!name || Object.keys(af).length === 0) continue;
     const m = {};
@@ -142709,7 +143111,7 @@ function buildSchema(input) {
   let psSkipped = 0;
   for (const [key5, raw] of Object.entries(files.dbPs)) {
     const e = obj10(raw);
-    const sobject2 = str28(e.SObject) ?? key5.replace(/__c$/, "");
+    const sobject2 = str29(e.SObject) ?? key5.replace(/__c$/, "");
     const sets = splitList4(e.PermissionSets).filter(
       (n2) => assigned.size === 0 || assigned.has(n2.toLowerCase())
     );
@@ -142720,7 +143122,7 @@ function buildSchema(input) {
     }
     candidates.push({
       sobject: sobject2,
-      developerName: str28(e.DeveloperName) ?? key5,
+      developerName: str29(e.DeveloperName) ?? key5,
       raw: e,
       fromPermissionSet: true,
       fields: fieldsFromPs
@@ -142755,13 +143157,13 @@ function buildSchema(input) {
       weights.push(fieldWeight(f.type, f.length));
     }
     if (fields.length === 0) continue;
-    const whereSoql = str28(c.raw.WhereSoql);
+    const whereSoql = str29(c.raw.WhereSoql);
     tables.push({
       sobject: c.sobject,
       developerName: c.developerName,
       fields,
       whereSoql,
-      deltaDateField: str28(c.raw.DeltaDateField),
+      deltaDateField: str29(c.raw.DeltaDateField),
       attachmentsSupport: normalizeAttachments(c.raw.AttachmentsSupport),
       userAccessEntities,
       weight: recordWeight(weights, whereSoql),
@@ -142828,18 +143230,18 @@ var ACCESS_CHECKS = [
 function obj11(v) {
   return v && typeof v === "object" && !Array.isArray(v) ? v : {};
 }
-function str29(v) {
+function str30(v) {
   return typeof v === "string" && v ? v : void 0;
 }
 function parseTerritory(raw) {
   const o = obj11(raw);
-  const name = str29(o.name);
+  const name = str30(o.name);
   if (!name) return void 0;
   const children2 = Array.isArray(o.children) ? o.children.map(parseTerritory).filter((t) => t !== void 0) : [];
   return {
-    id: str29(o.id),
+    id: str30(o.id),
     name,
-    developerName: str29(o.developerName),
+    developerName: str30(o.developerName),
     level: typeof o.level === "number" ? o.level : void 0,
     children: children2
   };
@@ -142851,27 +143253,27 @@ function parseUserInfo(json2) {
   const metadataEntities = (Array.isArray(o.metadataEntities) ? o.metadataEntities : []).flatMap(
     (raw) => {
       const e = obj11(raw);
-      const id2 = str29(e.id);
-      const name = str29(e.name);
+      const id2 = str30(e.id);
+      const name = str30(e.name);
       if (!id2 || !name) return [];
       return [
         {
           id: id2,
           name,
-          appVersionName: str29(e.appVersionName),
-          appVersionNumber: str29(e.appVersionNumber),
-          status: str29(e.status),
-          updateDueDate: str29(e.updateDueDate)
+          appVersionName: str30(e.appVersionName),
+          appVersionNumber: str30(e.appVersionNumber),
+          status: str30(e.status),
+          updateDueDate: str30(e.updateDueDate)
         }
       ];
     }
   );
-  const permissionSets = (Array.isArray(o.permissionSets) ? o.permissionSets : []).map((p) => typeof p === "string" ? p : str29(obj11(p).name)).filter((n2) => !!n2);
+  const permissionSets = (Array.isArray(o.permissionSets) ? o.permissionSets : []).map((p) => typeof p === "string" ? p : str30(obj11(p).name)).filter((n2) => !!n2);
   const territories = (Array.isArray(o.territoryHierarchy) ? o.territoryHierarchy : []).map(parseTerritory).filter((t) => t !== void 0);
   const user = obj11(o.user);
   const profile = obj11(user.profile);
   return {
-    apiVersion: str29(o.apiVersion),
+    apiVersion: str30(o.apiVersion),
     isOrgInMaintenance: o.isOrgInMaintenance === true,
     syncSettings: obj11(o.syncSettings),
     accessChecks,
@@ -142879,10 +143281,10 @@ function parseUserInfo(json2) {
     permissionSets,
     territories,
     user: {
-      id: str29(user.id) ?? "",
-      name: str29(user.name),
-      profileId: str29(user.profileId) ?? str29(profile.id),
-      profileName: str29(profile.name),
+      id: str30(user.id) ?? "",
+      name: str30(user.name),
+      profileId: str30(user.profileId) ?? str30(profile.id),
+      profileName: str30(profile.name),
       isForcedFullSync: user.isForcedFullSync === true
     },
     mobileAppVersion: o.mobileAppVersion
@@ -143273,7 +143675,7 @@ var lower = (r) => {
   for (const [k, v] of Object.entries(r)) out[k.toLowerCase()] = v;
   return out;
 };
-var str30 = (v) => typeof v === "string" && v ? v : void 0;
+var str31 = (v) => typeof v === "string" && v ? v : void 0;
 var num4 = (v) => typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" ? Number(v) || 0 : 0;
 var ContentCollector = class {
   constructor(want, tables, maxRows = DEFAULT_MAX_COLLECTED_ROWS) {
@@ -143303,7 +143705,7 @@ var ContentCollector = class {
     const { attachments, clm } = this.want;
     if (attachments && table.attachmentsSupport === "background" && name !== "presentationpage") {
       for (const r of records) {
-        const id2 = str30(r.Id) ?? str30(lower(r).id);
+        const id2 = str31(r.Id) ?? str31(lower(r).id);
         if (id2 && id2.length >= 3) this.prefixes.add(id2.slice(0, 3));
       }
     }
@@ -143312,16 +143714,16 @@ var ContentCollector = class {
         if (!attachments) return;
         for (const raw of records) {
           const r = lower(raw);
-          const id2 = str30(r.id);
-          const parentId = str30(r.parentid);
+          const id2 = str31(r.id);
+          const parentId = str31(r.parentid);
           if (!id2 || !parentId || !this.room("Attachment", this.attachmentRows.length)) continue;
-          const body = str30(r.body);
+          const body = str31(r.body);
           this.attachmentRows.push({
             id: id2,
             parentId,
             body: body && body.length <= MAX_BODY_URL ? body : void 0,
             size: num4(r.bodylength),
-            name: str30(r.name) ?? id2
+            name: str31(r.name) ?? id2
           });
         }
         return;
@@ -143329,8 +143731,8 @@ var ContentCollector = class {
         if (!attachments && !clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const docId = str30(r.contentdocumentid);
-          const linkedId = str30(r.linkedentityid);
+          const docId = str31(r.contentdocumentid);
+          const linkedId = str31(r.linkedentityid);
           if (docId && linkedId && this.room("ContentDocumentLink", this.cdls.length))
             this.cdls.push({ docId, linkedId });
         }
@@ -143339,12 +143741,12 @@ var ContentCollector = class {
         if (!attachments && !clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const id2 = str30(r.id);
+          const id2 = str31(r.id);
           if (id2 && (this.docs.has(id2) || this.room("ContentDocument", this.docs.size)))
             this.docs.set(id2, {
               id: id2,
-              latestVersionId: str30(r.latestpublishedversionid),
-              fileType: str30(r.filetype)
+              latestVersionId: str31(r.latestpublishedversionid),
+              fileType: str31(r.filetype)
             });
         }
         return;
@@ -143352,17 +143754,17 @@ var ContentCollector = class {
         if (!attachments && !clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const id2 = str30(r.id);
+          const id2 = str31(r.id);
           if (!id2 || !(this.versions.has(id2) || this.room("ContentVersion", this.versions.size)))
             continue;
-          const url = str30(r.versiondataurl) ?? (typeof r.versiondata === "string" && r.versiondata.startsWith("/") ? r.versiondata : void 0);
+          const url = str31(r.versiondataurl) ?? (typeof r.versiondata === "string" && r.versiondata.startsWith("/") ? r.versiondata : void 0);
           this.versions.set(id2, {
             id: id2,
-            docId: str30(r.contentdocumentid),
+            docId: str31(r.contentdocumentid),
             url,
             size: num4(r.contentsize),
-            checksum: str30(r.checksum)?.toLowerCase(),
-            title: str30(r.title),
+            checksum: str31(r.checksum)?.toLowerCase(),
+            title: str31(r.title),
             isLatest: r.islatest !== false
           });
         }
@@ -143371,15 +143773,15 @@ var ContentCollector = class {
         if (!clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const id2 = str30(r.id);
+          const id2 = str31(r.id);
           if (id2 && this.room("Presentation", this.presentations.length)) {
             this.presentations.push({
               id: id2,
-              name: str30(r.name) ?? id2,
-              type: (str30(r.type) ?? "").toUpperCase(),
-              status: str30(r.status),
-              activation: str30(r.activationdate),
-              deactivation: str30(r.deactivationdate),
+              name: str31(r.name) ?? id2,
+              type: (str31(r.type) ?? "").toUpperCase(),
+              status: str31(r.status),
+              activation: str31(r.activationdate),
+              deactivation: str31(r.deactivationdate),
               isCustom: r.iscustom === true
             });
           }
@@ -143389,8 +143791,8 @@ var ContentCollector = class {
         if (!clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const presentationId = str30(r.presentationid);
-          const pageId = str30(r.presentationpageid);
+          const presentationId = str31(r.presentationid);
+          const pageId = str31(r.presentationpageid);
           if (presentationId && pageId && this.room("PresentationLinkedPage", this.links.length))
             this.links.push({ presentationId, pageId, order: num4(r.displayorder) });
         }
@@ -143399,13 +143801,13 @@ var ContentCollector = class {
         if (!clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const id2 = str30(r.id);
+          const id2 = str31(r.id);
           if (id2 && (this.pages.has(id2) || this.room("PresentationPage", this.pages.size)))
             this.pages.set(id2, {
               id: id2,
-              name: str30(r.name) ?? id2,
-              type: str30(r.type) ?? "",
-              status: str30(r.status)
+              name: str31(r.name) ?? id2,
+              type: str31(r.type) ?? "",
+              status: str31(r.status)
             });
         }
         return;
@@ -144282,10 +144684,10 @@ var TableRunner = class {
     const session = this.o.session;
     const pageUrls = [];
     let firstPagesMB = 0;
-    for (const soql5 of soqls) {
+    for (const soql6 of soqls) {
       const first2 = await this.call(
         "GET",
-        dataPath(session, `query?q=${encodeURIComponent(soql5)}`)
+        dataPath(session, `query?q=${encodeURIComponent(soql6)}`)
       );
       firstPagesMB += this.lastDecodedBytes / (1024 * 1024);
       const { records, o } = recordsOf(first2);
@@ -144526,10 +144928,10 @@ var DeltaRun = class {
   }
   // ----- HTTP -----
   /** One counted request through the session; the time and bytes are shared between `rows`. */
-  async post(kind, path24, body, rows3) {
+  async post(kind, path25, body, rows4) {
     const scope2 = timeoutScope(this.o.signal, (this.o.requestTimeoutSeconds ?? 300) * 1e3);
     const payload = JSON.stringify(body);
-    const url = connectPath(this.o.session, path24);
+    const url = connectPath(this.o.session, path25);
     const t0 = this.now();
     try {
       const res = await this.o.session.http({
@@ -144546,8 +144948,8 @@ var DeltaRun = class {
       const received = res.wireBytes ?? res.body.length;
       this.bytes += received;
       this.uploadBytes += prepareRequestBody({ url, body: payload, gzip: true }).body?.length ?? 0;
-      for (const row of rows3) {
-        row.bytes += received / rows3.length;
+      for (const row of rows4) {
+        row.bytes += received / rows4.length;
         if (kind === "visibility") {
           row.visibilityRequests++;
           row.visibilitySeconds += seconds;
@@ -144556,14 +144958,14 @@ var DeltaRun = class {
           row.fetchSeconds += seconds;
         }
       }
-      return jsonOrThrow(res, `POST ${path24.split("/").pop()}`);
+      return jsonOrThrow(res, `POST ${path25.split("/").pop()}`);
     } finally {
       scope2.dispose();
     }
   }
-  fail(rows3, e) {
+  fail(rows4, e) {
     const message = this.aborted ? "cancelled" : e instanceof Error ? e.message : String(e);
-    for (const row of rows3) {
+    for (const row of rows4) {
       if (this.aborted) row.truncated ??= message;
       else row.error ??= message;
     }
@@ -144711,14 +145113,14 @@ var DeltaRun = class {
       }
       carry = [];
       if (objects.length === 0) continue;
-      const rows3 = sent.map((s11) => s11.item.row);
+      const rows4 = sent.map((s11) => s11.item.row);
       let results;
       try {
         results = parseVisibility(
-          await this.post("visibility", VISIBILITY_PATH, { objects }, rows3)
+          await this.post("visibility", VISIBILITY_PATH, { objects }, rows4)
         );
       } catch (e) {
-        this.fail(rows3, e);
+        this.fail(rows4, e);
         continue;
       }
       for (const s11 of sent) {
@@ -144851,12 +145253,12 @@ var DeltaRun = class {
       row.seconds = row.visibilitySeconds + row.fetchSeconds;
       row.bytes = Math.round(row.bytes);
     }
-    const rows3 = this.all.map((i) => i.row);
-    const sum = (f) => rows3.reduce((s11, r) => s11 + f(r), 0);
+    const rows4 = this.all.map((i) => i.row);
+    const sum = (f) => rows4.reduce((s11, r) => s11 + f(r), 0);
     const totals = {
-      tablesChecked: rows3.filter((r) => !r.skipped && !r.error).length,
-      tablesSkipped: rows3.filter((r) => r.skipped).length,
-      tablesFailed: rows3.filter((r) => r.error).length,
+      tablesChecked: rows4.filter((r) => !r.skipped && !r.error).length,
+      tablesSkipped: rows4.filter((r) => r.skipped).length,
+      tablesFailed: rows4.filter((r) => r.error).length,
       localIds: sum((r) => r.localIds),
       toDownload: sum((r) => r.toDownload),
       toDelete: sum((r) => r.toDelete),
@@ -144879,13 +145281,13 @@ var DeltaRun = class {
       ...this.notes
     ];
     if (this.aborted) notes.push("The delta simulation was cancelled.");
-    if (rows3.some((r) => r.error))
+    if (rows4.some((r) => r.error))
       notes.push("A failed request fails that table only here; the app would fail the whole sync.");
     return {
       sinceHours: this.o.sinceHours,
       rangeStart: this.rangeStart,
       rangeEnd: this.rangeEnd,
-      tables: rows3,
+      tables: rows4,
       totals,
       notes
     };
@@ -145323,8 +145725,8 @@ function cancelSimulation(jobId) {
 }
 
 // src/tools/perf-simulate.ts
-import * as fs20 from "fs";
-import * as path20 from "path";
+import * as fs21 from "fs";
+import * as path21 from "path";
 function text8(body) {
   return { content: [{ type: "text", text: body }] };
 }
@@ -145358,18 +145760,18 @@ function renderDelta(d, topTables) {
   out += `**To download:** ${t.toDownload.toLocaleString("en-US")}, **fetched:** ${t.recordsFetched.toLocaleString("en-US")}, **to delete (informational):** ${t.toDelete.toLocaleString("en-US")}, **response size:** ${mb(t.bytes)}, across ${t.tablesChecked} tables (${t.tablesSkipped} skipped, ${t.tablesFailed} failed)
 
 `;
-  const rows3 = d.tables.filter((x) => !x.skipped).sort((a, b) => b.seconds - a.seconds || b.toDownload - a.toDownload);
+  const rows4 = d.tables.filter((x) => !x.skipped).sort((a, b) => b.seconds - a.seconds || b.toDownload - a.toDownload);
   out += `| Table | Local ids | Visibility requests | To download | To delete | Fetched | Fetch requests | MB | Seconds | Note |
 |---|---|---|---|---|---|---|---|---|---|
 `;
-  for (const x of rows3.slice(0, topTables)) {
+  for (const x of rows4.slice(0, topTables)) {
     const note = x.error ? `error: ${x.error}` : x.truncated ?? "";
     out += `| ${x.sobject} | ${x.localIds.toLocaleString("en-US")} | ${x.visibilityRequests} | ${x.toDownload.toLocaleString("en-US")} | ${x.toDelete.toLocaleString("en-US")} | ${x.recordsFetched.toLocaleString("en-US")} | ${x.fetchRequests} | ${(x.bytes / (1024 * 1024)).toFixed(2)} | ${x.seconds.toFixed(1)} | ${cell(note)} |
 `;
   }
-  if (rows3.length > topTables)
+  if (rows4.length > topTables)
     out += `
-${rows3.length - topTables} more table(s) in the JSON output.
+${rows4.length - topTables} more table(s) in the JSON output.
 `;
   const skipped = d.tables.filter((x) => x.skipped);
   if (skipped.length > 0) {
@@ -145519,9 +145921,9 @@ function register23(server2) {
         });
         let report = renderSimulation(result2);
         if (outputPath) {
-          const resolved = path20.resolve(outputPath);
-          fs20.mkdirSync(path20.dirname(resolved), { recursive: true });
-          fs20.writeFileSync(resolved, JSON.stringify(result2, null, 2));
+          const resolved = path21.resolve(outputPath);
+          fs21.mkdirSync(path21.dirname(resolved), { recursive: true });
+          fs21.writeFileSync(resolved, JSON.stringify(result2, null, 2));
           report += `
 Full result written to \`${resolved}\`.
 `;
@@ -145974,8 +146376,8 @@ var MAX_AT_RISK = 25;
 var soqlString11 = (v) => v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 var inList4 = (values) => values.map((v) => `'${soqlString11(v)}'`).join(",");
 var idKey2 = (id2) => id2.slice(0, 15);
-async function rows2(org, soql5) {
-  const result2 = await org.soql(soql5);
+async function rows3(org, soql6) {
+  const result2 = await org.soql(soql6);
   if (!result2.success) throw new Error(result2.error || "Query failed");
   return result2.data?.records ?? [];
 }
@@ -146003,11 +146405,11 @@ async function loadAggregates(org, fields, days) {
     count: Number(r.c ?? r.expr0 ?? 0)
   });
   try {
-    const all = await rows2(org, select);
+    const all = await rows3(org, select);
     if (status || !has("IsDownloadCompleted") || !has("DownloadStart")) {
       return all.map((r) => toAgg(r, String(r.st ?? "")));
     }
-    const reached = await rows2(
+    const reached = await rows3(
       org,
       `SELECT DAY_ONLY(CreatedDate) d, IsDownloadCompleted ok, COUNT(Id) c FROM DeviceSyncSummary WHERE ${where3.join(" AND ")} AND DownloadStart != null GROUP BY DAY_ONLY(CreatedDate), IsDownloadCompleted`
     );
@@ -146027,7 +146429,7 @@ async function loadAggregates(org, fields, days) {
 }
 async function joinUsers(org, ranked) {
   if (ranked.length === 0) return [];
-  const users = await rows2(
+  const users = await rows3(
     org,
     `SELECT Id, Username, Name, Profile.Name FROM User WHERE Username IN (${inList4(ranked.map((u) => u.username))})`
   );
@@ -146035,7 +146437,7 @@ async function joinUsers(org, ranked) {
   const ids = users.map((u) => String(u.Id));
   const counts2 = /* @__PURE__ */ new Map();
   if (ids.length) {
-    const grouped = await rows2(
+    const grouped = await rows3(
       org,
       `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE UserId IN (${inList4(ids)}) AND Territory2.Territory2Model.State = 'Active' GROUP BY UserId`
     );
@@ -146214,10 +146616,10 @@ async function loadSchemaRecords(org, querier2) {
   );
   const categoryId = cat.success ? cat.data?.records?.[0]?.Id : void 0;
   if (categoryId) {
-    const rows3 = await querier2.tooling(
+    const rows4 = await querier2.tooling(
       `SELECT Id, DeveloperName FROM LifeSciConfigRecord WHERE LifeSciConfigCategoryId = '${categoryId}'`
     );
-    for (const r of rows3.success ? rows3.data?.records ?? [] : [])
+    for (const r of rows4.success ? rows4.data?.records ?? [] : [])
       ids.set(String(r.DeveloperName), String(r.Id));
   }
   return records.map((r) => ({
@@ -147006,15 +147408,15 @@ A persona is a type of rep (for example, a field rep) tested with representative
 `;
   }
   for (const p of a.personas) {
-    const rows3 = p.evaluations.filter((e) => e.status !== "no-threshold");
-    if (!rows3.length) continue;
+    const rows4 = p.evaluations.filter((e) => e.status !== "no-threshold");
+    if (!rows4.length) continue;
     out += `
 ### ${p.persona.name}
 
 | Measure | Result | Target | Limit | Outcome |
 |---|---|---|---|---|
 `;
-    for (const e of rows3) {
+    for (const e of rows4) {
       const value4 = e.value === void 0 ? "\u2014" : plainValue(e.metric, e.value);
       const t = e.threshold;
       out += `| ${cell2(metricLabel(e.metric))} | ${value4} | ${t?.warn === void 0 ? "\u2014" : plainValue(e.metric, t.warn)} | ${t?.fail === void 0 ? "\u2014" : plainValue(e.metric, t.fail)} | ${STATUS_WORD[e.status]} |
@@ -147068,7 +147470,7 @@ Slowest tables for ${s11.user.username}: ${slow.map((t) => `${t.sobject} (${plai
 }
 function changesSection(now, base2) {
   const byName = new Map(base2.personas.map((p) => [p.persona.name.trim().toLowerCase(), p]));
-  const rows3 = [];
+  const rows4 = [];
   for (const p of now.personas) {
     const before = byName.get(p.persona.name.trim().toLowerCase());
     if (!before) continue;
@@ -147078,7 +147480,7 @@ function changesSection(now, base2) {
       const diff = e.value - old.value;
       const change2 = diff === 0 ? "no change" : `${diff > 0 ? "worse by" : "better by"} ${plainValue(e.metric, Math.abs(diff))}`;
       const outcome = old.status === e.status ? STATUS_WORD[e.status] : `${STATUS_WORD[old.status]} to ${STATUS_WORD[e.status]}`;
-      rows3.push(
+      rows4.push(
         `| ${cell2(p.persona.name)} | ${cell2(metricLabel(e.metric))} | ${plainValue(e.metric, old.value)} | ${plainValue(e.metric, e.value)} | ${change2} | ${outcome} |`
       );
     }
@@ -147088,12 +147490,12 @@ function changesSection(now, base2) {
 Compared with the run of ${base2.generatedAt}.
 
 `;
-  if (!rows3.length)
+  if (!rows4.length)
     return out + `No measure appears in both runs, so there is nothing to compare.
 `;
   out += `| Persona | Measure | Baseline | Now | Change | Outcome |
 |---|---|---|---|---|---|
-${rows3.join("\n")}
+${rows4.join("\n")}
 `;
   return out;
 }
@@ -147168,8 +147570,8 @@ ${appendix(a, sims, days)}
 init_cli();
 init_direct_metadata();
 init_helpers2();
-import * as fs21 from "fs";
-import * as path21 from "path";
+import * as fs22 from "fs";
+import * as path22 from "path";
 init_xml2();
 var SOURCE_TYPES = [
   "Layout",
@@ -147181,7 +147583,7 @@ var SOURCE_TYPES = [
   "ValidationRule",
   "LifeSciConfigRecord"
 ];
-var PACKAGE_XML_PATH = path21.join("manifest", "studio-package.xml");
+var PACKAGE_XML_PATH = path22.join("manifest", "studio-package.xml");
 var ORG_ONLY = {
   psl: "Permission set license assignments are user records in the org, not source files.",
   access: "Permission set, group and territory assignments are user records in the org, not source files.",
@@ -147288,10 +147690,10 @@ var FILE_LAYOUT = {
 };
 function sourcePathFor(item2) {
   const f = FILE_LAYOUT[item2.type];
-  if (!f.child) return path21.posix.join(f.dir, `${item2.fullName}.${f.suffix}-meta.xml`);
+  if (!f.child) return path22.posix.join(f.dir, `${item2.fullName}.${f.suffix}-meta.xml`);
   const dot = item2.fullName.indexOf(".");
   if (dot < 1) throw new Error(`${item2.type} ${item2.fullName} isn't named Object.Name`);
-  return path21.posix.join(
+  return path22.posix.join(
     "objects",
     item2.fullName.slice(0, dot),
     f.dir,
@@ -147322,15 +147724,15 @@ function packageRoot(folder) {
   let pkg = "force-app";
   try {
     const project = JSON.parse(
-      fs21.readFileSync(path21.join(folder, "sfdx-project.json"), "utf-8")
+      fs22.readFileSync(path22.join(folder, "sfdx-project.json"), "utf-8")
     );
     const dirs = project.packageDirectories ?? [];
     const chosen = dirs.find((d) => d.default) ?? dirs[0];
     if (chosen?.path) pkg = chosen.path;
   } catch {
   }
-  const root2 = path21.resolve(folder, pkg, "main", "default");
-  if (!root2.startsWith(path21.resolve(folder) + path21.sep))
+  const root2 = path22.resolve(folder, pkg, "main", "default");
+  if (!root2.startsWith(path22.resolve(folder) + path22.sep))
     throw new Error("The project's package folder is outside the chosen folder.");
   return root2;
 }
@@ -147371,9 +147773,9 @@ var safeDecode = (s11) => {
 };
 function filesUnder(dir) {
   const out = [];
-  if (!fs21.existsSync(dir)) return out;
-  for (const entry of fs21.readdirSync(dir, { withFileTypes: true })) {
-    const full = path21.join(dir, entry.name);
+  if (!fs22.existsSync(dir)) return out;
+  for (const entry of fs22.readdirSync(dir, { withFileTypes: true })) {
+    const full = path22.join(dir, entry.name);
     if (entry.isDirectory()) out.push(...filesUnder(full));
     else out.push(full);
   }
@@ -147399,12 +147801,12 @@ async function retrieveAll(items, recordTypes, org) {
 }
 async function lookupValidationRules(ids, org) {
   if (ids.length === 0) return [];
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT Id, ValidationName, NamespacePrefix, EntityDefinition.QualifiedApiName FROM ValidationRule WHERE Id IN (${inList(ids)})`,
     org,
     true
   );
-  return rows3.map((r) => ({
+  return rows4.map((r) => ({
     type: "ValidationRule",
     fullName: `${r.EntityDefinition?.QualifiedApiName}.${ns2(r.NamespacePrefix)}${r.ValidationName}`
   }));
@@ -147416,16 +147818,16 @@ async function layoutRecordTypes(items, org) {
     ...new Set(items.filter((i) => i.type === "Layout").map((i) => layoutObject4(i.fullName)))
   ];
   if (objects.length === 0) return [];
-  const rows3 = await query(
+  const rows4 = await query(
     `SELECT SobjectType, DeveloperName, NamespacePrefix FROM RecordType WHERE SobjectType IN (${inList(objects)})`,
     org
   );
-  return rows3.map((r) => `${r.SobjectType}.${ns2(r.NamespacePrefix)}${r.DeveloperName}`);
+  return rows4.map((r) => `${r.SobjectType}.${ns2(r.NamespacePrefix)}${r.DeveloperName}`);
 }
 async function exportSource(input, org) {
-  const folder = path21.resolve(input.folder);
-  if (!path21.isAbsolute(input.folder)) throw new Error("Choose a folder by its full path.");
-  if (!fs21.existsSync(folder) || !fs21.statSync(folder).isDirectory())
+  const folder = path22.resolve(input.folder);
+  if (!path22.isAbsolute(input.folder)) throw new Error("Choose a folder by its full path.");
+  if (!fs22.existsSync(folder) || !fs22.statSync(folder).isDirectory())
     throw new Error(`${folder} isn't a folder.`);
   const plan3 = planSourceExport(input.changes ?? [], input.items ?? []);
   const notes = [];
@@ -147443,15 +147845,15 @@ async function exportSource(input, org) {
       );
   }
   const root2 = packageRoot(folder);
-  const rel5 = (p) => path21.relative(folder, p).split(path21.sep).join("/");
+  const rel5 = (p) => path22.relative(folder, p).split(path22.sep).join("/");
   const result2 = {
     folder,
     packageDir: rel5(root2),
     manifest: null,
     files: [],
     toRemove: plan3.removed.map((i) => {
-      const p = path21.join(root2, sourcePathFor(i));
-      return { type: i.type, fullName: i.fullName, path: rel5(p), exists: fs21.existsSync(p) };
+      const p = path22.join(root2, sourcePathFor(i));
+      return { type: i.type, fullName: i.fullName, path: rel5(p), exists: fs22.existsSync(p) };
     }),
     orgOnly: plan3.orgOnly,
     missing: [],
@@ -147464,7 +147866,7 @@ async function exportSource(input, org) {
   const retrieved = /* @__PURE__ */ new Map();
   for (const dir of dirs)
     for (const file of filesUnder(dir))
-      retrieved.set(path21.relative(dir, file).split(path21.sep).join("/"), file);
+      retrieved.set(path22.relative(dir, file).split(path22.sep).join("/"), file);
   const layoutNames = items.filter((i) => i.type === "Layout").map((i) => i.fullName);
   try {
     for (const item2 of items) {
@@ -147475,38 +147877,38 @@ async function exportSource(input, org) {
         result2.missing.push(item2);
         continue;
       }
-      const to = path21.join(root2, sub);
-      fs21.mkdirSync(path21.dirname(to), { recursive: true });
+      const to = path22.join(root2, sub);
+      fs22.mkdirSync(path22.dirname(to), { recursive: true });
       let status = "written";
       if (item2.type === "Profile") {
-        if (fs21.existsSync(to)) {
-          fs21.writeFileSync(
+        if (fs22.existsSync(to)) {
+          fs22.writeFileSync(
             to,
             mergeProfileAssignments(
-              fs21.readFileSync(to, "utf-8"),
-              fs21.readFileSync(from, "utf-8"),
+              fs22.readFileSync(to, "utf-8"),
+              fs22.readFileSync(from, "utf-8"),
               layoutNames
             )
           );
           status = "merged";
         } else {
-          fs21.copyFileSync(from, to);
+          fs22.copyFileSync(from, to);
           status = "partial";
           notes.push(
             `${rel5(to)} holds only this profile's layout assignments; merge it into your full profile file if you keep one elsewhere.`
           );
         }
-      } else fs21.copyFileSync(from, to);
+      } else fs22.copyFileSync(from, to);
       result2.files.push({ type: item2.type, fullName: item2.fullName, path: rel5(to), status });
     }
     if (result2.files.length > 0) {
-      const manifest2 = path21.join(folder, PACKAGE_XML_PATH);
-      fs21.mkdirSync(path21.dirname(manifest2), { recursive: true });
-      fs21.writeFileSync(manifest2, buildPackageXml(result2.files, await orgApiVersion(org)));
+      const manifest2 = path22.join(folder, PACKAGE_XML_PATH);
+      fs22.mkdirSync(path22.dirname(manifest2), { recursive: true });
+      fs22.writeFileSync(manifest2, buildPackageXml(result2.files, await orgApiVersion(org)));
       result2.manifest = rel5(manifest2);
     }
   } finally {
-    for (const dir of dirs) fs21.rmSync(dir, { recursive: true, force: true });
+    for (const dir of dirs) fs22.rmSync(dir, { recursive: true, force: true });
   }
   return result2;
 }
@@ -147560,7 +147962,7 @@ function blankHtmlComments(html) {
   return html.replace(/<!--[\s\S]*?-->/g, (m) => m.replace(/[^\n]/g, " "));
 }
 var asArray2 = (v) => v === void 0 ? [] : Array.isArray(v) ? v : [v];
-function parseMeta(xml) {
+function parseMeta(xml2) {
   const parser2 = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: "@_",
@@ -147569,7 +147971,7 @@ function parseMeta(xml) {
   });
   let doc;
   try {
-    doc = parser2.parse(xml, true);
+    doc = parser2.parse(xml2, true);
   } catch (e) {
     return {
       ok: false,
@@ -147632,8 +148034,8 @@ function gqlTemplates(source) {
     out.push({ text: m[1], index: (m.index ?? 0) + m[0].indexOf("`") + 1 });
   return out;
 }
-function pushMetaIssues(input, meta, path24, parent, issues) {
-  const add = (i) => issues.push({ path: path24, ...i });
+function pushMetaIssues(input, meta, path25, parent, issues) {
+  const add = (i) => issues.push({ path: path25, ...i });
   if (!meta.ok) {
     add({
       severity: "error",
@@ -148277,7 +148679,7 @@ function syncedObjectsOf(org) {
   cache2.set(org, { at: Date.now(), value: value4 });
   return value4;
 }
-var soql3 = (v) => v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+var soql4 = (v) => v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 async function syncedObjectsFor(org, who) {
   if (!who.userId && !who.profile) return syncedObjectsOf(org);
   try {
@@ -148290,7 +148692,7 @@ async function syncedObjectsFor(org, who) {
       user = await loadUserContext(querier2, who.userId);
     } else {
       const res = await querier2.soql(
-        `SELECT Id, Name FROM Profile WHERE Name = '${soql3(who.profile)}' LIMIT 1`
+        `SELECT Id, Name FROM Profile WHERE Name = '${soql4(who.profile)}' LIMIT 1`
       );
       const row = res.success ? res.data?.records?.[0] : void 0;
       if (!row) return null;
@@ -148322,7 +148724,7 @@ function cleanMessage(message) {
 function compileIssue(err, files) {
   const e = err ?? {};
   const raw = typeof e.message === "string" ? e.message : String(err);
-  const path24 = appPath(e.loc?.file ?? e.id ?? e.filename, files);
+  const path25 = appPath(e.loc?.file ?? e.id ?? e.filename, files);
   const fromMessage = /\((\d+):\d+\)/.exec(raw)?.[1];
   const line = e.loc?.line ?? e.location?.line ?? e.line ?? (fromMessage ? Number(fromMessage) : void 0);
   let message = cleanMessage(raw);
@@ -148341,7 +148743,7 @@ function compileIssue(err, files) {
     severity: "error",
     rule: "compile",
     message,
-    ...path24 ? { path: path24 } : {},
+    ...path25 ? { path: path25 } : {},
     ...line ? { line } : {},
     fix
   };
@@ -148455,11 +148857,11 @@ init_cli();
 init_session();
 var RunAsError = class extends Error {
 };
-async function userGet(login, path24, http3) {
+async function userGet(login, path25, http3) {
   const session = createTokenSession(login);
   const res = await (http3 ?? session.http)({
     method: "GET",
-    url: `/services/data/${session.apiVersion}${path24}`,
+    url: `/services/data/${session.apiVersion}${path25}`,
     headers: { Accept: "application/json" }
   });
   if (res.status === 401)
@@ -148609,11 +149011,11 @@ async function describeForApp(objects, org, as) {
 // src/studio/apps/sample.ts
 init_cli();
 var MAX_SAMPLE_ROWS = 5;
-function blankStrings(soql5) {
-  return soql5.replace(/'(?:[^'\\]|\\.)*'/g, (m) => "'" + " ".repeat(m.length - 2) + "'");
+function blankStrings(soql6) {
+  return soql6.replace(/'(?:[^'\\]|\\.)*'/g, (m) => "'" + " ".repeat(m.length - 2) + "'");
 }
-function guardSampleQuery(soql5) {
-  const text12 = soql5.trim();
+function guardSampleQuery(soql6) {
+  const text12 = soql6.trim();
   if (!text12) throw new Error("The query is empty.");
   const blank2 = blankStrings(text12);
   if ((blank2.match(/'/g)?.length ?? 0) % 2)
@@ -148659,10 +149061,10 @@ function stripAttributes(row) {
   }
   return out;
 }
-async function sampleRecords(soql5, org, as) {
-  const guarded = guardSampleQuery(soql5);
+async function sampleRecords(soql6, org, as) {
+  const guarded2 = guardSampleQuery(soql6);
   if (as) {
-    const res = await userGet(as, `/query?q=${encodeURIComponent(guarded)}`);
+    const res = await userGet(as, `/query?q=${encodeURIComponent(guarded2)}`);
     if (res.status !== 200)
       throw new RunAsError(
         `The query failed as ${as.username}: ${errorMessage5(res.data, `HTTP ${res.status}`)}`
@@ -148671,7 +149073,7 @@ async function sampleRecords(soql5, org, as) {
     const records = (body.records ?? []).slice(0, MAX_SAMPLE_ROWS).map(stripAttributes);
     return { records, totalSize: body.totalSize ?? records.length };
   }
-  const result2 = await runSoqlQuery(guarded, org, { maxRows: MAX_SAMPLE_ROWS });
+  const result2 = await runSoqlQuery(guarded2, org, { maxRows: MAX_SAMPLE_ROWS });
   if (!result2.success || !result2.data) throw new Error(result2.error || "The query failed.");
   return {
     records: result2.data.records.slice(0, MAX_SAMPLE_ROWS).map(stripAttributes),
@@ -148682,7 +149084,7 @@ async function sampleRecords(soql5, org, as) {
 // src/studio/apps/org-apps.ts
 init_inline_lwc();
 init_helpers2();
-var str31 = (v) => typeof v === "string" ? v : "";
+var str32 = (v) => typeof v === "string" ? v : "";
 function targetOf(targets, name = APP_PREFIX) {
   const prefixed = name.startsWith(APP_PREFIX);
   if (targets.includes("lightning__HomePage")) return "home";
@@ -148693,15 +149095,15 @@ function targetOf(targets, name = APP_PREFIX) {
 }
 var NAME_RE = new RegExp(`^(${APP_PREFIX}|${QUICK_ACTION_PREFIX})\\w+$`);
 async function quickActionObjects(org) {
-  const rows3 = await query(
+  const rows4 = await query(
     "SELECT DeveloperName, EntityDefinition.QualifiedApiName FROM QuickActionDefinition WHERE Type = 'LightningWebComponent' AND DeveloperName LIKE 'lscMobile%'",
     org,
     true
   ).catch(() => []);
   const out = /* @__PURE__ */ new Map();
-  for (const r of rows3) {
-    const object3 = str31(r.EntityDefinition?.QualifiedApiName);
-    const action = str31(r.DeveloperName);
+  for (const r of rows4) {
+    const object3 = str32(r.EntityDefinition?.QualifiedApiName);
+    const action = str32(r.DeveloperName);
     if (object3 && action) out.set(action, [...out.get(action) ?? [], object3]);
   }
   return out;
@@ -148722,23 +149124,23 @@ async function listOrgApps(org) {
   ]);
   const targets = /* @__PURE__ */ new Map();
   for (const m of metas) {
-    const name = str31(m.LightningComponentBundle?.DeveloperName);
-    const meta = parseMeta(str31(m.Source));
+    const name = str32(m.LightningComponentBundle?.DeveloperName);
+    const meta = parseMeta(str32(m.Source));
     if (name && meta.ok) targets.set(name, meta.targets);
   }
-  return bundles.filter((b) => !str31(b.NamespacePrefix) && NAME_RE.test(str31(b.DeveloperName))).map((b) => {
-    const name = str31(b.DeveloperName);
+  return bundles.filter((b) => !str32(b.NamespacePrefix) && NAME_RE.test(str32(b.DeveloperName))).map((b) => {
+    const name = str32(b.DeveloperName);
     const target3 = targetOf(targets.get(name) ?? [], name);
     const objects = actions.get(name);
-    const modifiedBy2 = str31(b.LastModifiedBy?.Name);
+    const modifiedBy2 = str32(b.LastModifiedBy?.Name);
     return {
       name,
-      label: str31(b.MasterLabel) || name.replace(/^lscMobile[A-Za-z]+_/, ""),
+      label: str32(b.MasterLabel) || name.replace(/^lscMobile[A-Za-z]+_/, ""),
       target: target3,
       ...objects?.length ? { objectApiNames: objects } : {},
-      ...str31(b.LastModifiedDate) ? { lastModifiedDate: str31(b.LastModifiedDate) } : {},
+      ...str32(b.LastModifiedDate) ? { lastModifiedDate: str32(b.LastModifiedDate) } : {},
       ...modifiedBy2 ? { lastModifiedBy: modifiedBy2 } : {},
-      ...str31(b.Description) ? { description: str31(b.Description) } : {}
+      ...str32(b.Description) ? { description: str32(b.Description) } : {}
     };
   }).sort((a, b) => (b.lastModifiedDate ?? "").localeCompare(a.lastModifiedDate ?? ""));
 }
@@ -148837,8 +149239,8 @@ function starterSource(id2, dir = STARTERS_DIR) {
 
 // src/studio/apps/deploy.ts
 init_cli();
-import * as fs22 from "fs";
-import * as path22 from "path";
+import * as fs23 from "fs";
+import * as path23 from "path";
 var esc3 = (s11) => s11.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 function quickActionXml(name, label2) {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -148895,18 +149297,18 @@ function profileTabXml(tab) {
 </Profile>
 `;
 }
-function addTabToAppXml(xml, tab) {
-  if (new RegExp(`<tabs>\\s*${tab}\\s*</tabs>`).test(xml)) return xml;
-  const last = xml.lastIndexOf("</tabs>");
+function addTabToAppXml(xml2, tab) {
+  if (new RegExp(`<tabs>\\s*${tab}\\s*</tabs>`).test(xml2)) return xml2;
+  const last = xml2.lastIndexOf("</tabs>");
   if (last >= 0) {
     const at2 = last + "</tabs>".length;
-    return `${xml.slice(0, at2)}
-    <tabs>${tab}</tabs>${xml.slice(at2)}`;
+    return `${xml2.slice(0, at2)}
+    <tabs>${tab}</tabs>${xml2.slice(at2)}`;
   }
-  const close = xml.lastIndexOf("</CustomApplication>");
+  const close = xml2.lastIndexOf("</CustomApplication>");
   if (close < 0) throw new Error("The app's metadata isn't a CustomApplication.");
-  return `${xml.slice(0, close)}    <tabs>${tab}</tabs>
-${xml.slice(close)}`;
+  return `${xml2.slice(0, close)}    <tabs>${tab}</tabs>
+${xml2.slice(close)}`;
 }
 function tabOptions(input) {
   const meta = input.files.find((f) => f.path === `lwc/${input.name}/${input.name}.js-meta.xml`);
@@ -148950,17 +149352,17 @@ async function readApp(application, org) {
   if (!result2.success || !result2.data) return { error: result2.error ?? "The retrieve failed." };
   const found = [];
   const walk5 = (dir) => {
-    for (const e of fs22.readdirSync(dir, { withFileTypes: true })) {
-      const p = path22.join(dir, e.name);
+    for (const e of fs23.readdirSync(dir, { withFileTypes: true })) {
+      const p = path23.join(dir, e.name);
       if (e.isDirectory()) walk5(p);
       else if (e.name.endsWith(".app-meta.xml")) found.push(p);
     }
   };
   try {
     walk5(result2.data.outputDir);
-    return found[0] ? { xml: fs22.readFileSync(found[0], "utf-8") } : { error: `The org has no app named ${application}.` };
+    return found[0] ? { xml: fs23.readFileSync(found[0], "utf-8") } : { error: `The org has no app named ${application}.` };
   } finally {
-    fs22.rmSync(result2.data.outputDir, { recursive: true, force: true });
+    fs23.rmSync(result2.data.outputDir, { recursive: true, force: true });
   }
 }
 async function deployApp(input, org) {
@@ -149008,17 +149410,17 @@ async function deployApp(input, org) {
         "No profile was given, so the tab isn't visible to anyone yet (tabs are Hidden by default and the iPad skips tabs a profile hides). Make it Default On for the profiles that should see it, then Publish to iPad."
       );
   }
-  const root2 = path22.join(
+  const root2 = path23.join(
     ensureTmpSfdxProject(),
     "force-app",
     `app-deploy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   );
   try {
     for (const [rel5, content] of Object.entries(tree.files)) {
-      const file = path22.join(root2, rel5);
-      if (!file.startsWith(root2 + path22.sep)) throw new Error(`Unsafe path: ${rel5}`);
-      fs22.mkdirSync(path22.dirname(file), { recursive: true });
-      fs22.writeFileSync(file, content, "utf-8");
+      const file = path23.join(root2, rel5);
+      if (!file.startsWith(root2 + path23.sep)) throw new Error(`Unsafe path: ${rel5}`);
+      fs23.mkdirSync(path23.dirname(file), { recursive: true });
+      fs23.writeFileSync(file, content, "utf-8");
     }
     const result2 = await deployMetadata(root2, org);
     if (!result2.success)
@@ -149031,14 +149433,14 @@ async function deployApp(input, org) {
       };
     return { ok: true, deployed: tree.deployed, warnings, production };
   } finally {
-    fs22.rmSync(root2, { recursive: true, force: true });
+    fs23.rmSync(root2, { recursive: true, force: true });
   }
 }
 
 // src/studio/apps/plan.ts
 init_helpers2();
-var soql4 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
-var names3 = (rows3, field3) => new Set(rows3.map((r) => String(r[field3] ?? "")));
+var soql5 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+var names3 = (rows4, field3) => new Set(rows4.map((r) => String(r[field3] ?? "")));
 async function existingOf(components, org, notes) {
   const ofType = (type) => components.filter((c) => c.startsWith(`${type}:`)).map((c) => c.slice(type.length + 1));
   const found = [];
@@ -149056,13 +149458,13 @@ async function existingOf(components, org, notes) {
     const wanted = ofType("QuickAction");
     if (!wanted.length) return;
     try {
-      const rows3 = await query(
-        `SELECT DeveloperName, EntityDefinition.QualifiedApiName FROM QuickActionDefinition WHERE DeveloperName IN (${wanted.map((n2) => soql4(n2.split(".").pop() ?? n2)).join(", ")})`,
+      const rows4 = await query(
+        `SELECT DeveloperName, EntityDefinition.QualifiedApiName FROM QuickActionDefinition WHERE DeveloperName IN (${wanted.map((n2) => soql5(n2.split(".").pop() ?? n2)).join(", ")})`,
         org,
         true
       );
       const have = new Set(
-        rows3.map(
+        rows4.map(
           (r) => `${String(r.EntityDefinition?.QualifiedApiName ?? "")}.${String(r.DeveloperName ?? "")}`
         )
       );
@@ -149071,7 +149473,7 @@ async function existingOf(components, org, notes) {
       notes.push("Couldn't check whether the QuickAction already exists in the org.");
     }
   };
-  const list2 = (values) => values.map(soql4).join(", ");
+  const list2 = (values) => values.map(soql5).join(", ");
   await Promise.all([
     look(
       "LightningComponentBundle",
@@ -149543,12 +149945,12 @@ async function readChildren2(reader, object3, links, notes) {
   const { fields } = pickFields2(info);
   const list2 = link.ids.map(sqlString).join(", ");
   try {
-    const rows3 = await reader.query(
+    const rows4 = await reader.query(
       `SELECT ${fields.join(", ")} FROM ${object3} WHERE ${link.field} IN (${list2}) LIMIT ${CHILD_CAP + 1}`
     );
-    if (rows3.length > CHILD_CAP)
+    if (rows4.length > CHILD_CAP)
       notes.push(`${object3}: only the first ${CHILD_CAP} rows are in the visit's context data.`);
-    return rows3.slice(0, CHILD_CAP).map(plainRow);
+    return rows4.slice(0, CHILD_CAP).map(plainRow);
   } catch (e) {
     notes.push(
       `${object3} couldn't be read (${e instanceof Error ? e.message : String(e)}); it's left out of the visit's context data.`
@@ -149569,20 +149971,20 @@ async function buildVisitContext(reader, platform, header, recordObject, linkFie
   ];
   let details = [];
   for (const object3 of VISIT_CHILDREN) {
-    const rows3 = await readChildren2(reader, object3, links, notes);
-    ctx[key5(object3)] = rows3;
-    if (object3 === "ProviderVisitProdDetailing") details = rows3;
+    const rows4 = await readChildren2(reader, object3, links, notes);
+    ctx[key5(object3)] = rows4;
+    if (object3 === "ProviderVisitProdDetailing") details = rows4;
   }
   const detailIds = details.map((d) => String(d.Id));
   for (const object3 of DETAIL_CHILDREN) {
-    const rows3 = await readChildren2(
+    const rows4 = await readChildren2(
       reader,
       object3,
       [{ field: "ProviderVisitProductDtlId", ids: detailIds }],
       notes
     );
     for (const d of details)
-      d[key5(object3)] = rows3.filter((r) => r.ProviderVisitProductDtlId === d.Id);
+      d[key5(object3)] = rows4.filter((r) => r.ProviderVisitProductDtlId === d.Id);
   }
   if (visitId) {
     ctx[web ? "PresentationForum.ForumReferenceId" : "PresentationForum"] = await readChildren2(
@@ -150201,10 +150603,10 @@ async function runScript(input) {
     if (m) return m;
     m = /* @__PURE__ */ new Map();
     try {
-      const rows3 = await input.reader.query(
+      const rows4 = await input.reader.query(
         `SELECT Id, Name FROM RecordType WHERE SobjectType = '${entity}'`
       );
-      for (const r of rows3) m.set(String(r.Id), String(r.Name));
+      for (const r of rows4) m.set(String(r.Id), String(r.Name));
     } catch {
     }
     rtCache.set(entity, m);
@@ -150228,7 +150630,7 @@ async function runScript(input) {
       return;
     }
     const where3 = (miss.args.where ?? "").trim();
-    let soql5 = "";
+    let soql6 = "";
     const t0 = Date.now();
     try {
       if (queryCount >= RUN_LIMITS.maxQueries) {
@@ -150258,13 +150660,13 @@ async function runScript(input) {
             `${entity} has more than ${RUN_LIMITS.maxFields} fields; the simulation reads the first ${RUN_LIMITS.maxFields}.`
           );
       }
-      soql5 = `SELECT ${fields.join(", ")} FROM ${entity}`;
-      if (where3) soql5 += ` WHERE ${where3}`;
-      if (!/\blimit\s+\d+/i.test(where3)) soql5 += ` LIMIT ${RUN_LIMITS.rowsPerQuery + 1}`;
-      const rows3 = await input.reader.query(soql5);
-      let used2 = rows3;
-      if (rows3.length > RUN_LIMITS.rowsPerQuery) {
-        used2 = rows3.slice(0, RUN_LIMITS.rowsPerQuery);
+      soql6 = `SELECT ${fields.join(", ")} FROM ${entity}`;
+      if (where3) soql6 += ` WHERE ${where3}`;
+      if (!/\blimit\s+\d+/i.test(where3)) soql6 += ` LIMIT ${RUN_LIMITS.rowsPerQuery + 1}`;
+      const rows4 = await input.reader.query(soql6);
+      let used2 = rows4;
+      if (rows4.length > RUN_LIMITS.rowsPerQuery) {
+        used2 = rows4.slice(0, RUN_LIMITS.rowsPerQuery);
         addNote(
           `${entity}: the query matched more than ${RUN_LIMITS.rowsPerQuery} rows; the simulation keeps the first ${RUN_LIMITS.rowsPerQuery}.`
         );
@@ -150277,13 +150679,13 @@ async function runScript(input) {
         if (rt) item2.rt = rt;
         return item2;
       });
-      queries.push({ object: entity, soql: soql5, rows: used2.length, ms: Date.now() - t0 });
+      queries.push({ object: entity, soql: soql6, rows: used2.length, ms: Date.now() - t0 });
       cache3.set(key5, JSON.stringify({ ok: true, rows: items }));
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       queries.push({
         object: entity,
-        soql: soql5 || `(${entity}${where3 ? " WHERE " + where3 : ""})`,
+        soql: soql6 || `(${entity}${where3 ? " WHERE " + where3 : ""})`,
         rows: 0,
         ms: Date.now() - t0,
         error: msg
@@ -150583,13 +150985,13 @@ function createOrgReader(org) {
     };
   };
   return {
-    query: (soql5) => query(soql5, org, false, { allowTruncated: true, maxRows: RUN_LIMITS.rowsPerQuery + 1 }),
+    query: (soql6) => query(soql6, org, false, { allowTruncated: true, maxRows: RUN_LIMITS.rowsPerQuery + 1 }),
     describe,
     namespace: () => {
       namespace ??= query(
         "SELECT NamespacePrefix FROM PackageLicense WHERE NamespacePrefix = 'lsc4ce'",
         org
-      ).then((rows3) => rows3.length ? "lsc4ce" : null).catch(() => null);
+      ).then((rows4) => rows4.length ? "lsc4ce" : null).catch(() => null);
       return namespace;
     },
     async user(userId) {
@@ -150604,23 +151006,23 @@ function createOrgReader(org) {
         if (!username) return null;
         where3 = `Username = ${sqlString(username)}`;
       }
-      const rows3 = await query(`SELECT ${fields.join(", ")} FROM User WHERE ${where3} LIMIT 1`, org);
-      return rows3[0] ? plainRow(rows3[0]) : null;
+      const rows4 = await query(`SELECT ${fields.join(", ")} FROM User WHERE ${where3} LIMIT 1`, org);
+      return rows4[0] ? plainRow(rows4[0]) : null;
     }
   };
 }
 
 // src/studio/scripts/runner/records.ts
 var LIMIT = 25;
-var str32 = (v) => typeof v === "string" && v ? v : null;
+var str33 = (v) => typeof v === "string" && v ? v : null;
 async function names4(reader, object3, ids) {
   const out = /* @__PURE__ */ new Map();
   if (!ids.length) return out;
   try {
-    const rows3 = await reader.query(
+    const rows4 = await reader.query(
       `SELECT Id, Name FROM ${object3} WHERE Id IN (${[...new Set(ids)].map(sqlString).join(", ")})`
     );
-    for (const r of rows3) out.set(String(r.Id), String(r.Name ?? ""));
+    for (const r of rows4) out.set(String(r.Id), String(r.Name ?? ""));
   } catch {
   }
   return out;
@@ -150636,10 +151038,10 @@ async function visitCounts(reader, ids) {
   await Promise.all(
     sources2.map(async ([object3, label2]) => {
       try {
-        const rows3 = await reader.query(
+        const rows4 = await reader.query(
           `SELECT ProviderVisitId, COUNT(Id) c FROM ${object3} WHERE ProviderVisitId IN (${list2}) GROUP BY ProviderVisitId`
         );
-        for (const r of rows3) {
+        for (const r of rows4) {
           const id2 = String(r.ProviderVisitId);
           if (!out.has(id2)) out.set(id2, /* @__PURE__ */ new Map());
           out.get(id2).set(`${object3}|${label2}`, Number(r.c));
@@ -150652,10 +151054,10 @@ async function visitCounts(reader, ids) {
 }
 async function accountMatches(reader, search) {
   try {
-    const rows3 = await reader.query(
+    const rows4 = await reader.query(
       `SELECT Id FROM Account WHERE Name LIKE ${sqlString(`%${search}%`)} LIMIT 200`
     );
-    return rows3.map((r) => String(r.Id));
+    return rows4.map((r) => String(r.Id));
   } catch {
     return [];
   }
@@ -150701,35 +151103,35 @@ async function listScriptTestRecords(req, reader) {
     filters2.push(`(${parts.join(" OR ")})`);
   }
   const order = has("PlannedStartTime") ? "PlannedStartTime DESC NULLS LAST" : "LastModifiedDate DESC";
-  const rows3 = await reader.query(
+  const rows4 = await reader.query(
     `SELECT ${wanted.join(", ")} FROM ${objectName}${filters2.length ? ` WHERE ${filters2.join(" AND ")}` : ""} ORDER BY ${order} LIMIT ${LIMIT}`
   );
   const accounts = has("AccountId") ? await names4(
     reader,
     "Account",
-    rows3.map((r) => str32(r.AccountId)).filter((x) => !!x)
+    rows4.map((r) => str33(r.AccountId)).filter((x) => !!x)
   ) : /* @__PURE__ */ new Map();
-  const counts2 = objectName === "ProviderVisit" && rows3.length ? await visitCounts(
+  const counts2 = objectName === "ProviderVisit" && rows4.length ? await visitCounts(
     reader,
-    rows3.map((r) => String(r.Id))
+    rows4.map((r) => String(r.Id))
   ) : /* @__PURE__ */ new Map();
-  const records = rows3.map((r) => {
+  const records = rows4.map((r) => {
     const id2 = String(r.Id);
     const c = counts2.get(id2);
     return {
       id: id2,
       objectName,
-      name: str32(r.Name) ?? id2,
-      accountName: str32(r.AccountId) ? accounts.get(String(r.AccountId)) ?? null : null,
-      date: str32(r.PlannedStartTime),
-      status: str32(r.Status),
+      name: str33(r.Name) ?? id2,
+      accountName: str33(r.AccountId) ? accounts.get(String(r.AccountId)) ?? null : null,
+      date: str33(r.PlannedStartTime),
+      status: str33(r.Status),
       children: c ? [...c.entries()].map(([k, count3]) => {
         const [object3, label2] = k.split("|");
         return { object: object3, label: label2, count: count3 };
       }) : []
     };
   });
-  if (rows3.length === LIMIT)
+  if (rows4.length === LIMIT)
     notes.push(
       `Showing the ${LIMIT} most recent. Search by account or record name to find others.`
     );
@@ -150744,11 +151146,11 @@ async function loadRecord(reader, object3, where3, notes) {
     return null;
   }
   const { fields } = pickFields2(info);
-  const rows3 = await reader.query(
+  const rows4 = await reader.query(
     `SELECT ${fields.join(", ")} FROM ${object3} WHERE ${where3} LIMIT 1`
   );
-  if (!rows3[0]) return null;
-  const row = plainRow(rows3[0]);
+  if (!rows4[0]) return null;
+  const row = plainRow(rows4[0]);
   let rt = null;
   if (typeof row.RecordTypeId === "string") {
     try {
@@ -151762,13 +152164,13 @@ function register24(server2) {
     "studio_metadata_cache_file",
     "LSC Studio (GUI data): one file from a metadata cache record's ZIP \u2014 text (files over 24 MB cut to their first 1 MB, marked truncated), an image as a data URL, or marked binary. Read-only. Returns JSON.",
     { recordId: id, path: external_exports.string().min(1).max(1024) },
-    async ({ recordId, path: path24 }) => {
+    async ({ recordId, path: path25 }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await cacheFile(recordId, path24, connection.targetOrg));
+        return json(await cacheFile(recordId, path25, connection.targetOrg));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -152153,13 +152555,13 @@ function register24(server2) {
         "The previewed rep's login, made by Studio through the LSC mobile app's connected app; answered as them instead of the sf CLI connection"
       )
     },
-    async ({ method, path: path24, body, mobileLogin }) => {
+    async ({ method, path: path25, body, mobileLogin }) => {
       const connection = await validateOrgConnection();
       if (!mobileLogin && (!connection.valid || !connection.targetOrg)) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await lwcRequest(mobileLogin ?? connection.targetOrg, { method, path: path24, body }));
+        return json(await lwcRequest(mobileLogin ?? connection.targetOrg, { method, path: path25, body }));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -152326,14 +152728,14 @@ function registerAppTools(server2) {
     "studio_app_sample",
     "LSC Studio (GUI only): up to 5 real records from a SELECT-only SOQL query (anything else is refused, LIMIT is forced to 5 or less), so the app builder sees real values. Read-only. Returns JSON { records, totalSize }.",
     { soql: external_exports.string().min(1).max(2e3), mobileLogin: runAsLogin },
-    async ({ soql: soql5, mobileLogin }) => {
+    async ({ soql: soql6, mobileLogin }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
         return json(
-          await sampleRecords(soql5, connection.targetOrg, mobileLogin)
+          await sampleRecords(soql6, connection.targetOrg, mobileLogin)
         );
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
@@ -152998,8 +153400,8 @@ function registerFixTools(server2) {
 }
 
 // src/tools/perf.ts
-import * as fs23 from "fs";
-import * as path23 from "path";
+import * as fs24 from "fs";
+import * as path24 from "path";
 init_cli();
 init_session();
 function querier(targetOrg) {
@@ -153162,9 +153564,9 @@ ${validation.error}`);
         );
         let report = renderAssessment(result2, profile.telemetry?.days ?? DEFAULT_TELEMETRY_DAYS);
         if (outputPath) {
-          const resolved = path23.resolve(outputPath);
-          fs23.mkdirSync(path23.dirname(resolved), { recursive: true });
-          fs23.writeFileSync(resolved, JSON.stringify(result2, null, 2));
+          const resolved = path24.resolve(outputPath);
+          fs24.mkdirSync(path24.dirname(resolved), { recursive: true });
+          fs24.writeFileSync(resolved, JSON.stringify(result2, null, 2));
           report += `
 Full result written to \`${resolved}\`.
 `;
