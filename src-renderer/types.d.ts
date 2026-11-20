@@ -398,6 +398,8 @@ interface LscApi {
   /** Log in through the LSC mobile app's connected app in a Salesforce login window. */
   mobileLoginStart(loginUrl: string): Promise<{ login?: MobileLoginInfo; error?: string }>;
   mobileLoginList(): Promise<{ logins: MobileLoginInfo[] }>;
+  /** Whether a mobile app consumer key is set anywhere (Settings, env, or built into the app). */
+  mobileLoginHasKey(): Promise<boolean>;
   mobileLoginRemove(id: string): Promise<{ ok: boolean }>;
   mobileLoginCheck(): Promise<{ logins: MobileLoginInfo[] }>;
   mobileLoginRenew(id: string): Promise<{ login?: MobileLoginInfo; error?: string }>;

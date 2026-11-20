@@ -41,6 +41,7 @@ import { OrgRoles } from "../org-roles.js";
 import type { SessionOrg } from "../engine/session-org.js";
 import {
   checkMobileLogins,
+  hasMobileClientId,
   listMobileLogins,
   mobileLoginCredentials,
   onMobileLoginsChanged,
@@ -1371,6 +1372,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   });
 
   ipcMain.handle("mobileLogin:list", async () => ({ logins: listMobileLogins() }));
+  /** Whether a consumer key is set (Settings, LSC_MOBILE_CLIENT_ID or built in); never the key itself. */
+  ipcMain.handle("mobileLogin:hasKey", async () => hasMobileClientId());
 
   // Refreshes logins not used lately, so "Signed in" / "Expired" is current.
   ipcMain.handle("mobileLogin:check", async () => ({ logins: await checkMobileLogins() }));
