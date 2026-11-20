@@ -51,10 +51,19 @@ export const toOrgRef = (o: SfOrg): OrgRef => ({
 });
 
 /**
- * Classify an org from its sf CLI flags and My Domain host. Trial and Developer Edition
- * orgs report `isSandbox: false`, so the host is what tells them apart from production.
+ * Classify an org from its sf CLI flags, edition, trial expiry and My Domain host. Trial and
+ * Developer Edition orgs report `isSandbox: false`; the sf CLI's `trailExpirationDate` (its
+ * spelling) and `orgEdition` tell them apart from production whatever their host, as Studio's
+ * `isProductionOrg` does from the Organization record. The host is the fallback when those are
+ * missing (the sf CLI hasn't read them yet).
  */
-export function orgKind(o: { instanceUrl?: string; isSandbox?: boolean; isScratch?: boolean }): OrgKind {
+export function orgKind(o: {
+  instanceUrl?: string;
+  isSandbox?: boolean;
+  isScratch?: boolean;
+  trialExpirationDate?: string | null;
+  orgEdition?: string | null;
+}): OrgKind {
   let host = "";
   try {
     host = new URL(o.instanceUrl ?? "").host.toLowerCase();
@@ -63,8 +72,8 @@ export function orgKind(o: { instanceUrl?: string; isSandbox?: boolean; isScratc
   }
   if (o.isScratch || host.includes(".scratch.")) return "scratch";
   if (o.isSandbox || host.includes(".sandbox.") || /--[a-z0-9]+\.(sandbox\.)?my\./.test(host)) return "sandbox";
-  if (host.includes(".develop.") || host.includes("-dev-ed.")) return "developer";
-  if (host.startsWith("trailsignup-") || host.includes(".trailblaze.")) return "trial";
+  if (o.orgEdition === "Developer Edition" || host.includes(".develop.") || host.includes("-dev-ed.")) return "developer";
+  if (o.trialExpirationDate || host.startsWith("trailsignup-") || host.includes(".trailblaze.")) return "trial";
   return "production";
 }
 
@@ -89,7 +98,13 @@ export function parseOrgList(stdout: string): SfOrg[] {
         orgId: o.orgId || "",
         instanceUrl: o.instanceUrl || "",
         isDefault: o.isDefaultUsername || o.isDefaultDevHub || false,
-        kind: orgKind({ instanceUrl: o.instanceUrl, isSandbox: o.isSandbox, isScratch: o.isScratch }),
+        kind: orgKind({
+          instanceUrl: o.instanceUrl,
+          isSandbox: o.isSandbox,
+          isScratch: o.isScratch,
+          trialExpirationDate: o.trailExpirationDate ?? o.trialExpirationDate,
+          orgEdition: o.orgEdition,
+        }),
         connected,
         status: connected ? undefined : firstLine(status),
       });

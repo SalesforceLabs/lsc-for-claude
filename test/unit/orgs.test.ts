@@ -30,6 +30,15 @@ describe("orgKind", () => {
     expect(orgKind({ isScratch: true })).toBe("scratch");
     expect(orgKind({ instanceUrl: "not a url" })).toBe("production");
   });
+
+  it("calls an org with a trial expiry or Developer Edition not production, whatever its host", () => {
+    const host = "https://acme-engg-0623org.test1.my.pc-rnd.salesforce.com";
+    expect(orgKind({ instanceUrl: host, isSandbox: false, trialExpirationDate: "2026-12-21T16:13:21.000+0000" })).toBe("trial");
+    expect(orgKind({ instanceUrl: host, orgEdition: "Developer Edition" })).toBe("developer");
+    expect(orgKind({ instanceUrl: host, trialExpirationDate: null, orgEdition: "Enterprise Edition" })).toBe("production");
+    // A sandbox copied from a trial is still a sandbox.
+    expect(orgKind({ instanceUrl: host, isSandbox: true, trialExpirationDate: "2026-12-21T16:13:21.000+0000" })).toBe("sandbox");
+  });
 });
 
 describe("parseOrgList", () => {
@@ -51,6 +60,22 @@ describe("parseOrgList", () => {
     expect(orgs[0]).toMatchObject({ alias: "carmen", kind: "trial", connected: true, isDefault: true });
     expect(orgs[1]).toMatchObject({ kind: "production", connected: false, status: "RefreshTokenAuthError: expired" });
     expect(orgs[2]).toMatchObject({ kind: "scratch", connected: true });
+  });
+
+  it("reads the trial expiry and edition the sf CLI lists (its spelling: trailExpirationDate)", () => {
+    const host = "https://acme-engg-0623org.test1.my.pc-rnd.salesforce.com";
+    const [trial, dev, prod] = parseOrgList(
+      JSON.stringify({
+        result: {
+          nonScratchOrgs: [
+            { username: "t@acme.com", instanceUrl: host, isSandbox: false, trailExpirationDate: "2026-12-21T16:13:21.000+0000", orgEdition: "Enterprise Edition" },
+            { username: "d@acme.com", instanceUrl: host, isSandbox: false, trailExpirationDate: null, orgEdition: "Developer Edition" },
+            { username: "p@acme.com", instanceUrl: host, isSandbox: false, trailExpirationDate: null, orgEdition: "Enterprise Edition" },
+          ],
+        },
+      })
+    );
+    expect([trial.kind, dev.kind, prod.kind]).toEqual(["trial", "developer", "production"]);
   });
 
   it("picks by alias or username, else the sf default, else the only connection", () => {
