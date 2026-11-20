@@ -232,6 +232,12 @@ async function executeSoqlCountCheck(
   };
 }
 
+function failedRecords(subResults: CheckOutcome[]): unknown[] {
+  return subResults
+    .filter((r) => !r.passed && !r.unavailable)
+    .flatMap((r) => (r.details as { records?: unknown[] } | undefined)?.records ?? []);
+}
+
 /**
  * Execute a composite check (multiple sub-checks)
  */
@@ -265,8 +271,12 @@ async function executeCompositeCheck(
     unavailable: !definitelyFailed && subResults.some((r) => r.unavailable) ? true : undefined,
     message: allPassed
       ? `All ${subResults.length} sub-checks passed`
-      : `${subResults.filter((r) => !r.passed).length} of ${subResults.length} sub-checks failed`,
-    details: { subResults },
+      : `${subResults.filter((r) => !r.passed).length} of ${subResults.length} sub-checks failed: ${subResults
+          .filter((r) => !r.passed)
+          .map((r) => r.message)
+          .join("; ")}`,
+    // The records a failing sub-check found, so a report can name them.
+    details: { subResults, records: failedRecords(subResults) },
   };
 }
 

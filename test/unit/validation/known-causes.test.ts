@@ -7,11 +7,31 @@
  */
 
 import { describe, it, expect, vi, beforeAll } from "vitest";
+import fs from "fs";
+import os from "os";
+import path from "path";
 import type { RuleCheck } from "../../../src/validation/rules-loader.js";
 
 vi.mock("../../../src/salesforce/cli.js", () => ({
-  runSoqlQuery: vi.fn(async () => ({ success: true, data: { totalSize: 0, done: true, records: [] } })),
-  runToolingQuery: vi.fn(async () => ({ success: true, data: { totalSize: 0, done: true, records: [] } })),
+  runSoqlQuery: vi.fn(async () => ({
+    success: true,
+    data: { totalSize: 0, done: true, records: [] },
+  })),
+  runToolingQuery: vi.fn(async () => ({
+    success: true,
+    data: { totalSize: 0, done: true, records: [] },
+  })),
+  // A retrieve that succeeds with an empty file for each member asked for.
+  retrieveMetadata: vi.fn(async (_p: string, members: string | string[]) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kc-retrieve-"));
+    for (const m of [members].flat()) {
+      const [type, name] = m.split(":");
+      const ext =
+        type === "Settings" ? "settings" : type === "Flow" ? "flow" : "expressionSetDefinition";
+      fs.writeFileSync(path.join(dir, `${name}.${ext}-meta.xml`), `<${type} xmlns="x"/>`);
+    }
+    return { success: true, data: { outputDir: dir } };
+  }),
 }));
 
 const { getKnownCauses } = await import("../../../src/validation/known-causes.js");
@@ -20,7 +40,14 @@ const { executeCheck } = await import("../../../src/validation/rules-executor.js
 const { matchSymptom } = await import("../../../src/validation/symptom-match.js");
 const { BUILTIN_CHECKS } = await import("../../../src/validation/builtin-checks.js");
 
-const RUNNABLE_TYPES = ["soql", "soql_count", "tooling_soql", "tooling_soql_count", "composite", "builtin"];
+const RUNNABLE_TYPES = [
+  "soql",
+  "soql_count",
+  "tooling_soql",
+  "tooling_soql_count",
+  "composite",
+  "builtin",
+];
 
 function leafChecks(check: RuleCheck): RuleCheck[] {
   return check.type === "composite" ? (check.checks ?? []).flatMap(leafChecks) : [check];
@@ -54,8 +81,16 @@ describe("known-causes.yaml", () => {
     for (const c of causes.filter((c) => c.by_design)) expect(c.check, c.id).toBeUndefined();
   });
 
+  it("gives every Order Management cause a check, by_design, or a reason it has no check", () => {
+    for (const c of causes.filter((c) => c.module === "order-management")) {
+      if (c.by_design) expect(c.no_check_reason, c.id).toBeUndefined();
+      else if (!c.check) expect(c.no_check_reason?.trim(), c.id).toBeTruthy();
+    }
+  });
+
   it("links only rules that exist", () => {
-    for (const c of causes) for (const id of c.rules ?? []) expect(ruleIds.has(id), `${c.id} -> ${id}`).toBe(true);
+    for (const c of causes)
+      for (const id of c.rules ?? []) expect(ruleIds.has(id), `${c.id} -> ${id}`).toBe(true);
   });
 
   it("names no work items or customers", () => {

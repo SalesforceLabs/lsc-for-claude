@@ -6,6 +6,7 @@
 import { runSoqlQuery, runToolingQuery } from "../salesforce/cli.js";
 import { fetchCategories, isNavTab } from "../studio/collectors/shared.js";
 import { lintPage } from "../studio/ipad-page-lint.js";
+import { OM_BUILTIN } from "./om-builtin-checks.js";
 import type { CheckContext, CheckOutcome } from "./rules-executor.js";
 
 /** How many Home and record pages `ipad-pages` reads, most recently changed first. */
@@ -281,6 +282,7 @@ const BUILTIN: Record<string, (targetOrg: string, context: CheckContext) => Prom
     "ipad-pages": ipadPages,
     "named-tab": namedTab,
     "named-tab-object": namedTabObject,
+    ...OM_BUILTIN,
   };
 
 /** The names a `builtin` check can use. */
