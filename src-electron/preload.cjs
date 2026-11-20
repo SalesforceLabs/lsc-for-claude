@@ -246,6 +246,7 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioSimStartMobile: (loginId, options) => ipcRenderer.invoke("studio:simStartMobile", loginId, options),
   mobileLoginStart: (loginUrl) => ipcRenderer.invoke("mobileLogin:start", loginUrl),
   mobileLoginList: () => ipcRenderer.invoke("mobileLogin:list"),
+  mobileLoginHasKey: () => ipcRenderer.invoke("mobileLogin:hasKey"),
   mobileLoginRemove: (id) => ipcRenderer.invoke("mobileLogin:remove", id),
   mobileLoginCheck: () => ipcRenderer.invoke("mobileLogin:check"),
   mobileLoginRenew: (id) => ipcRenderer.invoke("mobileLogin:renew", id),

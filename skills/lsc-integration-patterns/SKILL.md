@@ -1,4 +1,7 @@
-------
+---
+name: lsc-integration-patterns
+description: Guides integration patterns (MDM, ERP, IQVIA, email providers, video platforms). Use when the user asks how to integrate LSC with other systems.
+---
 
 For integration pattern details, call `search_lsc_knowledge({ query: "integration patterns" })` to get sourced documentation.
 

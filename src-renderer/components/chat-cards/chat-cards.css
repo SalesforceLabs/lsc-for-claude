@@ -91,6 +91,66 @@
   margin: var(--space-2) 0 0;
 }
 
+/* Roz's question with its answers as buttons (ask_user). */
+
+.chat-choice-icon { flex-shrink: 0; margin-top: 3px; color: var(--accent); }
+
+.chat-choice-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.chat-choice {
+  width: 100%;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  font: inherit;
+  font-size: var(--font-base);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.chat-choice:hover:not(:disabled) { background: var(--fill-hover); border-color: var(--border-strong); }
+.chat-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.chat-choice:disabled { cursor: default; color: var(--text-muted); }
+
+.chat-choice.picked:disabled {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.chat-choice-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-choice-detail {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+
+.chat-choice-check { flex-shrink: 0; margin-left: auto; color: var(--accent); }
+
 /* Users to pick from when a name matched several. */
 .chat-card-users {
   list-style: none;

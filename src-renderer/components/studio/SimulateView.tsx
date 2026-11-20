@@ -501,7 +501,7 @@ export default function SimulateView() {
   // The selected org's test users; signed-in first.
   const mobileLogins = testUsersFor(mobile.logins, currentOrg?.orgId);
   const [mobileLoggingIn, setMobileLoggingIn] = useState(false);
-  // No consumer key in Settings (the LSC_MOBILE_CLIENT_ID env var isn't visible here), or a login said so.
+  // No consumer key in Settings, the environment or the build, or a login said so.
   const [keyMissing, setKeyMissing] = useState(false);
   // Watching `sf org list` for the connection a browser login is creating.
   const [waitingLogin, setWaitingLogin] = useState<{ before: SfConnection[]; since: number } | null>(null);
@@ -541,7 +541,7 @@ export default function SimulateView() {
   }, []);
 
   useEffect(() => {
-    window.lscApi.getSettings().then((settings) => setKeyMissing(!settings.mobileClientId?.trim()));
+    window.lscApi.mobileLoginHasKey().then((has) => setKeyMissing(!has));
     loadConnections();
     loadSims();
     if (!readActiveJob()) {
@@ -954,8 +954,7 @@ export default function SimulateView() {
                     <div className="studio-perf-hint">
                       Salesforce answers the mobile sync requests only for logins made through the LSC mobile app, and sf CLI logins
                       get a 404 from them. Add the app's consumer key in Settings (LSC mobile app consumer key, the
-                      remoteAccessConsumerKey in the iOS app's bootconfig.plist), then sign in a test user here. If you set
-                      LSC_MOBILE_CLIENT_ID instead, you can ignore this and try the login.
+                      remoteAccessConsumerKey in the iOS app's bootconfig.plist), then sign in a test user here.
                     </div>
                     <div className="studio-perf-hint">
                       Without a key you can still use an sf CLI connection (under “Use an sf CLI connection instead”). It works only if the org lets that login reach the mobile

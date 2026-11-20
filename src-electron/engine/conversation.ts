@@ -1,7 +1,8 @@
-import { LLMProvider, Message, ContentBlock, StreamChunk } from "../llm/provider.js";
+import { LLMProvider, Message, ContentBlock, StreamChunk, ToolDefinition } from "../llm/provider.js";
 import { STUDIO_TOOL_PREFIX } from "../mcp/client.js";
 import type { ToolHost } from "../mcp/pool.js";
-import { PromptBuilder } from "./prompt-builder.js";
+import { PromptBuilder, READ_SKILL_TOOL } from "./prompt-builder.js";
+import { ASK_USER_RESULT, ASK_USER_TOOL, ASK_USER_TOOL_DEF, parseAskUser } from "./ask-user.js";
 import type { StoredMessage } from "./history.js";
 import { spendToolBudget } from "./tool-budget.js";
 import { ORG_SWITCH_TOOLS, orgPromptSection, orgSwitchRefusal, type SessionOrg } from "./session-org.js";
@@ -201,7 +202,7 @@ export class ConversationEngine {
       }
     }
 
-    const tools = this.mcp.getTools();
+    const tools = [...this.mcp.getTools(), this.promptBuilder.readSkillTool(), ASK_USER_TOOL_DEF];
 
     const userText = Array.isArray(userInput)
       ? userInput.filter((b) => b.type === "text").map((b) => (b as { text?: string }).text ?? "").join("\n")
@@ -262,7 +263,7 @@ export class ConversationEngine {
   }
 
   private async runToolLoop(
-    tools: ReturnType<ToolHost["getTools"]>,
+    tools: ToolDefinition[],
     callbacks: ConversationCallbacks,
     messages: Message[],
     abort: AbortToken
@@ -298,6 +299,8 @@ export class ConversationEngine {
       }
 
       const toolResults: ContentBlock[] = [];
+      /** An `ask_user` was shown: the turn ends after this round, waiting for the user's pick. */
+      let asked = false;
 
       for (const toolCall of toolCalls) {
         // Once stopped, the history belongs to the next run (sendMessage answers these calls).
@@ -306,6 +309,26 @@ export class ConversationEngine {
         callbacks.onToolRun?.(toolCall.id!, (toolCall.input ?? {}) as Record<string, unknown>);
 
         try {
+          // The engine's own tool: a skill's text from disk. Read-only, so it skips the gate.
+          if (toolCall.name === READ_SKILL_TOOL) {
+            const name = String((toolCall.input as { name?: unknown } | undefined)?.name ?? "");
+            const guide = this.promptBuilder.readGuide(name);
+            if (guide === null) throw new Error(`There is no skill or command named "${name}". Use a name from the list in the system prompt.`);
+            toolResults.push({ type: "tool_result", tool_use_id: toolCall.id, content: guide, is_error: false });
+            callbacks.onToolResult(toolCall.id!, guide, false);
+            callbacks.onToolEnd(toolCall.id!);
+            continue;
+          }
+          // The engine's own tool: choices drawn as buttons; nothing runs.
+          if (toolCall.name === ASK_USER_TOOL) {
+            const parsed = parseAskUser(toolCall.input);
+            if ("problem" in parsed) throw new Error(parsed.problem);
+            asked = true;
+            toolResults.push({ type: "tool_result", tool_use_id: toolCall.id, content: ASK_USER_RESULT, is_error: false });
+            callbacks.onToolResult(toolCall.id!, ASK_USER_RESULT, false);
+            callbacks.onToolEnd(toolCall.id!);
+            continue;
+          }
           // Studio tools (including fixes that write to the org) are UI-only — never run one the model names.
           if (toolCall.name!.startsWith(STUDIO_TOOL_PREFIX)) {
             throw new Error(`${toolCall.name} is only available from the Studio UI.`);
@@ -371,6 +394,11 @@ export class ConversationEngine {
         role: "user",
         content: toolResults,
       });
+
+      if (asked) {
+        callbacks.onComplete(response);
+        return;
+      }
     }
 
     callbacks.onError(

@@ -13,6 +13,8 @@ export interface ChatCardsEnv {
   respond: (requestId: string, allow: boolean) => Promise<void>;
   onSend: (text: string, model?: string, images?: ImageAttachment[]) => void;
   onOpenStudio?: (request?: StudioRequest) => void;
+  /** What the user answered to each `ask_user` (by tool id); open questions aren't in it (`choiceAnswers`). */
+  choiceAnswers: Map<string, string>;
 }
 
 const Ctx = createContext<ChatCardsEnv | null>(null);

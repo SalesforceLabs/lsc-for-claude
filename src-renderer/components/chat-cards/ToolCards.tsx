@@ -7,6 +7,7 @@ import { approvalFor } from "./approval-logic";
 import { cardFor } from "./card-logic";
 import ApprovalCard from "./ApprovalCard";
 import DiagnosisCard from "./DiagnosisCard";
+import ChoiceCard from "./ChoiceCard";
 import QueuedCard from "./QueuedCard";
 import { UserCheckCard, UserMatchesCard } from "./UserCheckCard";
 import "./chat-cards.css";
@@ -24,6 +25,7 @@ export default function ToolCards({ tool }: { tool: ToolCall }) {
       {card?.kind === "user-check" && <UserCheckCard trace={card.trace} />}
       {card?.kind === "user-matches" && <UserMatchesCard matches={card.matches} message={card.message} />}
       {card?.kind === "queued" && <QueuedCard labels={card.labels} />}
+      {card?.kind === "choice" && <ChoiceCard toolId={tool.id} question={card.question} options={card.options} />}
       {card?.kind === "loading" && (
         <div className="chat-card chat-card-line" role="status">
           <Spinner size={14} />

@@ -1,4 +1,7 @@
-------
+---
+name: lsc-data-migration
+description: Guides data loading and migration (account hierarchies, territory assignments, Veeva CRM migration). Use when the user asks about loading data, migrating from Veeva, or importing accounts and territory assignments.
+---
 
 For data migration guidance, call `search_lsc_knowledge({ query: "data migration" })` to get sourced documentation.
 

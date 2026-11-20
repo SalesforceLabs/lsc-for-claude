@@ -89,6 +89,9 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # The LSC mobile app's consumer key, written into the app by
+          # scripts/write-build-config.mjs (kept out of the repo).
+          LSC_MOBILE_CLIENT_ID: ${{ secrets.LSC_MOBILE_CLIENT_ID }}
 
       - name: Upload signed installers
         # The SalesforceLabs org has an IP allow list that GitHub's hosted

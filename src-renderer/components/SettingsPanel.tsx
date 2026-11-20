@@ -206,8 +206,8 @@ export default function SettingsPanel({
               autoComplete="off"
             />
             <div className="settings-hint">
-              The remoteAccessConsumerKey from the LSC iOS app's bootconfig.plist. Needed for First sync's “Log in as
-              mobile user”.
+              Release builds of Roz have this built in. Set it only to sign test users in through a different connected app (the
+              remoteAccessConsumerKey in that iOS app's bootconfig.plist).
             </div>
           </section>
 

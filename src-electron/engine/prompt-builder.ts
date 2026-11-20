@@ -1,9 +1,52 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import type { ToolDefinition } from "../llm/provider.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+/** The engine's own tool that hands the model a skill or command (`ConversationEngine`, `readSkillTool`). */
+export const READ_SKILL_TOOL = "read_skill";
+
+/** Skill and command names are folder and file names: never a path. */
+function safeName(name: string): boolean {
+  return /^[a-z0-9][a-z0-9-]*$/i.test(name);
+}
+
+function oneLine(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+/** Top-level sections of CLAUDE.md written for the app's developers, not for the chat model. */
+const DEV_SECTIONS = [/— Electron App$/, /^Architecture$/, /^Project Structure$/, /^Installation & Usage$/, /^Development Guidelines$/, /^Resources$/];
+/** Sections kept even though they match DEV_SECTIONS. */
+const KEEP_SECTIONS = [/^Diagram Output/];
+/** Subsections describing tools the chat model can't call (Studio's, which the engine refuses). */
+const HIDDEN_SUBSECTIONS = [/^LSC Studio Tools/];
+
+/**
+ * CLAUDE.md as the chat model should see it: without the developer notes and without the Studio tool
+ * table, which named tools the model then tried to call (they're hidden from it and refused).
+ */
+export function chatInstructions(md: string): string {
+  const out: string[] = [];
+  let dropLevel = 0; // heading level of the section being dropped; 0 = keeping
+  for (const line of md.split("\n")) {
+    const h = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (h) {
+      const level = h[1].length;
+      const title = h[2].trim();
+      if (dropLevel && level <= dropLevel) dropLevel = 0;
+      if (!dropLevel) {
+        const dev = level === 2 && DEV_SECTIONS.some((r) => r.test(title)) && !KEEP_SECTIONS.some((r) => r.test(title));
+        if (dev || HIDDEN_SUBSECTIONS.some((r) => r.test(title))) dropLevel = level;
+      }
+    }
+    if (!dropLevel) out.push(line);
+  }
+  return out.join("\n");
+}
 
 /**
  * Builds the system prompt by loading CLAUDE.md, skills, and commands
@@ -32,45 +75,70 @@ export class PromptBuilder {
     parts.push(
       "Quotes, quoted orders, price books, pricing, product availability for quotes (ProductTerritoryAvailability), quote approval and the quote lifecycle are LSC Order Management, which runs on the iPad and works differently from Sales Cloud quoting. For these, call `search_lsc_knowledge` before answering, check the org against what it says (`check_om_config` runs the known Order Management setup checks; report what the org has, not what the docs describe), and don't fall back on general Sales Cloud or Revenue Cloud behavior without saying so."
     );
+    parts.push(
+      "Tools whose names start with `studio_` belong to the app's Studio screens and are not available in chat; never call one. Use the org tools instead (for presentations: `run_soql` on `Presentation`, then `distribute_presentation` / `assign_presentation_content`)."
+    );
+    parts.push(
+      "The user doesn't see raw tool results, only the step rows. When you say \"here are…\", put the items in your reply (a short list or table)."
+    );
+    parts.push(
+      "When the user has to pick from things you found (which presentation, territory, profile, user, record) or answer a short either/or question, call `ask_user` with the options instead of listing them and asking in text; keep your text to what you found, and ask one question at a time. Over 12 candidates, ask something that narrows them first."
+    );
     parts.push("");
 
-    // Load CLAUDE.md project instructions
+    // Load CLAUDE.md project instructions (minus the parts written for the app's developers)
     const claudeMd = this.loadFile("CLAUDE.md");
     if (claudeMd) {
       parts.push("# Project Instructions\n");
-      parts.push(claudeMd);
+      parts.push(chatInstructions(claudeMd));
       parts.push("");
     }
 
-    // Load skills as context about capabilities
-    const skills = this.loadSkills();
+    // Skills and commands are listed, not inlined: the model reads one with `read_skill` when it needs it.
+    const skills = this.getSkillIndex();
     if (skills.length > 0) {
-      parts.push("# Available Skills\n");
+      parts.push("# Skills\n");
       parts.push(
-        "The following skills describe your areas of expertise. When the user's question matches a skill, follow its guidance.\n"
+        `Each skill is a guide for one area of LSC. Before answering a question or doing a task in a skill's area, call \`${READ_SKILL_TOOL}\` with its name and follow it. Read a skill once per conversation; it stays in the history.\n`
       );
-      for (const skill of skills) {
-        parts.push(`## Skill: ${skill.name}\n`);
-        parts.push(skill.content);
-        parts.push("");
-      }
+      for (const skill of skills) parts.push(`- \`${skill.name}\`: ${oneLine(skill.description)}`);
+      parts.push("");
     }
 
-    // Load commands
-    const commands = this.loadCommands();
+    const commands = this.getCommandList();
     if (commands.length > 0) {
       parts.push("# Slash Commands\n");
       parts.push(
-        "Users can type these commands. When you see one, follow its instructions.\n"
+        `Users can type these. A typed command arrives with its instructions. When the user asks in words for what a command does, call \`${READ_SKILL_TOOL}\` with \`/lsc:<name>\` and follow it.\n`
       );
-      for (const cmd of commands) {
-        parts.push(`## /lsc:${cmd.name}\n`);
-        parts.push(cmd.content);
-        parts.push("");
-      }
+      for (const cmd of commands) parts.push(`- \`/lsc:${cmd.name}\`: ${oneLine(cmd.description)}`);
+      parts.push("");
     }
 
     return parts.join("\n");
+  }
+
+  /** The `read_skill` tool, its names limited to the skills and commands there are. */
+  readSkillTool(): ToolDefinition {
+    const names = [...this.getSkillIndex().map((s) => s.name), ...this.getCommandList().map((c) => `/lsc:${c.name}`)];
+    return {
+      name: READ_SKILL_TOOL,
+      description: "Read one of the skills (or slash commands) listed in the system prompt: its full guidance, which you then follow.",
+      input_schema: {
+        type: "object",
+        properties: { name: { type: "string", enum: names, description: "A skill name, or /lsc:<command>" } },
+        required: ["name"],
+      },
+    };
+  }
+
+  /** A skill's (or, as `/lsc:<name>`, a command's) full text for `read_skill`, or null when there's none by that name. */
+  readGuide(name: string): string | null {
+    const trimmed = name.trim();
+    const command = /^\/?lsc:(\S+)$/.exec(trimmed);
+    if (command) return safeName(command[1]) ? this.getCommandContent(command[1]) : null;
+    if (!safeName(trimmed)) return null;
+    return this.loadFile(path.join("skills", trimmed, "SKILL.md"));
   }
 
   /** Load skills but return only names — for lazy loading */
@@ -125,34 +193,5 @@ export class PromptBuilder {
     const filePath = path.join(this.projectDir, relativePath);
     if (!fs.existsSync(filePath)) return null;
     return fs.readFileSync(filePath, "utf-8");
-  }
-
-  private loadSkills(): Array<{ name: string; content: string }> {
-    const skillsDir = path.join(this.projectDir, "skills");
-    if (!fs.existsSync(skillsDir)) return [];
-
-    const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
-    return entries
-      .filter((e) => e.isDirectory())
-      .map((e) => {
-        const skillFile = path.join(skillsDir, e.name, "SKILL.md");
-        if (!fs.existsSync(skillFile)) return null;
-        return {
-          name: e.name,
-          content: fs.readFileSync(skillFile, "utf-8"),
-        };
-      })
-      .filter(Boolean) as Array<{ name: string; content: string }>;
-  }
-
-  private loadCommands(): Array<{ name: string; content: string }> {
-    const cmdsDir = path.join(this.projectDir, "commands");
-    if (!fs.existsSync(cmdsDir)) return [];
-
-    const files = fs.readdirSync(cmdsDir).filter((f) => f.endsWith(".md"));
-    return files.map((f) => ({
-      name: f.replace(".md", ""),
-      content: fs.readFileSync(path.join(cmdsDir, f), "utf-8"),
-    }));
   }
 }

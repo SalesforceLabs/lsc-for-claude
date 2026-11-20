@@ -15,16 +15,31 @@ import type { BrowserWindow } from "electron";
 import { openLoginWindow } from "./login-window.js";
 import crypto from "crypto";
 import { loadSettings } from "./settings.js";
+import { buildConfig } from "./build-config.js";
 import { deleteSecret, getSecret, setSecret } from "./secrets.js";
 
 /**
- * The LSC mobile app's connected-app consumer key: the Settings value first,
- * then LSC_MOBILE_CLIENT_ID. It isn't shipped in this repo; it is the iOS
- * app's bootconfig.plist remoteAccessConsumerKey. Read per call so a change
- * in Settings applies without a restart.
+ * The LSC mobile app's connected-app consumer key (the iOS app's bootconfig.plist
+ * remoteAccessConsumerKey): the Settings value first, then LSC_MOBILE_CLIENT_ID,
+ * then the key built into release builds (build-config.ts). It isn't in this
+ * repo. Read per call so a change in Settings applies without a restart.
  */
+function findMobileClientId(): string | undefined {
+  return (
+    loadSettings().mobileClientId?.trim() ||
+    process.env.LSC_MOBILE_CLIENT_ID?.trim() ||
+    buildConfig().mobileClientId ||
+    undefined
+  );
+}
+
+/** Whether a mobile login can start (a consumer key is set somewhere). */
+export function hasMobileClientId(): boolean {
+  return !!findMobileClientId();
+}
+
 export function mobileClientId(): string {
-  const id = loadSettings().mobileClientId?.trim() || process.env.LSC_MOBILE_CLIENT_ID?.trim();
+  const id = findMobileClientId();
   if (!id) {
     throw new Error(
       "Set the LSC mobile app consumer key in Settings (remoteAccessConsumerKey in the iOS app's bootconfig.plist), or set LSC_MOBILE_CLIENT_ID and restart Studio."

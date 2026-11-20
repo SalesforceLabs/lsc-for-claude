@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardFor, cardHidesStep, parseDiagnosis, withoutCreateFixes, parseQueued, pickUserMessage, queuedSummary, trayPillLabel } from "../../../src-renderer/components/chat-cards/card-logic.js";
+import { cardFor, cardHidesStep, choiceAnswers, parseChoice, parseDiagnosis, withoutCreateFixes, parseQueued, pickUserMessage, queuedSummary, trayPillLabel } from "../../../src-renderer/components/chat-cards/card-logic.js";
 import { approvalFor, approvalsReducer, initialApprovals, waitingCount } from "../../../src-renderer/components/chat-cards/approval-logic.js";
 
 const tool = (name: string, status: "pending" | "running" | "success" | "error", result?: string) => ({ name, status, result });
@@ -116,5 +116,34 @@ describe("approvals", () => {
     s = approvalsReducer(s, { type: "load", requests: [request] });
     expect(approvalFor(s.views, "c1", "t1")?.state).toBe("allowed");
     expect(waitingCount(s.views, "c1")).toBe(0);
+  });
+});
+
+describe("ask_user choices", () => {
+  const input = { question: "Which presentation?", options: [{ label: "Deck A", detail: "Active" }, "Deck B", { label: "" }] };
+
+  it("draws a finished call as a choice card and hides its step row", () => {
+    const card = cardFor({ name: "ask_user", status: "success", input });
+    expect(card).toEqual({ kind: "choice", question: "Which presentation?", options: [{ label: "Deck A", detail: "Active" }, { label: "Deck B", detail: undefined }] });
+    expect(cardHidesStep(card)).toBe(true);
+  });
+
+  it("draws nothing while the call is written, or when it's malformed", () => {
+    expect(cardFor({ name: "ask_user", status: "pending" })).toBeNull();
+    expect(cardFor({ name: "ask_user", status: "error", input })).toBeNull();
+    expect(parseChoice({ question: "Q?", options: ["only one"] })).toBeNull();
+    expect(parseChoice({ options: ["a", "b"] })).toBeNull();
+  });
+
+  it("takes the next user message as the answer, and leaves the last question open", () => {
+    const ask = (id: string) => ({ type: "tool", tool: { id, name: "ask_user" } });
+    const messages = [
+      { role: "assistant", text: "", blocks: [ask("q1")] },
+      { role: "user", text: " Deck A " },
+      { role: "assistant", text: "", blocks: [ask("q2")] },
+    ];
+    const answers = choiceAnswers(messages);
+    expect(answers.get("q1")).toBe("Deck A");
+    expect(answers.has("q2")).toBe(false);
   });
 });

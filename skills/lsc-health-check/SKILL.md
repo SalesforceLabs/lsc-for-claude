@@ -1,3 +1,7 @@
+---
+name: lsc-health-check
+description: Guides org health assessment and configuration verification. Use when the user asks about org health, configuration status, or a general assessment of their LSC setup.
+---
 For health check guidance, call `search_lsc_knowledge({ query: "health check configuration" })` to get sourced documentation.
 
 # Life Sciences Cloud (LSC) Health Check

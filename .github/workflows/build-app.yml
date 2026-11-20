@@ -43,6 +43,9 @@ jobs:
         env:
           # No signing certs in CI — produce an unsigned build instead of failing.
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          # The LSC mobile app's consumer key, written into the app by
+          # scripts/write-build-config.mjs (kept out of the repo).
+          LSC_MOBILE_CLIENT_ID: ${{ secrets.LSC_MOBILE_CLIENT_ID }}
 
       - name: Upload installers
         uses: actions/upload-artifact@v4

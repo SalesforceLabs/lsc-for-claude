@@ -1,4 +1,7 @@
------|---
+---
+name: lsc-reporting-analytics
+description: Guides CRM Analytics, reports, dashboards, and KPI configuration. Use when the user asks about reporting, dashboards, analytics or KPIs in LSC.
+---
 
 For reporting and analytics guidance, call `search_lsc_knowledge({ query: "reporting analytics" })` to get sourced documentation.
 
