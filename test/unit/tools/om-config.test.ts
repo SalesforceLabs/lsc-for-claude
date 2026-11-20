@@ -82,6 +82,22 @@ describe("toOmCheck()", () => {
   });
 });
 
+describe("undated price adjustment schedules", () => {
+  it("names the schedules it finds, not just that one exists", () => {
+    const undated = getKnownCauses().find((c) => c.id === "om-tier-effective-dates-empty")!;
+    expect(undated.check).toMatchObject({ type: "soql" });
+    expect((undated.check as { query: string }).query).toMatch(
+      /SELECT Id, Name FROM PriceAdjustmentSchedule/
+    );
+    const c = toOmCheck(undated, {
+      passed: false,
+      message: "1 record",
+      details: { records: [{ Id: "0", Name: "Tier Discount Schedule" }] },
+    });
+    expect(c).toMatchObject({ status: "fail", detail: "Found: Tier Discount Schedule" });
+  });
+});
+
 describe("collectOmChecks()", () => {
   it("runs each check once, and skips the check when applies_if fails", async () => {
     exec.executeCheck.mockResolvedValue({ passed: true, message: "" });

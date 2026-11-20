@@ -162,4 +162,26 @@ describe("ConversationEngine per-message tool limits", () => {
     await engine.sendMessage("check Carmen", callbacks());
     expect(mcp.callTool).toHaveBeenCalledTimes(3);
   });
+
+  it("refuses a tool the model wasn't offered without asking the gate", async () => {
+    const invented: Message = {
+      role: "assistant",
+      content: [{ type: "tool_use", id: "r", name: "read", input: { file_path: "/tmp/x.xml" } } as ContentBlock],
+    };
+    const { llm, seen } = fakeLlm([invented, text("ok")]);
+    const gateTool = vi.fn(async () => null);
+    const mcp = {
+      getTools: () => [{ name: "run_soql", description: "", input_schema: {} }],
+      callTool: vi.fn(async () => ({ content: [{ type: "text", text: "ran" }] })),
+    };
+    const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder, null, { gateTool: gateTool as never });
+    engine.initialize();
+
+    await engine.sendMessage("read the flow", callbacks());
+    expect(gateTool).not.toHaveBeenCalled();
+    expect(mcp.callTool).not.toHaveBeenCalled();
+    const results = seen[1].at(-1)!.content as ContentBlock[];
+    expect(results[0]).toMatchObject({ is_error: true, content: expect.stringMatching(/no tool named read/) });
+    expectValidHistory(seen[1]);
+  });
 });
