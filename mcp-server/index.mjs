@@ -22650,7 +22650,7 @@ async function annotateSharing(org, territories) {
   const names5 = [...new Set(tables.map((t) => t.sobject))];
   if (names5.length === 0) return;
   const result2 = await org.soql(
-    `SELECT QualifiedApiName, InternalSharingModel FROM EntityDefinition WHERE QualifiedApiName IN (${names5.map((n2) => `'${soqlString(n2)}'`).join(",")})`
+    `SELECT QualifiedApiName, InternalSharingModel FROM EntityDefinition WHERE QualifiedApiName IN (${names5.map((n2) => `'${soqlString2(n2)}'`).join(",")})`
   );
   if (!result2.success) return;
   const models = /* @__PURE__ */ new Map();
@@ -22664,11 +22664,11 @@ async function annotateSharing(org, territories) {
     if (model) t.sharingModel = model;
   }
 }
-function soqlString(value4) {
+function soqlString2(value4) {
   return value4.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 async function loadUserContext(org, userRef) {
-  const ref3 = soqlString(userRef.trim());
+  const ref3 = soqlString2(userRef.trim());
   const isId = /^005[A-Za-z0-9]{12}([A-Za-z0-9]{3})?$/.test(userRef.trim());
   const where3 = isId ? `Id = '${ref3}'` : `Username = '${ref3}'`;
   const userResult = await org.soql(
@@ -22711,7 +22711,7 @@ async function territoryAccountCounts(org, territories) {
   const sizes = /* @__PURE__ */ new Map();
   const chunks7 = splitChunks(territories, TERRITORY_RANK_CHUNK);
   await mapWithConcurrency(chunks7, DEFAULT_PROFILE_OPTIONS.concurrency, async (chunk2) => {
-    const list2 = chunk2.map((t) => `'${soqlString(t.id)}'`).join(",");
+    const list2 = chunk2.map((t) => `'${soqlString2(t.id)}'`).join(",");
     const result2 = await org.soql(
       `SELECT Territory2Id, COUNT(Id) cnt FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2Id IN (${list2}) GROUP BY Territory2Id`
     );
@@ -30016,7 +30016,7 @@ async function latestCache(profile, org) {
   const rows3 = await query(
     `SELECT Id, Name, Status, Profile.Name, LastModifiedDate, MetadataDocument.LatestPublishedVersionId, MetadataDocument.ContentSize
      FROM LifeSciMobileMetadataRecord
-     WHERE ParentMobileMetadataRecId != null AND MetadataDocumentId != null AND Profile.Name = ${soqlString2(profile)}
+     WHERE ParentMobileMetadataRecId != null AND MetadataDocumentId != null AND Profile.Name = ${soqlString3(profile)}
      ORDER BY LastModifiedDate DESC LIMIT 200`,
     org,
     false,
@@ -30138,7 +30138,7 @@ function toProfileUser(u, sets) {
 }
 async function profileUsers(profile, org) {
   const result2 = await queryResult(
-    `SELECT Id, Name, LastLoginDate, LanguageLocaleKey FROM User WHERE IsActive = true AND Profile.Name = ${soqlString2(profile)} ORDER BY LastLoginDate DESC NULLS LAST, Name LIMIT ${USER_LIMIT}`,
+    `SELECT Id, Name, LastLoginDate, LanguageLocaleKey FROM User WHERE IsActive = true AND Profile.Name = ${soqlString3(profile)} ORDER BY LastLoginDate DESC NULLS LAST, Name LIMIT ${USER_LIMIT}`,
     org,
     false,
     { allowTruncated: true }
@@ -30154,7 +30154,7 @@ async function profileUsers(profile, org) {
 async function profileUserById(profile, id2, org) {
   if (!ID_PATTERN.test(id2)) return void 0;
   const rows3 = await query(
-    `SELECT Id, Name, LastLoginDate, LanguageLocaleKey FROM User WHERE Id = '${id2}' AND IsActive = true AND Profile.Name = ${soqlString2(profile)}`,
+    `SELECT Id, Name, LastLoginDate, LanguageLocaleKey FROM User WHERE Id = '${id2}' AND IsActive = true AND Profile.Name = ${soqlString3(profile)}`,
     org
   );
   return rows3[0] ? toProfileUser(rows3[0], await assignedSets([id2], org)) : void 0;
@@ -30163,7 +30163,7 @@ async function searchProfileUsers(profile, text12, org, limit = 50) {
   const term = text12.trim();
   if (!term) return [];
   const rows3 = await query(
-    `SELECT Id, Name FROM User WHERE IsActive = true AND Profile.Name = ${soqlString2(profile)} AND Name LIKE '%${likeEscape(term)}%' ORDER BY Name LIMIT ${Math.max(1, Math.min(limit, 200))}`,
+    `SELECT Id, Name FROM User WHERE IsActive = true AND Profile.Name = ${soqlString3(profile)} AND Name LIKE '%${likeEscape(term)}%' ORDER BY Name LIMIT ${Math.max(1, Math.min(limit, 200))}`,
     org,
     false,
     { allowTruncated: true }
@@ -30194,7 +30194,7 @@ async function availableTablesFor(profile, sobjects, org) {
       query(
         `SELECT SobjectType, Parent.Name, Parent.NamespacePrefix, Parent.IsOwnedByProfile FROM ObjectPermissions
          WHERE PermissionsRead = true AND SobjectType IN (${list2})
-         AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE Assignee.IsActive = true AND Assignee.Profile.Name = ${soqlString2(profile)})`,
+         AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE Assignee.IsActive = true AND Assignee.Profile.Name = ${soqlString3(profile)})`,
         org
       ),
       // An admin profile has a row for every object that has object permissions at all.
@@ -31000,7 +31000,7 @@ async function buildSnapshots(input) {
       fs7.rmSync(path6.join(dir, f), { force: true });
   }
 }
-var execFileAsync, trOf, NAMESPACE2, ns, str17, arr4, obj5, ieq, NATIVE_TAB_NAMES, TAB_FILTER_REASONS, EXACT_COMPONENTS, SUFFIX_COMPONENTS, MEETING_COMPONENTS, PROP_KEEP, stepOf, walkTranslation, TEMPLATE_REGIONS, picklistLabelsFor, layoutObject2, REFERENCE_TYPES, NUMERIC_TYPES, LIST_OPERATORS, MULTI_ENTITY, languageName, DASHBOARDS_READ, SHARE_MATCH, SHARE_NOUN, FILES, cacheRoot, SNAPSHOT_VERSION2, DEFAULT_LANGUAGE, MAX_COMBOS, yieldToEventLoop, soqlString2, USER_LIMIT, likeEscape, LANGUAGE, comboKey, REPORT_ROWS, FV_COLUMNS, LIST_PAGE, LIST_VIEWS_PER_OBJECT, LIST_VIEW_TIMEOUT_MS, LIST_BUDGET_MS, LIST_CONCURRENCY, RECORDS_TIMEOUT_MS, reason, CACHE_KEEP, CACHE_MAX_BYTES, EXTRA_COMBO_BUDGET_MS, inflight, builds;
+var execFileAsync, trOf, NAMESPACE2, ns, str17, arr4, obj5, ieq, NATIVE_TAB_NAMES, TAB_FILTER_REASONS, EXACT_COMPONENTS, SUFFIX_COMPONENTS, MEETING_COMPONENTS, PROP_KEEP, stepOf, walkTranslation, TEMPLATE_REGIONS, picklistLabelsFor, layoutObject2, REFERENCE_TYPES, NUMERIC_TYPES, LIST_OPERATORS, MULTI_ENTITY, languageName, DASHBOARDS_READ, SHARE_MATCH, SHARE_NOUN, FILES, cacheRoot, SNAPSHOT_VERSION2, DEFAULT_LANGUAGE, MAX_COMBOS, yieldToEventLoop, soqlString3, USER_LIMIT, likeEscape, LANGUAGE, comboKey, REPORT_ROWS, FV_COLUMNS, LIST_PAGE, LIST_VIEWS_PER_OBJECT, LIST_VIEW_TIMEOUT_MS, LIST_BUDGET_MS, LIST_CONCURRENCY, RECORDS_TIMEOUT_MS, reason, CACHE_KEEP, CACHE_MAX_BYTES, EXTRA_COMBO_BUDGET_MS, inflight, builds;
 var init_published = __esm({
   "src/studio/published.ts"() {
     "use strict";
@@ -31240,7 +31240,7 @@ var init_published = __esm({
     DEFAULT_LANGUAGE = "en_US";
     MAX_COMBOS = 25;
     yieldToEventLoop = () => new Promise((resolve4) => setImmediate(resolve4));
-    soqlString2 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+    soqlString3 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
     USER_LIMIT = 500;
     likeEscape = (v) => v.replace(/[\\'%_]/g, (c) => `\\${c}`);
     LANGUAGE = /^[A-Za-z]{2,3}(_[A-Za-z0-9]{2,4})*$/;
@@ -31517,8 +31517,8 @@ function tabNameIn(symptom) {
 function nameStem(name) {
   return name.toLowerCase().replace(/s$/, "");
 }
-async function orgTabsNamed(stem, targetOrg) {
-  const like = stem.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/[%_]/g, (c) => `\\${c}`);
+async function orgTabsNamed(stem2, targetOrg) {
+  const like = stem2.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/[%_]/g, (c) => `\\${c}`);
   const [byLabel, byName] = await Promise.all(
     ["Label", "Name"].map(
       (field3) => runSoqlQuery(
@@ -31542,14 +31542,14 @@ async function namedTab(targetOrg, context) {
       message: 'Name the tab to check it, for example "the Samples tab".',
       unavailable: true
     };
-  const stem = nameStem(name);
+  const stem2 = nameStem(name);
   const [tabs, uiSchema] = await Promise.all([
-    orgTabsNamed(stem, targetOrg),
+    orgTabsNamed(stem2, targetOrg),
     fetchCategories(targetOrg, ["UISchema"]).catch(() => null)
   ]);
   if (!tabs) return { passed: false, message: "Couldn't read the org's tabs.", unavailable: true };
   const settings = (uiSchema ?? []).filter(isNavTab).filter(
-    (r) => `${String(r.fields.TabName ?? "")} ${r.label ?? ""} ${r.developerName}`.toLowerCase().includes(stem)
+    (r) => `${String(r.fields.TabName ?? "")} ${r.label ?? ""} ${r.developerName}`.toLowerCase().includes(stem2)
   );
   const dropped = tabs.filter((t) => t.Name.toLowerCase().includes("samples_management"));
   const off = settings.filter((r) => !r.isActive || !r.isOrgLevel && r.assignments.length === 0);
@@ -93587,6 +93587,8 @@ Presentations (Intelligent Content):
 
 OmniStudio (FlexCards, OmniScripts, DataRaptors) runs only on the web app. Never suggest it for the LSC Mobile (iPad) app.
 
+Quotes, quoted orders, price books, pricing, product availability for quotes (ProductTerritoryAvailability), quote approval and the quote lifecycle are LSC Order Management, which runs on the iPad and works differently from Sales Cloud quoting. For these, call search_lsc_knowledge before answering, run check_om_config to see what the org actually has, and don't fall back on general Sales Cloud or Revenue Cloud behavior without saying so.
+
 After changing mobile configuration (DB Schema, actions, tabs, mobile settings), remind the user to regenerate the mobile metadata cache so iPads get it.
 
 Ask before writing to a production org. For implementation guidance, search the knowledge base (search_lsc_knowledge, get_lsc_module_docs, explain_lsc_concept) and cite the source rather than answering from memory.`;
@@ -96403,6 +96405,12 @@ ${error2 instanceof Error ? error2.message : String(error2)}`
 // src/tools/admin-console.ts
 init_cli();
 init_helpers();
+function soqlString(value4) {
+  return value4.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+function soqlLike(value4) {
+  return soqlString(value4).replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
 function register4(server2) {
   server2.tool(
     "list_trigger_handlers",
@@ -96424,9 +96432,10 @@ function register4(server2) {
       try {
         let query2 = "SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler ORDER BY MasterLabel";
         if (objectName) {
-          query2 = `SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler WHERE DeveloperName LIKE '%${objectName}%' OR MasterLabel LIKE '%${objectName}%' OR Description LIKE '%${objectName}%' ORDER BY MasterLabel`;
+          const term = soqlLike(objectName);
+          query2 = `SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler WHERE DeveloperName LIKE '%${term}%' OR MasterLabel LIKE '%${term}%' OR Description LIKE '%${term}%' ORDER BY MasterLabel`;
         }
-        const result2 = await runSoqlQuery(query2, effectiveOrg);
+        const result2 = await runToolingQuery(query2, effectiveOrg);
         if (!result2.success) {
           return {
             content: [
@@ -96503,8 +96512,8 @@ ${error2 instanceof Error ? error2.message : String(error2)}`
         };
       }
       try {
-        const query2 = `SELECT Id, DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler WHERE DeveloperName = '${handlerName}' LIMIT 1`;
-        const result2 = await runSoqlQuery(query2, effectiveOrg);
+        const query2 = `SELECT Id, DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler WHERE DeveloperName = '${soqlString(handlerName)}' LIMIT 1`;
+        const result2 = await runToolingQuery(query2, effectiveOrg);
         if (!result2.success) {
           return {
             content: [
@@ -96517,7 +96526,7 @@ ${result2.error}` }
         const records = result2.data?.records || [];
         if (records.length === 0) {
           const allQuery = "SELECT DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler ORDER BY MasterLabel";
-          const allResult = await runSoqlQuery(allQuery, effectiveOrg);
+          const allResult = await runToolingQuery(allQuery, effectiveOrg);
           const available = (allResult.data?.records || []).map((r) => {
             const rec = r;
             return `- ${rec.DeveloperName} (${rec.IsActive ? "active" : "inactive"})`;
@@ -96553,7 +96562,7 @@ ${available || "No handlers found in org."}`
             ]
           };
         }
-        const updateResult = await updateRecord(
+        const updateResult = await updateToolingRecord(
           "LifeScienceTriggerHandler",
           handlerId,
           { IsActive: active2 },
@@ -99491,14 +99500,56 @@ var STOP_WORDS = /* @__PURE__ */ new Set([
 function normalizeText(text12) {
   return text12.replace(/\\[nrt]/g, " ").toLowerCase().replace(/[‘’‚‛]/g, "'").replace(/[“”„‟]/g, '"').replace(/\b[a-z0-9]{3}[a-z0-9]{12}(?:[a-z0-9]{3})?\b/g, (m) => /\d/.test(m) ? " " : m).replace(/\d+/g, " ").replace(/\s+/g, " ").trim();
 }
+var TERMS = [
+  "store check",
+  "order management",
+  "price book",
+  "action plan",
+  "quoted order",
+  "line item",
+  "metadata cache",
+  "record type",
+  "visit engagement",
+  "add products",
+  "last order",
+  "pricing procedure",
+  "admin console",
+  "product catalog",
+  "browse catalog",
+  "store assortment"
+].map((t) => [new RegExp(`\\b${t}\\b`, "g"), t.replace(" ", "_")]);
+function joinTerms(text12) {
+  return TERMS.reduce((t, [re, joined2]) => t.replace(re, joined2), text12);
+}
+var SYNONYMS = {
+  tablet: "ipad",
+  device: "ipad",
+  browser: "web",
+  desktop: "web",
+  spins: "spinner",
+  spinning: "spinner"
+};
+function stem(t) {
+  if (t.includes("_") || t.length <= 4) return t;
+  if (t.endsWith("ies") && t.length > 5) return t.slice(0, -3) + "y";
+  if (t.endsWith("ing") && t.length > 6) return t.slice(0, -3);
+  if (t.endsWith("ed") && t.length > 5 && !t.endsWith("eed")) return t.slice(0, -2);
+  if (t.endsWith("es") && /(ss|x|ch|sh)es$/.test(t)) return t.slice(0, -2);
+  if (t.endsWith("s") && !t.endsWith("ss")) return t.slice(0, -1);
+  return t;
+}
 function tokens(text12) {
-  return normalizeText(text12).split(/[^a-z0-9_'.]+/).map((t) => t.replace(/^[.']+|[.']+$/g, "")).filter((t) => t.length > 2 && !STOP_WORDS.has(t)).map((t) => t.length > 4 && t.endsWith("s") && !t.endsWith("ss") ? t.slice(0, -1) : t);
+  return joinTerms(normalizeText(text12)).split(/[^a-z0-9_'.]+/).map((t) => t.replace(/^[.']+|[.']+$/g, "")).filter((t) => t.length > 2 && !STOP_WORDS.has(t)).map((t) => t.length > 4 && t.endsWith("s") && !t.endsWith("ss") ? t.slice(0, -1) : t);
+}
+function looseTokens(text12) {
+  return joinTerms(normalizeText(text12)).split(/[^a-z0-9_'.]+/).map((t) => t.replace(/^[.']+|[.']+$/g, "")).map((t) => SYNONYMS[t] ?? t).filter((t) => t.length > 2 && !STOP_WORDS.has(t)).map(stem);
 }
 function containsWords(text12, phrase) {
   const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`(^|[^a-z0-9_])${escaped}($|[^a-z0-9_])`).test(text12);
 }
-function phraseScore(query2, phrase) {
+var TWO_WORD_WEIGHT = 0.65;
+function phraseScore(query2, phrase, phraseOnly = false) {
   const q2 = normalizeText(query2);
   const p = normalizeText(phrase);
   if (!q2 || !p) return 0;
@@ -99511,50 +99562,129 @@ function phraseScore(query2, phrase) {
   for (const t of pTokens) if (qTokens.has(t)) shared++;
   if (shared === 0) return 0;
   if (shared === 1) return pTokens.size > 1 ? 0 : 0.8 * 0.9 / qTokens.size;
-  return 0.8 * Math.max(shared / pTokens.size, 0.9 * shared / qTokens.size);
+  const coverage = 0.8 * (phraseOnly ? shared / pTokens.size : Math.max(shared / pTokens.size, 0.9 * shared / qTokens.size));
+  return shared === 2 ? coverage * TWO_WORD_WEIGHT : coverage;
 }
-function best(query2, phrases, weight = 1) {
+function best(query2, phrases, weight = 1, phraseOnly = false) {
   let top = { score: 0, matched: "" };
   for (const phrase of phrases) {
-    const score = phraseScore(query2, phrase) * weight;
+    const score = phraseScore(query2, phrase, phraseOnly) * weight;
     if (score > top.score) top = { score, matched: phrase };
   }
   return top;
 }
-function scoreCause(query2, cause) {
+function overlapsBeyondKeywords(query2, phrases, keywords2) {
+  const named2 = new Set(
+    keywords2.filter((k) => phraseScore(query2, k) >= 0.8).flatMap((k) => tokens(k))
+  );
+  const rest = new Set(tokens(query2).filter((t) => !named2.has(t)));
+  return phrases.some((p) => new Set(tokens(p).filter((t) => rest.has(t))).size >= 2);
+}
+var docFreq = /* @__PURE__ */ new WeakMap();
+function wordCauses(causes) {
+  let df = docFreq.get(causes);
+  if (df) return df;
+  df = /* @__PURE__ */ new Map();
+  for (const c of causes) {
+    const words = new Set(looseTokens([...c.symptoms, c.title, ...c.keywords ?? []].join(" | ")));
+    for (const w of words) df.set(w, (df.get(w) ?? 0) + 1);
+  }
+  docFreq.set(causes, df);
+  return df;
+}
+function rareOverlap(query2, cause, df, n2) {
+  const q2 = [...new Set(looseTokens(query2))];
+  if (q2.length === 0) return 0;
+  const phrases = [...cause.symptoms, cause.title].map((p) => new Set(looseTokens(p)));
+  let own = /* @__PURE__ */ new Set();
+  let ownShared = -1;
+  for (const p of phrases) {
+    const n3 = q2.filter((t) => p.has(t)).length;
+    if (n3 > ownShared) {
+      own = p;
+      ownShared = n3;
+    }
+  }
+  const phraseWords = new Set(own);
+  for (const k of cause.keywords ?? []) for (const t of looseTokens(k)) own.add(t);
+  const idf = (t) => Math.log(1 + n2 / (1 + (df.get(t) ?? 0)));
+  let shared = 0;
+  let sharedCount = 0;
+  let sharedRare = 0;
+  let total = 0;
+  for (const t of q2) {
+    if (!df.has(t)) continue;
+    total += idf(t);
+    if (own.has(t)) {
+      shared += idf(t);
+      if (phraseWords.has(t)) sharedCount++;
+      if (phraseWords.has(t) && (df.get(t) ?? 0) <= RARE_WORD_CAUSES) sharedRare++;
+    }
+  }
+  if (sharedCount < MIN_SHARED || sharedRare < MIN_RARE || total === 0) return 0;
+  return shared / total;
+}
+var MIN_SHARED = 3;
+var MIN_RARE = 1;
+var OVERLAP_WEIGHT = 0.6;
+var RARE_WORD_CAUSES = 2;
+function scoreCause(query2, cause, df = /* @__PURE__ */ new Map(), nCauses = 1) {
   const bySymptom = best(query2, cause.symptoms);
-  const byKeyword = best(query2, cause.keywords ?? [], 0.6);
-  const byTitle2 = best(query2, [cause.title], 0.7);
-  const top = [bySymptom, byKeyword, byTitle2].reduce((a, b) => b.score > a.score ? b : a);
+  const byTitle2 = best(query2, [cause.title], 0.7, true);
   const keywordHits = (cause.keywords ?? []).filter((k) => phraseScore(query2, k) >= 0.8).length;
+  const rareKeyword = (cause.keywords ?? []).some(
+    (k) => phraseScore(query2, k) >= 0.8 && looseTokens(k).length > 0 && looseTokens(k).every((t) => (df.get(t) ?? 0) <= RARE_WORD_CAUSES) && // The rare keyword is most of what the query says, not one word in a longer story.
+    looseTokens(k).length * 2 >= new Set(looseTokens(query2)).size
+  );
+  const corroborated = keywordHits >= 2 || rareKeyword || overlapsBeyondKeywords(query2, [...cause.symptoms, cause.title], cause.keywords ?? []);
+  const byKeyword = corroborated ? best(query2, cause.keywords ?? [], 0.6) : { score: 0, matched: "" };
+  const byOverlap = {
+    score: OVERLAP_WEIGHT * rareOverlap(query2, cause, df, nCauses),
+    matched: "(shared words)"
+  };
+  const top = [bySymptom, byKeyword, byTitle2, byOverlap].reduce(
+    (a, b) => b.score > a.score ? b : a
+  );
   return {
     score: Math.min(1, top.score + 0.1 * Math.max(0, keywordHits - 1)),
     matched: top.matched
   };
 }
+var RULE_WEIGHT = 0.8;
 function scoreRule(query2, rule) {
   const bySymptom = best(query2, rule.symptoms ?? []);
   const byName = best(query2, [rule.name], 0.7);
   const byDescription = best(query2, [rule.description], 0.5);
-  return [bySymptom, byName, byDescription].reduce((a, b) => b.score > a.score ? b : a);
+  const top = [bySymptom, byName, byDescription].reduce((a, b) => b.score > a.score ? b : a);
+  return { score: top.score * RULE_WEIGHT, matched: top.matched };
 }
 var MIN_MATCH_SCORE = 0.35;
 var RELATIVE_FLOOR = 0.6;
-function matchSymptom(query2, causes, rules, minScore = MIN_MATCH_SCORE) {
+function scoreAll(query2, causes, rules, minScore) {
   const matches = [];
+  const df = wordCauses(causes);
   for (const cause of causes) {
-    const { score, matched } = scoreCause(query2, cause);
+    const { score, matched } = scoreCause(query2, cause, df, causes.length);
     if (score >= minScore) matches.push({ kind: "cause", item: cause, score, matched });
   }
   for (const rule of rules) {
     const { score, matched } = scoreRule(query2, rule);
     if (score >= minScore) matches.push({ kind: "rule", item: rule, score, matched });
   }
-  matches.sort(
+  return matches.sort(
     (a, b) => b.score - a.score || (a.kind === b.kind ? 0 : a.kind === "cause" ? -1 : 1)
   );
+}
+function matchSymptom(query2, causes, rules, minScore = MIN_MATCH_SCORE) {
+  const matches = scoreAll(query2, causes, rules, minScore);
   const floor = (matches[0]?.score ?? 0) * RELATIVE_FLOOR;
   return matches.filter((m) => m.score >= floor);
+}
+var POSSIBLE_MIN_SCORE = 0.2;
+var MAX_POSSIBLE = 3;
+function possibleCauses(query2, causes, matched, max = MAX_POSSIBLE, minScore = POSSIBLE_MIN_SCORE) {
+  const taken = new Set(matched.map((m) => m.item.id));
+  return scoreAll(query2, causes, [], minScore).filter((m) => !taken.has(m.item.id)).slice(0, max);
 }
 
 // src/validation/rules-loader.ts
@@ -99644,7 +99774,7 @@ async function executeCheck(check2, targetOrg, context = {}) {
       case "api":
       case "cli":
         return {
-          passed: true,
+          passed: false,
           message: `Check type '${check2.type}' not yet implemented - skipped`,
           unavailable: true
         };
@@ -99877,12 +100007,14 @@ async function runAudit(targetOrg, options2 = {}) {
     failed: 0,
     errors: 0,
     warnings: 0,
-    skipped: 0
+    skipped: 0,
+    unchecked: 0
   };
   for (const rule of rulesToRun) {
     if (rule.prerequisites && rule.prerequisites.length > 0) {
       const prereqResults = results.filter((r) => rule.prerequisites.includes(r.rule.id));
-      const prereqsFailed = prereqResults.some((r) => !r.passed);
+      const prereqsFailed = prereqResults.some((r) => !r.passed && !r.unavailable);
+      const prereqsUnchecked = prereqResults.some((r) => r.unavailable);
       if (prereqsFailed) {
         results.push({
           rule,
@@ -99892,16 +100024,29 @@ async function runAudit(targetOrg, options2 = {}) {
         summary.skipped++;
         continue;
       }
+      if (prereqsUnchecked) {
+        results.push({
+          rule,
+          passed: false,
+          unavailable: true,
+          message: `Couldn't check: a prerequisite check couldn't be run`
+        });
+        summary.unchecked++;
+        continue;
+      }
     }
     const checkResult = await executeCheck(rule.check, targetOrg);
     const result2 = {
       rule,
       passed: checkResult.passed,
       message: checkResult.message,
-      details: checkResult.details
+      details: checkResult.details,
+      ...checkResult.unavailable ? { unavailable: true } : {}
     };
     results.push(result2);
-    if (checkResult.passed) {
+    if (checkResult.unavailable) {
+      summary.unchecked++;
+    } else if (checkResult.passed) {
       summary.passed++;
     } else {
       summary.failed++;
@@ -99955,6 +100100,10 @@ function formatAuditResults(audit) {
     output += `| Skipped | ${audit.summary.skipped} |
 `;
   }
+  if (audit.summary.unchecked > 0) {
+    output += `| Couldn't check | ${audit.summary.unchecked} |
+`;
+  }
   output += `
 `;
   if (audit.summary.errors > 0) {
@@ -99971,6 +100120,13 @@ function formatAuditResults(audit) {
     output += `Found ${audit.summary.warnings} warning(s) that should be reviewed.
 
 `;
+  } else if (audit.summary.unchecked > 0) {
+    output += `### Status: INCOMPLETE
+
+`;
+    output += `No problems found, but ${audit.summary.unchecked} check(s) couldn't be run (see below).
+
+`;
   } else {
     output += `### Status: PASSED
 
@@ -99979,7 +100135,7 @@ function formatAuditResults(audit) {
 
 `;
   }
-  const failedResults = audit.results.filter((r) => !r.passed);
+  const failedResults = audit.results.filter((r) => !r.passed && !r.unavailable);
   if (failedResults.length > 0) {
     output += `## Issues Found
 
@@ -100011,6 +100167,18 @@ function formatAuditResults(audit) {
         output += formatFailedCheck(result2);
       }
     }
+  }
+  const uncheckedResults = audit.results.filter((r) => r.unavailable);
+  if (uncheckedResults.length > 0) {
+    output += `## Couldn't Check (${uncheckedResults.length})
+
+`;
+    for (const result2 of uncheckedResults) {
+      output += `- **${result2.rule.id}**: ${result2.rule.name} \u2014 ${result2.message}
+`;
+    }
+    output += `
+`;
   }
   const passedResults = audit.results.filter((r) => r.passed);
   if (passedResults.length > 0) {
@@ -100131,8 +100299,10 @@ async function diagnose(symptom, targetOrg, deps = {}) {
   const linked = new Set(matches.flatMap((m) => m.kind === "cause" ? m.item.rules ?? [] : []));
   let rulesLeft = MAX_RULE_MATCHES;
   const kept = matches.filter((m) => m.kind === "cause" || !linked.has(m.item.id) && rulesLeft-- > 0).slice(0, MAX_MATCHES);
+  const possible = new Set(possibleCauses(symptom, causes, matches));
+  kept.push(...possible);
   const findById = (id2) => rules.find((r) => r.id === id2) ?? getRuleById(id2);
-  const findings = await Promise.all(
+  const checked = await Promise.all(
     kept.map(async (match) => {
       if (!targetOrg)
         return { match, status: match.item.check ? "unchecked" : "no-check", failedRules: [] };
@@ -100170,10 +100340,11 @@ async function diagnose(symptom, targetOrg, deps = {}) {
       return { match, status, outcome, failedRules };
     })
   );
-  if (targetOrg)
-    findings.sort(
-      (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || b.match.score - a.match.score
-    );
+  const findings = checked.map((f) => possible.has(f.match) ? { ...f, possible: true } : f);
+  const rank = (f) => f.possible ? 1 : 0;
+  findings.sort(
+    (a, b) => rank(a) - rank(b) || (targetOrg ? STATUS_ORDER[a.status] - STATUS_ORDER[b.status] : 0) || b.match.score - a.match.score
+  );
   return { symptom, targetOrg, findings };
 }
 function recordNames(outcome) {
@@ -100283,64 +100454,87 @@ function formatDiagnosis(diagnosis) {
     out += "- Search the docs with `search_lsc_knowledge`.\n";
     return out;
   }
-  const found = findings.filter((f) => f.status === "found").length;
-  if (connected) {
-    out += found > 0 ? `Checked against ${targetOrg}: ${found} of ${findings.length} possible cause${findings.length === 1 ? "" : "s"} found in the org.
+  const main2 = findings.filter((f) => !f.possible);
+  const weaker = findings.filter((f) => f.possible);
+  const found = main2.filter((f) => f.status === "found").length;
+  const weakerFound = weaker.filter((f) => f.status === "found").length;
+  const causes = (n2) => `${n2} possible cause${n2 === 1 ? "" : "s"}`;
+  const alsoFound = weakerFound > 0 ? ` ${weakerFound} of the weaker matches below ${weakerFound === 1 ? "is" : "are"} in the org too: a problem the org has, but maybe not this one.` : "";
+  if (main2.length === 0) {
+    out += weakerFound > 0 ? `Nothing matches this closely. ${causes(weaker.length)} ${weaker.length === 1 ? "shares" : "share"} some of its words, and ${weakerFound} ${weakerFound === 1 ? "is" : "are"} in ${targetOrg}. That is a problem the org has; check it fits what the user sees before calling it the cause.
 
-` : `Checked against ${targetOrg}: none of the checkable causes below are present. Work through the others by hand.
+` : `Nothing matches this closely. ${causes(weaker.length)} ${weaker.length === 1 ? "shares" : "share"} some of its words${connected ? `; none were found in ${targetOrg}` : ""}. Treat ${weaker.length === 1 ? "it as a lead" : "them as leads"}, not ${weaker.length === 1 ? "an answer" : "answers"}.
+
+`;
+  } else if (connected) {
+    out += (found > 0 ? `Checked against ${targetOrg}: ${found} of ${causes(main2.length)} found in the org.` : `Checked against ${targetOrg}: none of the checkable causes below are present. Work through the others by hand.`) + `${alsoFound}
 
 `;
   } else {
-    out += `${findings.length} possible cause${findings.length === 1 ? "" : "s"}. Connect an org to check which apply.
+    out += `${causes(main2.length)}. Connect an org to check which apply.
 
 `;
   }
-  for (const finding of findings) out += formatFinding(finding, connected);
+  for (const finding of main2) out += formatFinding(finding, connected);
+  if (weaker.length > 0) {
+    if (main2.length > 0)
+      out += `## Possible causes (weaker match)
+
+These share some words with the message. Look at them if nothing above fits.
+
+---
+
+`;
+    for (const finding of weaker) out += formatFinding(finding, connected);
+  }
   return out;
 }
 function diagnosisItems(diagnosis) {
-  return diagnosis.findings.map(({ match, status, outcome, notApplicable, failedRules }) => {
-    const base2 = {
-      status,
-      notApplicable: Boolean(notApplicable),
-      message: outcome?.message,
-      records: status === "found" ? recordNames(outcome).slice(0, 10) : [],
-      failedRules: failedRules.map(({ rule, outcome: o }) => ({
-        id: rule.id,
-        name: rule.name,
-        message: o.message
-      })),
-      matched: match.matched,
-      score: Math.round(match.score * 100) / 100
-    };
-    if (match.kind === "cause") {
-      const c = match.item;
+  return diagnosis.findings.map(
+    ({ match, status, outcome, notApplicable, failedRules, possible }) => {
+      const base2 = {
+        ...possible ? { possible: true } : {},
+        status,
+        notApplicable: Boolean(notApplicable),
+        message: outcome?.message,
+        records: status === "found" ? recordNames(outcome).slice(0, 10) : [],
+        failedRules: failedRules.map(({ rule, outcome: o }) => ({
+          id: rule.id,
+          name: rule.name,
+          message: o.message
+        })),
+        matched: match.matched,
+        score: Math.round(match.score * 100) / 100
+      };
+      if (match.kind === "cause") {
+        const c = match.item;
+        return {
+          ...base2,
+          id: c.id,
+          kind: "cause",
+          title: c.title,
+          area: c.module,
+          byDesign: Boolean(c.by_design),
+          why: oneLine(c.cause),
+          steps: c.fix,
+          uiPath: c.ui_path,
+          checkScope: c.check_scope ? oneLine(c.check_scope) : void 0
+        };
+      }
+      const r = match.item;
       return {
         ...base2,
-        id: c.id,
-        kind: "cause",
-        title: c.title,
-        area: c.module,
-        byDesign: Boolean(c.by_design),
-        why: oneLine(c.cause),
-        steps: c.fix,
-        uiPath: c.ui_path,
-        checkScope: c.check_scope ? oneLine(c.check_scope) : void 0
+        id: r.id,
+        kind: "rule",
+        title: r.name,
+        area: String(r.category),
+        byDesign: false,
+        why: oneLine(r.description),
+        steps: r.resolution.steps,
+        uiPath: r.resolution.ui_path
       };
     }
-    const r = match.item;
-    return {
-      ...base2,
-      id: r.id,
-      kind: "rule",
-      title: r.name,
-      area: String(r.category),
-      byDesign: false,
-      why: oneLine(r.description),
-      steps: r.resolution.steps,
-      uiPath: r.resolution.ui_path
-    };
-  });
+  );
 }
 
 // src/tools/validation.ts
@@ -102485,7 +102679,7 @@ function insertableRegion(root2, region) {
 
 // src/studio/metadata/live.ts
 init_xml2();
-var soqlString3 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+var soqlString4 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 var productionOrgs = /* @__PURE__ */ new Map();
 async function isProductionOrg(org) {
   const known = productionOrgs.get(org);
@@ -102509,7 +102703,7 @@ async function layoutProfiles(fullName, org) {
     const object3 = fullName.slice(0, dash);
     const name = decodeURIComponent(fullName.slice(dash + 1));
     const layouts = await query(
-      `SELECT Id, TableEnumOrId FROM Layout WHERE Name = ${soqlString3(name)}`,
+      `SELECT Id, TableEnumOrId FROM Layout WHERE Name = ${soqlString4(name)}`,
       org,
       true
     );
@@ -102860,7 +103054,7 @@ async function isManagedFlexiPage(fullName, org) {
   const [ns3, name] = sep6 > 0 ? [fullName.slice(0, sep6), fullName.slice(sep6 + 2)] : [null, fullName];
   try {
     const rows3 = await query(
-      `SELECT ManageableState FROM FlexiPage WHERE DeveloperName = ${soqlString3(name)} AND NamespacePrefix ${ns3 ? `= ${soqlString3(ns3)}` : "= null"}`,
+      `SELECT ManageableState FROM FlexiPage WHERE DeveloperName = ${soqlString4(name)} AND NamespacePrefix ${ns3 ? `= ${soqlString4(ns3)}` : "= null"}`,
       org,
       true
     );
@@ -123815,8 +124009,8 @@ Ensure the org is authenticated via \`sf org login web --alias ${targetOrg}\`.`
         if (effectiveScope === "all" || effectiveScope === "trigger-handlers") {
           const thQuery = "SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler ORDER BY DeveloperName";
           const [srcResult, tgtResult] = await Promise.all([
-            runSoqlQuery(thQuery, sourceOrg),
-            runSoqlQuery(thQuery, targetOrg)
+            runToolingQuery(thQuery, sourceOrg),
+            runToolingQuery(thQuery, targetOrg)
           ]);
           if (!srcResult.success || !tgtResult.success) {
             const errOrg = !srcResult.success ? sourceOrg : targetOrg;
@@ -124778,11 +124972,161 @@ ${error2 instanceof Error ? error2.message : String(error2)}`
 
 // src/tools/health-check.ts
 init_cli();
-var MOBILE_CACHE_QUERY = `SELECT Id, LastModifiedDate FROM LifeSciMobileMetadataRecord WHERE Status = 'Active' ORDER BY LastModifiedDate DESC LIMIT 1`;
+
+// src/tools/om-config.ts
+var OM_MODULE = "order-management";
+var OM_WARN_ONLY = /* @__PURE__ */ new Set([
+  "om-submitted-stage-not-locked",
+  "om-unlock-no-manager",
+  "om-locked-quote-no-view-line-items"
+]);
+var OM_IN_USE_QUERY = "SELECT Id FROM ProductTerritoryAvailability WHERE Purpose = 'Quote' LIMIT 1";
+function omCheckableCauses(causes = getKnownCauses()) {
+  return causes.filter((c) => c.module === OM_MODULE && c.check && !c.by_design);
+}
+function omUncheckedCauses(causes = getKnownCauses()) {
+  return causes.filter((c) => c.module === OM_MODULE && !c.check && !c.by_design);
+}
+var oneLine2 = (s11) => s11.trim().replace(/\s*\n\s*/g, " ");
+function toOmCheck(cause, outcome, applies) {
+  const base2 = {
+    id: cause.id,
+    title: cause.title,
+    scope: cause.check_scope ? oneLine2(cause.check_scope) : void 0
+  };
+  if (applies && !applies.unavailable && !applies.passed)
+    return {
+      ...base2,
+      status: "pass",
+      detail: "Doesn't apply: the feature it concerns isn't in use."
+    };
+  if (outcome.unavailable || applies?.unavailable)
+    return {
+      ...base2,
+      status: "skip",
+      detail: `Couldn't check: ${oneLine2((applies?.unavailable ? applies : outcome).message)}`
+    };
+  if (outcome.passed) return { ...base2, status: "pass", detail: "Not found in the org." };
+  const names5 = recordNames(outcome);
+  const shown2 = names5.slice(0, 5).join(", ");
+  const more = names5.length > 5 ? ` and ${names5.length - 5} more` : "";
+  return {
+    ...base2,
+    status: OM_WARN_ONLY.has(cause.id) ? "warn" : "fail",
+    detail: names5.length ? `Found: ${shown2}${more}` : oneLine2(outcome.message),
+    fix: cause.fix.join(" ")
+  };
+}
+async function collectOmChecks(org) {
+  const causes = omCheckableCauses();
+  const out = new Array(causes.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(4, causes.length) }, async () => {
+      while (next < causes.length) {
+        const i = next++;
+        const cause = causes[i];
+        const applies = cause.applies_if ? await executeCheck(cause.applies_if, org) : void 0;
+        const outcome = applies && !applies.unavailable && !applies.passed ? { passed: true, message: "" } : await executeCheck(cause.check, org);
+        out[i] = toOmCheck(cause, outcome, applies);
+      }
+    })
+  );
+  return out;
+}
+async function omInUse(org) {
+  const r = await executeCheck(
+    { type: "soql", query: OM_IN_USE_QUERY, expect: "records.length > 0" },
+    org
+  );
+  return r.unavailable ? null : r.passed;
+}
+function renderOmReport(org, checks, inUse) {
+  let out = `# Order Management Configuration Report
+
+**Org:** ${org}
+
+`;
+  if (inUse === false)
+    out += "No product is aligned to a territory for quotes (`ProductTerritoryAvailability` with Purpose Quote), so Order Management doesn't look set up here. The checks still ran.\n\n";
+  out += "| Check | Result | Detail |\n|---|---|---|\n";
+  for (const c of checks)
+    out += `| ${c.title} | ${c.status.toUpperCase()} | ${c.detail.replace(/\|/g, "\\|")} |
+`;
+  const bad = checks.filter((c) => c.status === "fail" || c.status === "warn");
+  out += `
+## Overall: ${checks.some((c) => c.status === "fail") ? "NEEDS ATTENTION" : bad.length ? "READY WITH WARNINGS" : "READY"}
+
+`;
+  const fixes = bad.filter((c) => c.fix);
+  if (fixes.length) {
+    out += "### Fixes\n\n";
+    fixes.forEach((c, i) => out += `${i + 1}. **${c.title}:** ${c.fix}
+`);
+    out += "\n";
+  }
+  if (checks.some((c) => c.status === "skip"))
+    out += "Checks marked SKIP couldn't run; they are not passes.\n\n";
+  const scoped2 = checks.filter((c) => c.scope);
+  if (scoped2.length) {
+    out += "### What a pass doesn't cover\n\n";
+    for (const c of scoped2) out += `- **${c.title}:** ${c.scope}
+`;
+    out += "\n";
+  }
+  const unchecked = omUncheckedCauses();
+  if (unchecked.length)
+    out += `Not checked here (${unchecked.length} known causes need a look by hand or an error message; \`diagnose_lsc_issue\` matches them): ${unchecked.map((c) => c.title).join("; ")}.
+`;
+  return out;
+}
 function register14(server2) {
   server2.tool(
+    "check_om_config",
+    "Check Order Management (quoted orders, Store Check) configuration against the known setup mistakes: DB Schema pairs (Quote/QuoteLineItem, Pricebook2/PricebookEntry) half assigned to a profile, price adjustment schedules with no EffectiveFrom, the Life Sciences Commercial pricing recipe mappings, StagePathPermissionsHandler, the Submitted quote stage lock, unpublished Quote product alignments (ProductTerritoryAvailability with no ProductTerrDtlAvailability), quote owners with no manager for Request for Unlock, locked stages with no View Line Items, and Store Check visit routing. Read-only. CORRECT object names: Quote, QuoteLineItem, Pricebook2, PricebookEntry, ProductTerritoryAvailability, ProductTerrDtlAvailability, PriceAdjustmentSchedule, LifeSciStagePath, LifeSciStageOperation. WRONG names (DO NOT USE): Order__c, QuotedOrder__c, ProductAvailability__c.",
+    {
+      targetOrg: external_exports.string().optional().describe("Optional: specific org to check. Uses current target org if not specified.")
+    },
+    async ({ targetOrg }) => {
+      const validation = await validateOrgConnection();
+      const effectiveOrg = targetOrg || validation.targetOrg;
+      if (!effectiveOrg) {
+        return {
+          content: [
+            { type: "text", text: `# Cannot Check Order Management
+
+${validation.error}` }
+          ]
+        };
+      }
+      try {
+        const [checks, inUse] = await Promise.all([
+          collectOmChecks(effectiveOrg),
+          omInUse(effectiveOrg)
+        ]);
+        return { content: [{ type: "text", text: renderOmReport(effectiveOrg, checks, inUse) }] };
+      } catch (error2) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `# Failed to Check Order Management
+
+${error2 instanceof Error ? error2.message : String(error2)}`
+            }
+          ]
+        };
+      }
+    }
+  );
+}
+
+// src/tools/health-check.ts
+var MOBILE_CACHE_QUERY = `SELECT Id, LastModifiedDate FROM LifeSciMobileMetadataRecord WHERE Status = 'Active' ORDER BY LastModifiedDate DESC LIMIT 1`;
+function register15(server2) {
+  server2.tool(
     "health_check",
-    "Run a comprehensive LSC org health check. Checks trigger handler status, permission set assignments, Admin Console settings, orphaned territory assignments, DB Schema completeness, and mobile cache freshness. Returns a summary with issues found and recommendations.",
+    "Run a comprehensive LSC org health check. Checks trigger handler status, permission set assignments, Admin Console settings, orphaned territory assignments, DB Schema completeness, mobile cache freshness, and Order Management setup when the org uses it. Returns a summary with issues found and recommendations.",
     {
       targetOrg: external_exports.string().optional().describe("Optional: specific org to check. Uses current target org if not specified.")
     },
@@ -124929,6 +125273,25 @@ ${tmInfo}`);
       }
       sections2.push(`## Mobile Metadata Cache
 ${cacheInfo}`);
+      const omUsed = await omInUse(effectiveOrg);
+      if (omUsed) {
+        const omChecks = await collectOmChecks(effectiveOrg);
+        const bad = omChecks.filter((c) => c.status === "fail" || c.status === "warn");
+        const skipped = omChecks.filter((c) => c.status === "skip").length;
+        for (const c of bad)
+          issues.push({
+            severity: c.status === "fail" ? "error" : "warning",
+            area: "Order Management",
+            message: `${c.title}. ${c.detail}`,
+            fix: c.fix
+          });
+        sections2.push(
+          `## Order Management
+${omChecks.length - bad.length - skipped} of ${omChecks.length} checks passed${skipped ? `, ${skipped} couldn't run` : ""}. Run \`check_om_config\` for the full report.`
+        );
+      } else if (omUsed === null) {
+        sections2.push("## Order Management\nCouldn't tell whether Order Management is in use.");
+      }
       const errors = issues.filter((i) => i.severity === "error");
       const warnings = issues.filter((i) => i.severity === "warning");
       const infos = issues.filter((i) => i.severity === "info");
@@ -125346,7 +125709,12 @@ async function applyTriggerHandler(targetOrg, rd) {
     };
   }
   const id2 = res.data.records[0].Id;
-  const upd = await updateRecord("LifeScienceTriggerHandler", id2, { IsActive: desired }, targetOrg);
+  const upd = await updateToolingRecord(
+    "LifeScienceTriggerHandler",
+    id2,
+    { IsActive: desired },
+    targetOrg
+  );
   return {
     key: rd.key,
     developerName: rd.developerName,
@@ -125999,7 +126367,7 @@ function groupOf(r) {
   if (r.category === "QuickAction" || r.category === "CustomAction") return "Actions";
   return "Admin Settings";
 }
-function register15(server2) {
+function register16(server2) {
   server2.tool(
     "export_config",
     "Export LSC configuration (Admin Console settings, DB Schema, trigger handlers, actions) as JSON. Captures per-field DataType and profile assignments (format v1.1) so the snapshot can be faithfully re-applied with import_config. Use this to snapshot org configuration for comparison, migration, or backup.",
@@ -126304,7 +126672,7 @@ function applyMessage(result2, backupPath, resultPath) {
 // src/tools/release-notes.ts
 import * as fs11 from "fs";
 import * as path11 from "path";
-function register16(server2) {
+function register17(server2) {
   const releaseNotesDir = path11.join(
     path11.dirname(new URL(import.meta.url).pathname),
     "../../knowledge/release-notes"
@@ -126386,7 +126754,7 @@ Available releases: ${available || "none"}`
 
 // src/tools/apex.ts
 init_cli();
-function register17(server2) {
+function register18(server2) {
   server2.tool(
     "run_apex",
     "Execute anonymous Apex code against the target Salesforce org. Use for one-off tasks like running batch jobs, fixing data issues, or testing logic. Returns compilation status, execution result, and debug logs.",
@@ -126467,7 +126835,7 @@ ${result2.rawOutput}
 
 // src/tools/bulk-operations.ts
 init_cli();
-function register18(server2) {
+function register19(server2) {
   server2.tool(
     "bulk_create_records",
     "Create multiple records from a JSON array. Processes records sequentially and reports results. Useful for loading seed data (products, time periods, territory assignments) without Data Loader.",
@@ -126649,7 +127017,7 @@ Failed to parse records JSON: ${e instanceof Error ? e.message : "Unknown error"
 
 // src/tools/metadata.ts
 init_cli();
-function register19(server2) {
+function register20(server2) {
   server2.tool(
     "deploy_metadata",
     "Deploy metadata to the target Salesforce org from a local source directory. Wraps `sf project deploy start`. Use for pushing permission sets, page layouts, flows, and other metadata from a local project.",
@@ -126783,7 +127151,7 @@ ${result2.rawOutput.substring(0, 2e3)}
 
 // src/tools/briefings.ts
 init_cli();
-function register20(server2) {
+function register21(server2) {
   server2.tool(
     "check_briefings_config",
     "Check Briefings (Daily Podcasts) configuration. Validates toggle, licenses, permissions (StoriesUser/StoriesAdmin), account summarization, content definitions, scheduled flows, DB Schema records, and mobile cache. CORRECT object names: PrstContentDefinition, PrstCntntDefAssignment, PrstCntntUsageSummary, PrvdAccountTerritorySummary. WRONG names: PresentationContentDefinition, PresentationContentDefinitionAssignment, PresentationContentUsageSummary.",
@@ -127823,7 +128191,7 @@ function renderEppvReport(org, checks) {
   out += "\nNot checked here: Action Plan State picklist and Admin Console status mappings, Action Plan page layout actions list, Action Plan Status field-level security, template and care program page layouts, sharing rules. See the module doc `support-engineering-eppv-setup-and-troubleshooting`.\n";
   return out;
 }
-function register21(server2) {
+function register22(server2) {
   server2.tool(
     "check_eppv_config",
     "Check Account Compliance (Japan EPPV/MID, Provider Engagement Compliance) configuration: Care Programs and products, compliance Action Plans (target HCO, cycles generated), the four cloned flows, the 11 DB Schema records, the Account Compliance tab, the Capture Compliance Activity quick action and the mobile cache. CORRECT object names: CareProgram, CareProgramProduct, ActionPlan, ActionPlanTemplate, ActionPlanTemplateVersion, ActionPlanTemplateAssignment, PrvdEngmtComplianceCycle, AssessmentTask. WRONG names (DO NOT USE): EPPV__c, ComplianceCycle__c, AccountCompliance__c.",
@@ -128549,7 +128917,7 @@ function applyAppOps(root2, fullName, ops2) {
 
 // src/studio/metadata/live-app.ts
 init_xml2();
-var soqlString4 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+var soqlString5 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 var TTL_MS = 6e4;
 var appListCache = /* @__PURE__ */ new Map();
 var tabListCache = /* @__PURE__ */ new Map();
@@ -128593,7 +128961,7 @@ function allApps(org) {
 async function profileApps(profile, org) {
   const [access, apps] = await Promise.all([
     query(
-      `SELECT SetupEntityId FROM SetupEntityAccess WHERE SetupEntityType = 'TabSet' AND ParentId IN (SELECT Id FROM PermissionSet WHERE Profile.Name = ${soqlString4(profile)})`,
+      `SELECT SetupEntityId FROM SetupEntityAccess WHERE SetupEntityType = 'TabSet' AND ParentId IN (SELECT Id FROM PermissionSet WHERE Profile.Name = ${soqlString5(profile)})`,
       org
     ),
     allApps(org)
@@ -128724,12 +129092,12 @@ async function readLiveApp(fullName, org) {
 }
 
 // src/studio/unpublished.ts
-var soqlString5 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+var soqlString6 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 var text5 = (v) => typeof v === "string" ? v : "";
 var nested2 = (r, key5) => r[key5] && typeof r[key5] === "object" ? r[key5] : {};
 async function liveCache(profile, org) {
   const profiles = await query(
-    `SELECT Id, Name FROM Profile WHERE Name = ${soqlString5(profile)}`,
+    `SELECT Id, Name FROM Profile WHERE Name = ${soqlString6(profile)}`,
     org
   );
   const found = profiles.find((p) => text5(p.Name).toLowerCase() === profile.toLowerCase());
@@ -133264,7 +133632,7 @@ function restorePage(app, profile, copy, source, added) {
 
 // src/studio/metadata/copy-fix.ts
 init_xml2();
-var soqlString6 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+var soqlString7 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 var rtLabel = (rt) => rt ? `Record type ${rt.slice(rt.indexOf(".") + 1)}` : "Default (no record type)";
 function appFiles3(dir) {
   if (!fs15.existsSync(dir)) return [];
@@ -133312,13 +133680,13 @@ async function appsNaming(pages, org) {
 async function exists5(type, fullName, org) {
   if (type === "FlexiPage") {
     return (await query(
-      `SELECT Id FROM FlexiPage WHERE DeveloperName = ${soqlString6(fullName)}`,
+      `SELECT Id FROM FlexiPage WHERE DeveloperName = ${soqlString7(fullName)}`,
       org,
       true
     )).length > 0;
   }
   const name = decodeURIComponent(fullName.slice(fullName.indexOf("-") + 1));
-  return (await query(`SELECT Id FROM Layout WHERE Name = ${soqlString6(name)}`, org, true)).length > 0;
+  return (await query(`SELECT Id FROM Layout WHERE Name = ${soqlString7(name)}`, org, true)).length > 0;
 }
 var revertApps = (fix) => fix.revert.moves.every((m) => m.app) ? [...new Set(fix.revert.moves.map((m) => m.app))] : void 0;
 function nameTaken(fix, org) {
@@ -140559,7 +140927,7 @@ function summarize(samples) {
     slowest: [...ok].filter((s11) => s11.totalSec !== void 0).sort((a, b) => b.totalSec - a.totalSec).slice(0, 10)
   };
 }
-function soqlString7(value4) {
+function soqlString8(value4) {
   return value4.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 var TELEMETRY_ROW_LIMIT = 1e4;
@@ -140570,14 +140938,14 @@ function buildTelemetryQuery(availableFields2, filters2) {
     filters2.range ? `CreatedDate >= ${filters2.range.from} AND CreatedDate < ${filters2.range.to}` : `CreatedDate = LAST_N_DAYS:${Math.max(1, Math.floor(filters2.days))}`
   ];
   if (filters2.userIds?.length) {
-    where3.push(`CreatedById IN (${filters2.userIds.map((u) => `'${soqlString7(u)}'`).join(",")})`);
+    where3.push(`CreatedById IN (${filters2.userIds.map((u) => `'${soqlString8(u)}'`).join(",")})`);
   } else if (filters2.usernames?.length) {
     where3.push(
-      `CreatedBy.Username IN (${filters2.usernames.map((u) => `'${soqlString7(u)}'`).join(",")})`
+      `CreatedBy.Username IN (${filters2.usernames.map((u) => `'${soqlString8(u)}'`).join(",")})`
     );
   }
   if (filters2.profileName) {
-    where3.push(`CreatedBy.Profile.Name = '${soqlString7(filters2.profileName)}'`);
+    where3.push(`CreatedBy.Profile.Name = '${soqlString8(filters2.profileName)}'`);
   }
   return `SELECT ${[...fields, "CreatedBy.Username"].join(", ")} FROM DeviceSyncSummary WHERE ${where3.join(
     " AND "
@@ -140680,18 +141048,18 @@ function overallStatus(evals) {
 init_sync_volume();
 var DEFAULT_SELECT_COUNT = 3;
 var ACTIVE_MODEL = "Territory2.Territory2Model.State = 'Active'";
-function soqlString8(value4) {
+function soqlString9(value4) {
   return value4.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 function likeValue(text12) {
-  return soqlString8(text12).replace(/%/g, "\\%").replace(/_/g, "\\_");
+  return soqlString9(text12).replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 async function rows(org, soql5) {
   const result2 = await org.soql(soql5);
   if (!result2.success) throw new Error(result2.error || "Query failed");
   return result2.data?.records ?? [];
 }
-var inList3 = (values) => values.map((v) => `'${soqlString8(v)}'`).join(",");
+var inList3 = (values) => values.map((v) => `'${soqlString9(v)}'`).join(",");
 var profileName2 = (u) => String(u.Profile?.Name ?? "");
 var territoryCount = (r) => Number(r.cnt ?? r.expr0 ?? 0);
 function toPerfUser(u, territories) {
@@ -140764,7 +141132,7 @@ async function withSyncs(org, users, days) {
 }
 async function heaviestOfProfile(org, profile, limit, exclude) {
   if (limit <= 0) return [];
-  const p = soqlString8(profile);
+  const p = soqlString9(profile);
   const notIn = (field3, ids) => ids.length ? ` AND ${field3} NOT IN (${inList3(ids)})` : "";
   const ranked = await rows(
     org,
@@ -140793,7 +141161,7 @@ async function syncingOfProfile(org, profile, limit, days) {
   try {
     synced = await dataSyncRows(
       org,
-      (window2) => `SELECT CreatedById, COUNT(Id) cnt FROM DeviceSyncSummary WHERE CreatedBy.Profile.Name = '${soqlString8(profile)}' AND CreatedBy.IsActive = true AND CreatedBy.UserType = 'Standard' AND ${window2} GROUP BY CreatedById ORDER BY COUNT(Id) DESC LIMIT 200`,
+      (window2) => `SELECT CreatedById, COUNT(Id) cnt FROM DeviceSyncSummary WHERE CreatedBy.Profile.Name = '${soqlString9(profile)}' AND CreatedBy.IsActive = true AND CreatedBy.UserType = 'Standard' AND ${window2} GROUP BY CreatedById ORDER BY COUNT(Id) DESC LIMIT 200`,
       days
     );
   } catch {
@@ -140843,7 +141211,7 @@ async function findHeaviestUsers(org, filters2) {
     const v = likeValue(search);
     where3.push(`(Name LIKE '%${v}%' OR Username LIKE '%${v}%')`);
   }
-  if (filters2.profile) where3.push(`Profile.Name = '${soqlString8(filters2.profile)}'`);
+  if (filters2.profile) where3.push(`Profile.Name = '${soqlString9(filters2.profile)}'`);
   const users = await rows(
     org,
     `SELECT Id, Username, Name, Profile.Name FROM User WHERE ${where3.join(" AND ")} ORDER BY Name LIMIT 200`
@@ -141195,7 +141563,7 @@ function splitList3(v) {
   if (Array.isArray(v)) return v.filter((x) => typeof x === "string");
   return typeof v === "string" ? v.split(/[;,]/).map((s11) => s11.trim()).filter(Boolean) : [];
 }
-function soqlString9(value4) {
+function soqlString10(value4) {
   return value4.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 function errorMessage3(e) {
@@ -141255,14 +141623,14 @@ function diffTables(compiled, dbSchema) {
 }
 async function findProfileArchive(org, profileId) {
   const rec = await org.soql(
-    `SELECT Id, MetadataDocumentId FROM LifeSciMobileMetadataRecord WHERE Status = 'Active' AND ProfileId = '${soqlString9(profileId)}' AND MetadataDocumentId != null ORDER BY LastModifiedDate DESC LIMIT 1`
+    `SELECT Id, MetadataDocumentId FROM LifeSciMobileMetadataRecord WHERE Status = 'Active' AND ProfileId = '${soqlString10(profileId)}' AND MetadataDocumentId != null ORDER BY LastModifiedDate DESC LIMIT 1`
   );
   if (!rec.success) throw new Error(`LifeSciMobileMetadataRecord query failed: ${rec.error}`);
   const row = rec.data?.records?.[0];
   const docId = str27(row?.MetadataDocumentId);
   if (!row || !docId) return null;
   const ver = await org.soql(
-    `SELECT Id, Checksum, ContentSize FROM ContentVersion WHERE ContentDocumentId = '${soqlString9(docId)}' AND IsLatest = true LIMIT 1`
+    `SELECT Id, Checksum, ContentSize FROM ContentVersion WHERE ContentDocumentId = '${soqlString10(docId)}' AND IsLatest = true LIMIT 1`
   );
   if (!ver.success) throw new Error(`ContentVersion query failed: ${ver.error}`);
   const v = ver.data?.records?.[0];
@@ -141284,13 +141652,13 @@ function sobjectTypes(records) {
 }
 async function loadObjectAccess(org, userId, sobjects) {
   if (sobjects.length === 0) return null;
-  const names5 = sobjects.map((n2) => `'${soqlString9(n2)}'`).join(",");
+  const names5 = sobjects.map((n2) => `'${soqlString10(n2)}'`).join(",");
   const [governed, readable3] = await Promise.all([
     org.soql(
       `SELECT SobjectType FROM ObjectPermissions WHERE SobjectType IN (${names5}) GROUP BY SobjectType`
     ),
     org.soql(
-      `SELECT SobjectType FROM ObjectPermissions WHERE PermissionsRead = true AND SobjectType IN (${names5}) AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = '${soqlString9(userId)}') GROUP BY SobjectType`
+      `SELECT SobjectType FROM ObjectPermissions WHERE PermissionsRead = true AND SobjectType IN (${names5}) AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = '${soqlString10(userId)}') GROUP BY SobjectType`
     )
   ]);
   if (!governed.success || !readable3.success) return null;
@@ -144934,7 +145302,7 @@ ${r.notes.map((n2) => `- ${n2}`).join("\n")}
 `;
   return out;
 }
-function register22(server2) {
+function register23(server2) {
   server2.tool(
     "simulate_initial_sync",
     "Simulate the network part of an LSC iOS app INITIAL sync for one end user, from Node. Authenticates as that user through the sf CLI, calls user-info, downloads and verifies the metadata archive (MD5), builds the table list and WHERE tags exactly as the app does, then downloads every table in the app's order (enhanced Connect flow or legacy REST flow, chosen from the org's settings). Reports per-table records, requests, bytes and seconds, plus metadata download time, so it can be compared with DeviceSyncSummary rows. Network time only (no SQLCipher writes, indexes or file binaries). Read-only against the org: it creates no records and registers no device. The username must already be authenticated in the sf CLI as the end user (not an admin) for device-accurate numbers.",
@@ -145463,8 +145831,8 @@ var defaultDeps3 = {
 };
 var TELEMETRY_LIMIT = 1e4;
 var MAX_AT_RISK = 25;
-var soqlString10 = (v) => v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-var inList4 = (values) => values.map((v) => `'${soqlString10(v)}'`).join(",");
+var soqlString11 = (v) => v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+var inList4 = (values) => values.map((v) => `'${soqlString11(v)}'`).join(",");
 var idKey2 = (id2) => id2.slice(0, 15);
 async function rows2(org, soql5) {
   const result2 = await org.soql(soql5);
@@ -150778,7 +151146,7 @@ function json(data2) {
 function jsonError(error2) {
   return { content: [{ type: "text", text: JSON.stringify({ error: error2 }) }], isError: true };
 }
-function register23(server2) {
+function register24(server2) {
   server2.tool(
     "studio_list_features",
     "LSC Studio (GUI data): list the features Studio can map. Returns JSON.",
@@ -152526,7 +152894,7 @@ var targetOrgParam = external_exports.string().optional().describe(
 var countAsOrgParam = external_exports.string().optional().describe(
   "Optional: org alias authenticated AS the persona user, used for the COUNT() queries so record sharing matches the device exactly. Defaults to the target org (the connected user's visibility, typically an admin)."
 );
-function register24(server2) {
+function register25(server2) {
   server2.tool(
     "profile_sync_volume",
     "Predict how much data the LSC mobile app will sync for specific users, before any device is involved. Resolves each user's DB Schema records (profile/permission set), substitutes WhereSoql tags ({USER.ID}, {USER.TERRITORY}, {ACCOUNT.IDS}, {OT2A.OBJ.IDS}, ...) per territory exactly as the app does, and runs COUNT() queries. Returns predicted records per table, estimated device SOQL request counts, and filters that fail to execute. Read-only; safe in production.",
@@ -152691,7 +153059,6 @@ register10(server);
 register11(server);
 register12(server);
 register13(server);
-register14(server);
 register15(server);
 register16(server);
 register17(server);
@@ -152699,9 +153066,11 @@ register18(server);
 register19(server);
 register20(server);
 register21(server);
-register23(server);
-register24(server);
 register22(server);
+register14(server);
+register24(server);
+register25(server);
+register23(server);
 async function main() {
   const modules = getModuleList();
   const helpDocs = getHelpDocList();

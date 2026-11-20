@@ -24,6 +24,8 @@ export interface DiagnosisItem {
   checkScope?: string;
   matched: string;
   score: number;
+  /** A weaker match, shown apart as a possible cause. */
+  possible?: boolean;
 }
 
 export interface DiagnosisResult {
@@ -79,8 +81,24 @@ export interface DiagnosisVerdict {
   title: string;
 }
 
+/**
+ * A weaker match: listed apart, under "Possible causes", even when the org shows it — its check
+ * finds a problem the org has whatever the user typed, so it is a lead, not the answer.
+ */
+export function isPossible(item: DiagnosisItem): boolean {
+  return Boolean(item.possible);
+}
+
 export function diagnosisVerdict(result: DiagnosisResult): DiagnosisVerdict {
-  const { items, checkedOrg } = result;
+  const { checkedOrg } = result;
+  const items = result.items.filter((i) => !isPossible(i));
+  if (items.length === 0) {
+    const n = result.items.length;
+    const inOrg = result.items.filter((i) => i.status === "found" && !i.byDesign).length;
+    return inOrg > 0 && checkedOrg
+      ? { tone: "warning", title: `No close match, but ${inOrg} of ${n} possible cause${n === 1 ? "" : "s"} ${inOrg === 1 ? "is" : "are"} in ${checkedOrg}. Check ${inOrg === 1 ? "it fits" : "they fit"}.` }
+      : { tone: "unknown", title: `No close match. ${n} possible cause${n === 1 ? " shares" : "s share"} some of its words.` };
+  }
   const found = items.filter((i) => i.status === "found" && !i.byDesign).length;
   const byDesign = items.filter((i) => i.byDesign).length;
   const n = items.length;

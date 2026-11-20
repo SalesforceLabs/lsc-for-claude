@@ -148,8 +148,8 @@ describe("renderer org helpers", () => {
   });
 
   it("makes a two-letter monogram", () => {
-    expect(orgMonogram("chiesi-794")).toBe("C7");
-    expect(orgMonogram("Pfizer FDE")).toBe("PF");
+    expect(orgMonogram("acme-123")).toBe("A1");
+    expect(orgMonogram("Globex FDE")).toBe("GF");
     expect(orgMonogram("carmen@acme.com")).toBe("CA");
     expect(orgMonogram("x")).toBe("X");
   });

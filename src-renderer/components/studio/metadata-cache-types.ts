@@ -219,11 +219,12 @@ function knownCauseLines(causes: DiagnosisResult): string[] {
     ];
   }
   const label = (i: DiagnosisItem) =>
-    i.status === "found"
+    (i.possible ? "weaker match, " : "") +
+    (i.status === "found"
       ? `found in the org${i.records.length ? ` (${i.records.join(", ")})` : i.message ? ` (${i.message})` : ""}`
       : i.status === "unchecked"
         ? "couldn't be checked"
-        : "has no automatic check";
+        : "has no automatic check");
   return [
     "Studio matched these known setup mistakes (diagnose_lsc_issue has the details):",
     ...shown.map((i) => `- ${i.title} (${i.id}): ${label(i)}`),

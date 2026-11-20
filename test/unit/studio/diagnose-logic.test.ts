@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { diagnosisVerdict, toCheck, type DiagnosisItem, type DiagnosisResult } from "../../../src-renderer/components/studio/diagnose-logic.js";
+import { diagnosisVerdict, isPossible, toCheck, type DiagnosisItem, type DiagnosisResult } from "../../../src-renderer/components/studio/diagnose-logic.js";
 import { failedPublishPrompt } from "../../../src-renderer/components/studio/metadata-cache-types.js";
 
 const item = (over: Partial<DiagnosisItem>): DiagnosisItem => ({
@@ -68,5 +68,28 @@ describe("failed publish prompt", () => {
     expect(failedPublishPrompt({ profiles: ["Rep"], startedAt: "2026-10-20T10:00:00Z", startedBy: null, error: "x", logs: [], causes: { items: [], checkedOrg: "demo" } })).toContain(
       "None of Studio's known setup mistakes match this error."
     );
+  });
+});
+
+describe("possible causes in the verdict", () => {
+  it("doesn't count possible causes as matches", () => {
+    const v = diagnosisVerdict({ items: [item({ id: "a", status: "no-check" }), item({ id: "b", status: "no-check", possible: true })], checkedOrg: null });
+    expect(v.title).toBe("1 possible cause. Connect an org to check which apply.");
+  });
+
+  it("says there is no close match when only possible causes are left", () => {
+    const v = diagnosisVerdict({ items: [item({ status: "no-check", possible: true })], checkedOrg: "org" });
+    expect(v).toEqual({ tone: "unknown", title: "No close match. 1 possible cause shares some of its words." });
+  });
+
+  it("keeps a possible cause the org shows apart, and says it is in the org", () => {
+    expect(isPossible(item({ possible: true, status: "found" }))).toBe(true);
+    const v = diagnosisVerdict({ items: [item({ possible: true }), item({ id: "c2", status: "no-check", possible: true })], checkedOrg: "org" });
+    expect(v).toEqual({ tone: "warning", title: "No close match, but 1 of 2 possible causes is in org. Check it fits." });
+  });
+
+  it("doesn't count a possible cause the org shows among the matches", () => {
+    const v = diagnosisVerdict({ items: [item({ id: "a", status: "not-found" }), item({ id: "b", possible: true })], checkedOrg: "org" });
+    expect(v.tone).toBe("pass");
   });
 });

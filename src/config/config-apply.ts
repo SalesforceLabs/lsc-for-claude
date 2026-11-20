@@ -18,7 +18,6 @@ import {
   updateToolingRecord,
   runToolingQuery,
   cachedToolingQuery,
-  updateRecord,
 } from "../salesforce/cli.js";
 import { queryFieldValues, getValueColumn, resolveProfileId } from "../tools/helpers.js";
 import { flattenSnapshot } from "./config-diff.js";
@@ -207,7 +206,12 @@ async function applyTriggerHandler(targetOrg: string, rd: RecordDiff): Promise<A
     };
   }
   const id = (res.data.records[0] as Record<string, unknown>).Id as string;
-  const upd = await updateRecord("LifeScienceTriggerHandler", id, { IsActive: desired }, targetOrg);
+  const upd = await updateToolingRecord(
+    "LifeScienceTriggerHandler",
+    id,
+    { IsActive: desired },
+    targetOrg
+  );
   return {
     key: rd.key,
     developerName: rd.developerName,

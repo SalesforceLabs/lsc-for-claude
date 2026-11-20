@@ -9,7 +9,7 @@
 import { executeCheck, type CheckOutcome } from "./rules-executor.js";
 import { getAllRules, getRuleById, type ValidationRule } from "./rules-loader.js";
 import { getKnownCauses, type KnownCause } from "./known-causes.js";
-import { matchSymptom, type SymptomMatch } from "./symptom-match.js";
+import { matchSymptom, possibleCauses, type SymptomMatch } from "./symptom-match.js";
 
 export type CheckStatus = "found" | "not-found" | "unchecked" | "no-check";
 
@@ -21,6 +21,8 @@ export interface CauseFinding {
   notApplicable?: boolean;
   /** Linked validation rules that failed. */
   failedRules: Array<{ rule: ValidationRule; outcome: CheckOutcome }>;
+  /** A weaker match offered as a possible cause, not as an answer. */
+  possible?: boolean;
 }
 
 export interface Diagnosis {
@@ -66,10 +68,13 @@ export async function diagnose(
   const kept = matches
     .filter((m) => m.kind === "cause" || (!linked.has(m.item.id) && rulesLeft-- > 0))
     .slice(0, MAX_MATCHES);
+  // Weaker matches are worth a look when the message is a paraphrase no symptom covers.
+  const possible = new Set(possibleCauses(symptom, causes, matches));
+  kept.push(...possible);
 
   const findById = (id: string) => rules.find((r) => r.id === id) ?? getRuleById(id);
 
-  const findings = await Promise.all(
+  const checked = await Promise.all(
     kept.map(async (match): Promise<CauseFinding> => {
       if (!targetOrg)
         return { match, status: match.item.check ? "unchecked" : "no-check", failedRules: [] };
@@ -109,12 +114,18 @@ export async function diagnose(
       return { match, status, outcome, failedRules };
     })
   );
+  const findings = checked.map((f) => (possible.has(f.match) ? { ...f, possible: true } : f));
 
-  // With an org, what was found comes first; without one, the best match.
-  if (targetOrg)
-    findings.sort(
-      (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || b.match.score - a.match.score
-    );
+  // Matches first, then possible causes; within each, what the org shows first, then the best
+  // match. A possible cause the org shows stays behind the matches: its check finds a problem
+  // the org has whatever the user typed, so it is a lead, not the answer to this message.
+  const rank = (f: CauseFinding) => (f.possible ? 1 : 0);
+  findings.sort(
+    (a, b) =>
+      rank(a) - rank(b) ||
+      (targetOrg ? STATUS_ORDER[a.status] - STATUS_ORDER[b.status] : 0) ||
+      b.match.score - a.match.score
+  );
   return { symptom, targetOrg, findings };
 }
 
@@ -218,17 +229,36 @@ export function formatDiagnosis(diagnosis: Diagnosis): string {
     return out;
   }
 
-  const found = findings.filter((f) => f.status === "found").length;
-  if (connected) {
+  const main = findings.filter((f) => !f.possible);
+  const weaker = findings.filter((f) => f.possible);
+  const found = main.filter((f) => f.status === "found").length;
+  const weakerFound = weaker.filter((f) => f.status === "found").length;
+  const causes = (n: number) => `${n} possible cause${n === 1 ? "" : "s"}`;
+  const alsoFound =
+    weakerFound > 0
+      ? ` ${weakerFound} of the weaker matches below ${weakerFound === 1 ? "is" : "are"} in the org too: a problem the org has, but maybe not this one.`
+      : "";
+  if (main.length === 0) {
     out +=
-      found > 0
-        ? `Checked against ${targetOrg}: ${found} of ${findings.length} possible cause${findings.length === 1 ? "" : "s"} found in the org.\n\n`
-        : `Checked against ${targetOrg}: none of the checkable causes below are present. Work through the others by hand.\n\n`;
+      weakerFound > 0
+        ? `Nothing matches this closely. ${causes(weaker.length)} ${weaker.length === 1 ? "shares" : "share"} some of its words, and ${weakerFound} ${weakerFound === 1 ? "is" : "are"} in ${targetOrg}. That is a problem the org has; check it fits what the user sees before calling it the cause.\n\n`
+        : `Nothing matches this closely. ${causes(weaker.length)} ${weaker.length === 1 ? "shares" : "share"} some of its words${connected ? `; none were found in ${targetOrg}` : ""}. Treat ${weaker.length === 1 ? "it as a lead" : "them as leads"}, not ${weaker.length === 1 ? "an answer" : "answers"}.\n\n`;
+  } else if (connected) {
+    out +=
+      (found > 0
+        ? `Checked against ${targetOrg}: ${found} of ${causes(main.length)} found in the org.`
+        : `Checked against ${targetOrg}: none of the checkable causes below are present. Work through the others by hand.`) +
+      `${alsoFound}\n\n`;
   } else {
-    out += `${findings.length} possible cause${findings.length === 1 ? "" : "s"}. Connect an org to check which apply.\n\n`;
+    out += `${causes(main.length)}. Connect an org to check which apply.\n\n`;
   }
 
-  for (const finding of findings) out += formatFinding(finding, connected);
+  for (const finding of main) out += formatFinding(finding, connected);
+  if (weaker.length > 0) {
+    if (main.length > 0)
+      out += `## Possible causes (weaker match)\n\nThese share some words with the message. Look at them if nothing above fits.\n\n---\n\n`;
+    for (const finding of weaker) out += formatFinding(finding, connected);
+  }
   return out;
 }
 
@@ -259,49 +289,54 @@ export interface DiagnosisItem {
   checkScope?: string;
   matched: string;
   score: number;
+  /** A weaker match: show it as a possible cause, apart from the matches. */
+  possible?: boolean;
 }
 
 export function diagnosisItems(diagnosis: Diagnosis): DiagnosisItem[] {
-  return diagnosis.findings.map(({ match, status, outcome, notApplicable, failedRules }) => {
-    const base = {
-      status,
-      notApplicable: Boolean(notApplicable),
-      message: outcome?.message,
-      records: status === "found" ? recordNames(outcome).slice(0, 10) : [],
-      failedRules: failedRules.map(({ rule, outcome: o }) => ({
-        id: rule.id,
-        name: rule.name,
-        message: o.message,
-      })),
-      matched: match.matched,
-      score: Math.round(match.score * 100) / 100,
-    };
-    if (match.kind === "cause") {
-      const c = match.item;
+  return diagnosis.findings.map(
+    ({ match, status, outcome, notApplicable, failedRules, possible }) => {
+      const base = {
+        ...(possible ? { possible: true } : {}),
+        status,
+        notApplicable: Boolean(notApplicable),
+        message: outcome?.message,
+        records: status === "found" ? recordNames(outcome).slice(0, 10) : [],
+        failedRules: failedRules.map(({ rule, outcome: o }) => ({
+          id: rule.id,
+          name: rule.name,
+          message: o.message,
+        })),
+        matched: match.matched,
+        score: Math.round(match.score * 100) / 100,
+      };
+      if (match.kind === "cause") {
+        const c = match.item;
+        return {
+          ...base,
+          id: c.id,
+          kind: "cause" as const,
+          title: c.title,
+          area: c.module,
+          byDesign: Boolean(c.by_design),
+          why: oneLine(c.cause),
+          steps: c.fix,
+          uiPath: c.ui_path,
+          checkScope: c.check_scope ? oneLine(c.check_scope) : undefined,
+        };
+      }
+      const r = match.item;
       return {
         ...base,
-        id: c.id,
-        kind: "cause" as const,
-        title: c.title,
-        area: c.module,
-        byDesign: Boolean(c.by_design),
-        why: oneLine(c.cause),
-        steps: c.fix,
-        uiPath: c.ui_path,
-        checkScope: c.check_scope ? oneLine(c.check_scope) : undefined,
+        id: r.id,
+        kind: "rule" as const,
+        title: r.name,
+        area: String(r.category),
+        byDesign: false,
+        why: oneLine(r.description),
+        steps: r.resolution.steps,
+        uiPath: r.resolution.ui_path,
       };
     }
-    const r = match.item;
-    return {
-      ...base,
-      id: r.id,
-      kind: "rule" as const,
-      title: r.name,
-      area: String(r.category),
-      byDesign: false,
-      why: oneLine(r.description),
-      steps: r.resolution.steps,
-      uiPath: r.resolution.ui_path,
-    };
-  });
+  );
 }
