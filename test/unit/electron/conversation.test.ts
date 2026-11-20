@@ -42,6 +42,8 @@ function callbacks() {
 }
 
 const readSkillTool = { name: "read_skill", description: "", input_schema: {} };
+/** The engine refuses tools it didn't offer, so fixtures offer the ones their calls name. */
+const offer = (name: string) => [{ name, description: "", input_schema: {} }];
 const promptBuilder = {
   buildSystemPrompt: () => "sys",
   getCommandContent: () => null,
@@ -73,7 +75,7 @@ describe("ConversationEngine stopping mid-tool", () => {
           signal.addEventListener("abort", () => resolve(null));
         })
     );
-    const mcp = { getTools: () => [], callTool: vi.fn(async () => ({ content: [{ type: "text", text: "ran" }] })) };
+    const mcp = { getTools: () => offer("run_apex"), callTool: vi.fn(async () => ({ content: [{ type: "text", text: "ran" }] })) };
     const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder, null, { gateTool: gateTool as never });
     engine.initialize();
 
@@ -97,7 +99,7 @@ describe("ConversationEngine stopping mid-tool", () => {
     const { llm, seen } = fakeLlm([toolUse("a"), text("ok")]);
     let release!: () => void;
     const mcp = {
-      getTools: () => [],
+      getTools: () => offer("run_apex"),
       callTool: vi.fn(() => new Promise<{ content: Array<{ type: string; text: string }> }>((r) => (release = () => r({ content: [{ type: "text", text: "late" }] })))),
     };
     const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder);
@@ -155,7 +157,7 @@ describe("ConversationEngine per-message tool limits", () => {
 
   it("refuses a third rep check in one message and allows checks again on the next", async () => {
     const { llm, seen } = fakeLlm([checks("a", "b", "c"), text("done"), checks("d"), text("done")]);
-    const mcp = { getTools: () => [], callTool: vi.fn(async () => ({ content: [{ type: "text", text: "{}" }] })) };
+    const mcp = { getTools: () => offer("check_user_access"), callTool: vi.fn(async () => ({ content: [{ type: "text", text: "{}" }] })) };
     const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder);
     engine.initialize();
 
