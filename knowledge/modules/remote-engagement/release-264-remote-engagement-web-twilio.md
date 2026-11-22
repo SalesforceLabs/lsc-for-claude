@@ -47,6 +47,8 @@ Use case: a rep launches a planned remote visit from the browser, presents appro
 
 ## Limitations / Gotchas
 
+Twilio controls on the desktop Visit Engagement page appear when you edit an existing visit. They do not appear while the visit is being created. If an action override or Visit record-type routing row is meant to show those controls, put it on Edit, not on New. See [support-engineering-twilio-controls-edit](./support-engineering-twilio-controls-edit.md).
+
 Not available on Web (compared with mobile):
 - Session recording
 - Share via the rep's WhatsApp from the Remote Player
