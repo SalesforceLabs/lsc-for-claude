@@ -1556,6 +1556,76 @@ causes:
       query: "SELECT DeveloperName, EndpointUrl, Context FROM CspTrustedSite WHERE EndpointUrl LIKE '%twilio%' AND Context != 'All'"
       expect: "records.length == 0"
 
+  - id: twilio-controls-on-edit
+    title: Twilio controls show on Edit, and the override is on New
+    module: remote-engagement
+    symptoms:
+      - "Twilio controls are missing when I create a visit on the desktop Visit Engagement page"
+      - "Twilio buttons show on Edit and not when creating the visit"
+      - "Remote engagement controls missing on the create page"
+    keywords: [Twilio, action override, Visit Engagement, Edit, New]
+    cause: |
+      Twilio controls on desktop Visit Engagement render when you edit an
+      existing visit. They do not render while the visit is being created.
+      An action override or Visit record-type routing row on New will not
+      show them. Twilio setup can already be correct.
+    fix:
+      - "Open an existing remote visit with Edit and confirm the controls are there."
+      - "Move the Visit Engagement override, or the routing row, from New to Edit."
+      - "Leave New on the create action. Do not change the Twilio channel when Edit already shows the controls."
+
+  - id: attendee-last-visit-layout
+    title: Person Account layout has no Life Sciences actions
+    module: visits
+    symptoms:
+      - "Last Visit is missing from the HCP attendee actions menu"
+      - "Last Visit does not appear on the attendee menu"
+      - "Send Email and Last Visit are missing from the attendee actions"
+    keywords:
+      [Person Account, page layout, attendee menu, Last Visit, Salesforce Mobile and Lightning Experience Actions]
+    cause: |
+      The HCP attendee menu reads Life Sciences actions from the Person
+      Account page layout, in Salesforce Mobile and Lightning Experience
+      Actions. Last Visit is missing because that layout does not list it.
+      An active quick action that is not on the layout still does not appear.
+    fix:
+      - "Add Last Visit and the other Life Sciences actions to the Person Account layouts the HCPs use."
+      - "For an HCO attendee, add them on the business Account layout."
+      - "Regenerate the metadata cache for those profiles and have the reps sync."
+
+  - id: marketing-item-negative-quantity
+    title: Web allows a negative marketing item quantity
+    module: visits
+    symptoms:
+      - "Negative quantity is allowed on a Provider Visit Marketing Item"
+      - "Web lets me enter a minus on marketing item quantity and iOS blocks it"
+    keywords: [ProviderVisitMarketingItem, Quantity, marketing item, validation rule]
+    cause: |
+      On web, the Provider Visit Marketing Item quantity field rejects 0 and
+      still accepts a leading minus. iOS blocks 0 and any negative value.
+      The server does not check, so the negative value from web is saved.
+      This is not working as designed.
+    fix:
+      - "Add a validation rule on Provider Visit Marketing Item that Quantity must be greater than 0."
+      - "That rule blocks the save on web and on the mobile app."
+
+  - id: unaligned-parent-therapeutic-area
+    title: Brand parent therapeutic area is not on the territory
+    module: visits
+    symptoms:
+      - "Error selecting a product whose therapeutic area is not assigned to the territory"
+      - "Brand parent therapeutic area is not on the territory and web and mobile disagree"
+    keywords: [ParentTherapeuticArea, therapeutic area, LifeSciMarketableProduct]
+    cause: |
+      A Brand whose parent Therapeutic Area is not assigned to the territory
+      is a supported setup. During Visit creation, web and the mobile app do
+      not apply the same rule to that parent, and neither result is the
+      expected one.
+    fix:
+      - "Confirm the Brand has a ProductTerrDtlAvailability row and the parent Therapeutic Area does not."
+      - "Select that Brand on web and on the mobile app and record both results."
+      - "Do not add the parent to the territory, and do not change product dates, field-level security, or the metadata cache for this case."
+
   - id: topics-not-enabled
     title: Topics aren't enabled on Presentation
     module: intelligent-content

@@ -1,6 +1,6 @@
 ---
 name: lsc-product-management
-description: Guides Life Sciences Cloud (LSC) Product Management configuration. Use when user asks about product hierarchy, LifeSciMarketableProduct, product territory alignment, product messages, product objectives, product restrictions, product account restrictions, territory product priorities, ProductGuidance, TerritoryProdtQtyAllocation, Admin Console > Product Hierarchy, or product guidance that appears from a presentation but not when the product is added directly.
+description: Guides Life Sciences Cloud (LSC) Product Management configuration. Use when user asks about product hierarchy, LifeSciMarketableProduct, product territory alignment, product messages, product objectives, product restrictions, product account restrictions, territory product priorities, ProductGuidance, TerritoryProdtQtyAllocation, Admin Console > Product Hierarchy, product guidance that appears from a presentation but not when the product is added directly, or an error selecting a Brand whose parent therapeutic area is not assigned to the territory.
 ---
 
 ## How to Answer Product Management Questions
@@ -12,6 +12,7 @@ description: Guides Life Sciences Cloud (LSC) Product Management configuration. 
 | Product concepts, hierarchy, best practices | `get_lsc_module_docs({ module: "product-management" })` |
 | Specific product topic (restrictions, priorities, messages, etc.) | `search_lsc_knowledge({ query: "<topic>" })` |
 | Product guidance appears from a presentation and is hidden when the product is added directly | `search_lsc_knowledge({ query: "presentation ProductGuidance EffectiveEndDate IsActive" })` then follow **Presentation guidance dates** below. Compare both paths before asking for a component name. |
+| Selecting a product errors because its therapeutic area is not assigned to the territory | `search_lsc_knowledge({ query: "parent therapeutic area not on territory Brand" })` then follow **Unaligned parent therapeutic area** below. Compare web and mobile on that Brand before field-level security, dates, or the metadata cache. |
 | Admin Console product settings | `list_admin_settings({ category: "ProductManagement" })` |
 | Trigger handler status | `list_trigger_handlers()` |
 | Object fields and relationships | `describe_sobject({ sobject: "LifeSciMarketableProduct" })` |
@@ -102,3 +103,7 @@ ProductTerrDtlAvailability (PTDA)      ← read-only, cannot insert directly
 ## Presentation guidance dates
 
 Load `knowledge/modules/product-management/support-engineering-presentation-guidance-dates.md`. Query `ProductGuidance` and the `PresentationPageProduct` that points at it. The reply must name `PresentationItemService.isActiveProductGuidance` and its DAO: they filter `IsActive` only and omit `EffectiveStartDate` and `EffectiveEndDate`. The direct product path applies those dates. Cite one guidance that is outside its window, present from the presentation, and absent when the product is added directly. An empty code search is not a reason to stop.
+
+## Unaligned parent therapeutic area
+
+Load `knowledge/modules/visit-management/support-engineering-visit-unaligned-therapeutic-area.md`. Query the Brand, its `ParentTherapeuticAreaId`, and `ProductTerrDtlAvailability` for the territory. The reply must say a Brand whose parent Therapeutic Area is off the territory is a supported setup, and that web and the mobile app disagree on selecting that Brand, with neither result the expected one. Do not explain it as missing product metadata, field-level security, a stale cache, or product dates.

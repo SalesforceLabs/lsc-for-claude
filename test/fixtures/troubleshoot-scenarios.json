@@ -388,6 +388,38 @@
     {
       "says": "Last Order shows nothing though the rep has ordered before",
       "expect": ["om-last-order-status-setting"]
+    },
+    {
+      "says": "Last Visit is missing from the HCP attendee actions menu",
+      "expect": ["attendee-last-visit-layout"]
+    },
+    {
+      "says": "Twilio buttons show on Edit and not when creating the visit",
+      "expect": ["twilio-controls-on-edit"]
+    },
+    {
+      "says": "Negative quantity is allowed on a Provider Visit Marketing Item",
+      "expect": ["marketing-item-negative-quantity"]
+    },
+    {
+      "says": "Error selecting a product whose therapeutic area is not assigned to the territory",
+      "expect": ["unaligned-parent-therapeutic-area"]
+    },
+    {
+      "says": "Last Visit quick action is missing on the HCP attendee menu",
+      "expect": ["attendee-last-visit-layout"]
+    },
+    {
+      "says": "Twilio remote engagement controls are missing when I create a desktop visit",
+      "expect": ["twilio-controls-on-edit"]
+    },
+    {
+      "says": "Marketing item quantity accepts a minus on web and iOS blocks zero and negative",
+      "expect": ["marketing-item-negative-quantity"]
+    },
+    {
+      "says": "Selecting a brand fails because its parent therapeutic area is not aligned to the territory",
+      "expect": ["unaligned-parent-therapeutic-area"]
     }
   ],
   "silent": [
