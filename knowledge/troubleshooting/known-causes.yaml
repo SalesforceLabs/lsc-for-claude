@@ -1576,7 +1576,7 @@ causes:
 
   - id: attendee-last-visit-layout
     title: Person Account layout has no Life Sciences actions
-    module: visit
+    module: visits
     symptoms:
       - "Last Visit is missing from the HCP attendee actions menu"
       - "Last Visit does not appear on the attendee menu"
@@ -1595,7 +1595,7 @@ causes:
 
   - id: marketing-item-negative-quantity
     title: Web allows a negative marketing item quantity
-    module: visit
+    module: visits
     symptoms:
       - "Negative quantity is allowed on a Provider Visit Marketing Item"
       - "Web lets me enter a minus on marketing item quantity and iOS blocks it"
@@ -1611,7 +1611,7 @@ causes:
 
   - id: unaligned-parent-therapeutic-area
     title: Brand parent therapeutic area is not on the territory
-    module: visit
+    module: visits
     symptoms:
       - "Error selecting a product whose therapeutic area is not assigned to the territory"
       - "Brand parent therapeutic area is not on the territory and web and mobile disagree"
