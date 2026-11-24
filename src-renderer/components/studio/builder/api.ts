@@ -22,6 +22,10 @@ export interface BuilderApi {
   appStarters(): Promise<{ starters?: AppStarter[]; error?: string }>;
   appFromStarter(id: string, runAs?: AppRunAs): Promise<{ project?: AppProject; error?: string }>;
   appDescribe(objects: string[], projectId?: string): Promise<{ objects?: AppObjectInfo[]; error?: string }>;
+  /** Write the current version into the org's sfdx project (`replace`: overwrite files edited there). */
+  appSaveToProject(id: string, replace?: boolean): Promise<{ project?: AppProject; error?: string }>;
+  /** Leave the project's edited files alone and drop the conflict. */
+  appKeepProjectFiles(id: string): Promise<void>;
   onAppEvent(cb: (e: { projectId: string; event: AppBuilderEvent }) => void): () => void;
 }
 

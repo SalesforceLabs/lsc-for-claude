@@ -8,7 +8,10 @@
 import type { StudioFix } from "./types";
 
 export const SOURCE_CONTROL_HINT =
-  "Turn on if this org is deployed from Git (sfdx). Studio will remind you to save changes as source files so the next deploy doesn't undo them.";
+  "Turn on if this org is deployed from Git (sfdx). Studio saves changes you apply and the LSC apps you build into the project folder, so they go through your team's Git before the next deploy. Files edited in the project are never replaced without asking.";
+
+/** "~/proj" for a folder under the home folder. */
+export const shortPath = (folder: string): string => folder.replace(/^\/Users\/[^/]+/, "~");
 
 export const SOURCE_WARNING =
   "This org is deployed from source control. Save these as source files after applying, or the next deploy will undo them.";
@@ -123,13 +126,30 @@ export interface SourceExportResult {
   orgOnly: { label: string; why: string }[];
   missing: { type: string; fullName: string }[];
   notes: string[];
+  /** Files edited in the project that weren't replaced (paths relative to `folder`). */
+  conflicts: { type: string; fullName: string; path: string }[];
+  /** What was written, path → sha1 (recorded by the main process). */
+  hashes: Record<string, string>;
 }
+
+const files = (n: number) => `${n} ${n === 1 ? "file" : "files"}`;
 
 /** "Saved 3 files to ~/proj" style summary. */
 export function savedSummary(result: SourceExportResult): string {
   const n = result.files.length;
-  const folder = result.folder.replace(/^\/Users\/[^/]+/, "~");
-  return n === 0
-    ? `Nothing to save in ${folder}`
-    : `Saved ${n} ${n === 1 ? "file" : "files"} to ${folder}`;
+  const c = result.conflicts?.length ?? 0;
+  const folder = shortPath(result.folder);
+  if (c > 0)
+    return n === 0
+      ? `${files(c)} changed in ${folder}`
+      : `Saved ${files(n)} to ${folder}, ${c} changed there`;
+  return n === 0 ? `Nothing to save in ${folder}` : `Saved ${files(n)} to ${folder}`;
+}
+
+/** Why some files weren't saved, for the conflict step. */
+export function conflictDetail(result: SourceExportResult): string {
+  const paths = (result.conflicts ?? []).map((c) => c.path);
+  const shown = paths.slice(0, 5).join(", ");
+  const more = paths.length > 5 ? ` and ${paths.length - 5} more` : "";
+  return `${paths.length === 1 ? "This file has" : "These files have"} edits in your project that aren't committed or weren't made by Studio: ${shown}${more}. Replace them with the org's version, or keep yours.`;
 }

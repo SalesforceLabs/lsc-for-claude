@@ -266,9 +266,10 @@ contextBridge.exposeInMainWorld("lscApi", {
   perfOpenFile: () => ipcRenderer.invoke("perf:openFile"),
   sourceControlGet: () => ipcRenderer.invoke("sourceControl:get"),
   sourceControlSet: (deployed) => ipcRenderer.invoke("sourceControl:set", deployed),
+  sourceControlChooseFolder: () => ipcRenderer.invoke("sourceControl:chooseFolder"),
   apiVersionGet: () => ipcRenderer.invoke("apiVersion:get"),
   apiVersionSet: (version) => ipcRenderer.invoke("apiVersion:set", version),
-  studioExportSource: (changes, items) => ipcRenderer.invoke("studio:exportSource", changes, items),
+  studioExportSource: (changes, items, opts) => ipcRenderer.invoke("studio:exportSource", changes, items, opts),
   perfSaveFile: (defaultName, text, kind) => ipcRenderer.invoke("perf:saveFile", defaultName, text, kind),
 
   // LSC App Builder — projects per org, turns run in the main process and stream events
@@ -284,6 +285,8 @@ contextBridge.exposeInMainWorld("lscApi", {
   appRename: (id, label) => ipcRenderer.invoke("appBuilder:rename", id, label),
   appRestore: (id, versionId) => ipcRenderer.invoke("appBuilder:restore", id, versionId),
   appEditFile: (id, path, source) => ipcRenderer.invoke("appBuilder:editFile", id, path, source),
+  appSaveToProject: (id, replace) => ipcRenderer.invoke("appBuilder:saveToProject", id, replace),
+  appKeepProjectFiles: (id) => ipcRenderer.invoke("appBuilder:keepProjectFiles", id),
   appPreview: (id, versionId) => ipcRenderer.invoke("appBuilder:preview", id, versionId),
   appDeploy: (id) => ipcRenderer.invoke("appBuilder:deploy", id),
   appImport: (name) => ipcRenderer.invoke("appBuilder:import", name),

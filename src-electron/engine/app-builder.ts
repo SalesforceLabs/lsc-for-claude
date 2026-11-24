@@ -1,6 +1,8 @@
 import { randomUUID } from "crypto";
 import type { ContentBlock, LLMProvider, Message, StreamChunk, ToolDefinition } from "../llm/provider.js";
 import type { AppStore } from "./app-store.js";
+import { writeToFolder } from "./app-folder.js";
+import type { SourceHashStore } from "../source-files.js";
 import type {
   AppBuilderEvent,
   AppCheckResult,
@@ -47,6 +49,10 @@ export interface AppBuilderDeps {
   emit: (projectId: string, event: AppBuilderEvent) => void;
   /** A Studio test user's credentials for data reads (refreshed when stale); throws when the login is gone. Never sent to the renderer. */
   mobileLogin?: (loginId: string) => Promise<Record<string, unknown>>;
+  /** The org's sfdx project when it's deployed from source control (Settings); each current version's bundles are saved there. */
+  projectFolder?: (org: string) => string | undefined;
+  /** What Studio last wrote into project folders (shared with Save as source files…). */
+  hashes?: SourceHashStore;
 }
 
 /** Parse a Studio tool result (`{ content: [{ text }], isError }`) into its JSON; errors become exceptions. */
@@ -374,6 +380,49 @@ export class AppBuilder {
     this.deps.store.save(project);
   }
 
+  // --- the org's sfdx project ---
+
+  /** Save the current version into the org's project; `replace` overwrites files edited there. */
+  async saveToProject(id: string, replace = false): Promise<{ project?: AppProject; error?: string }> {
+    const project = this.get(id);
+    if (!project) return { error: "That app no longer exists." };
+    if (!this.deps.projectFolder?.(project.org)) return { error: "Turn on Deployed from source control in Settings and choose the project folder first." };
+    await this.queueProjectSave(project, replace);
+    return { project: this.get(id) ?? project };
+  }
+
+  /** Leave the project's edited files as they are; the version stays unsaved there. */
+  keepProjectFiles(id: string): void {
+    const project = this.get(id);
+    if (!project?.folder?.conflict) return;
+    delete project.folder.conflict;
+    this.deps.store.save(project);
+    this.deps.emit(project.id, { type: "project", project });
+  }
+
+  private projectSaves = new Map<string, Promise<void>>();
+
+  /** One save at a time per app, in version order. */
+  private queueProjectSave(project: AppProject, force = false): Promise<void> {
+    const prev = this.projectSaves.get(project.id) ?? Promise.resolve();
+    const next = prev.then(() => this.saveProject(project, force)).catch(() => {});
+    this.projectSaves.set(project.id, next);
+    void next.finally(() => this.projectSaves.get(project.id) === next && this.projectSaves.delete(project.id));
+    return next;
+  }
+
+  private async saveProject(project: AppProject, force: boolean): Promise<void> {
+    const folder = this.deps.projectFolder?.(project.org);
+    const version = this.currentVersion(project);
+    if (!folder || !version || !this.deps.hashes) return;
+    const { link } = await writeToFolder(folder, version.files, version.id, { hashes: this.deps.hashes, previous: project.folder, force });
+    // A running turn holds the live copy; write onto whichever copy is current now.
+    const live = this.get(project.id) ?? project;
+    live.folder = link;
+    this.deps.store.save(live);
+    this.deps.emit(live.id, { type: "project", project: live });
+  }
+
   /** Copy an old version as the new current one. */
   restore(id: string, versionId: string): { version?: AppVersion; error?: string } {
     const project = this.get(id);
@@ -574,6 +623,8 @@ export class AppBuilder {
     project.versions.push(version);
     if (current) project.currentVersionId = version.id;
     project.updatedAt = nowIso();
+    // Every version that becomes current lands in the org's sfdx project; the renderer hears how it went.
+    if (current && this.deps.projectFolder?.(project.org)) void this.queueProjectSave(project);
   }
 
   private clearTimer(id: string): void {

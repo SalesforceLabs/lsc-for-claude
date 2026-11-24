@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Monitor, Moon, Sun, X, type LucideIcon } from "lucide-react";
+import { CircleAlert, FolderOpen, Monitor, Moon, Sun, X, type LucideIcon } from "lucide-react";
 import Segmented from "./ui/Segmented";
 import Spinner from "./ui/Spinner";
 import StatusIcon from "./ui/StatusIcon";
@@ -10,7 +10,7 @@ import { useOrgs } from "../hooks/useOrgs";
 import { useSourceControl } from "../hooks/useSourceControl";
 import { useUpdate } from "../hooks/useUpdate";
 import { canCheckForUpdates, updateStatusText } from "../update";
-import { SOURCE_CONTROL_HINT } from "./studio/source-control";
+import { shortPath, SOURCE_CONTROL_HINT } from "./studio/source-control";
 import { hostOf, KIND_LABEL, orgKey } from "../orgs";
 const THEME_ICONS: Record<AppTheme, LucideIcon> = { system: Monitor, light: Sun, dark: Moon };
 
@@ -41,6 +41,19 @@ export default function SettingsPanel({
   // Null until changed here; saved with the rest on Save.
   const [deployedFromSource, setDeployedFromSource] = useState<boolean | null>(null);
   const deployed = deployedFromSource ?? sourceControl.deployed;
+  const [choosingFolder, setChoosingFolder] = useState(false);
+  const [folderError, setFolderError] = useState<string | null>(null);
+  const chooseProjectFolder = useCallback(async () => {
+    setChoosingFolder(true);
+    setFolderError(null);
+    try {
+      setFolderError(await sourceControl.chooseFolder());
+    } catch (e) {
+      setFolderError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setChoosingFolder(false);
+    }
+  }, [sourceControl]);
 
   useEffect(() => {
     window.lscApi.getSettings().then((s) => {
@@ -147,6 +160,46 @@ export default function SettingsPanel({
                   Deployed from source control
                 </label>
                 <div className="settings-hint">{SOURCE_CONTROL_HINT}</div>
+                {deployed && (
+                  <>
+                    <label className="ui-label settings-sublabel" htmlFor="settings-project">
+                      Project folder
+                    </label>
+                    <div className="settings-row">
+                      <input
+                        id="settings-project"
+                        className="ui-field"
+                        type="text"
+                        readOnly
+                        value={sourceControl.folder ? shortPath(sourceControl.folder) : "Not chosen yet"}
+                        title={sourceControl.folder}
+                      />
+                      <button
+                        type="button"
+                        className="studio-btn"
+                        disabled={choosingFolder}
+                        onClick={chooseProjectFolder}
+                      >
+                        <FolderOpen size={14} aria-hidden />
+                        {sourceControl.folder ? "Change…" : "Choose…"}
+                      </button>
+                    </div>
+                    {folderError ? (
+                      <div className="settings-note error" role="alert">
+                        <CircleAlert size={14} aria-hidden />
+                        {folderError}
+                      </div>
+                    ) : (
+                      <div className="settings-hint">
+                        {sourceControl.folder
+                          ? sourceControl.branch
+                            ? `On branch ${sourceControl.branch}. Studio writes files there and leaves committing to you.`
+                            : "Not in a Git repository. Studio writes files there and leaves committing to you."
+                          : "The folder with sfdx-project.json in it. Studio asks for it the first time it saves."}
+                      </div>
+                    )}
+                  </>
+                )}
               </>
             )}
           </section>

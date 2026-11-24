@@ -54,3 +54,7 @@
 .source-warning-sub {
   color: var(--text-secondary);
 }
+
+.source-step-conflict {
+  color: var(--warning);
+}

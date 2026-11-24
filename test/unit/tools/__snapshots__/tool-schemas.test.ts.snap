@@ -2148,6 +2148,14 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "optional": true,
         "type": "ZodArray",
       },
+      "known": {
+        "optional": true,
+        "type": "ZodRecord",
+      },
+      "replace": {
+        "optional": true,
+        "type": "ZodArray",
+      },
     },
   },
   {

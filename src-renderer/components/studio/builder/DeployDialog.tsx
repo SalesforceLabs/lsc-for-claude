@@ -4,6 +4,7 @@ import StateView from "../../ui/StateView";
 import Spinner from "../../ui/Spinner";
 import StatusIcon from "../../ui/StatusIcon";
 import { builderApi } from "./api";
+import DeployExtras from "./DeployExtras";
 import { targetLabel } from "./logic";
 import type { AppDeployPlan, AppDeployResult, AppProject } from "./types";
 
@@ -142,6 +143,7 @@ export default function DeployDialog({ project, orgLabel, production: hostProduc
                   ))}
                 </ul>
               )}
+              <DeployExtras deployed={phase.result.deployed} />
             </div>
             <div className="studio-modal-actions">
               <button className="studio-btn" onClick={onClose}>

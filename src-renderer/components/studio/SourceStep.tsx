@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { CircleAlert, CircleCheck, FolderGit2, RotateCw } from "lucide-react";
+import { CircleAlert, CircleCheck, FolderGit2, RotateCw, TriangleAlert } from "lucide-react";
 import Spinner from "../ui/Spinner";
 import { useSourceControl } from "../../hooks/useSourceControl";
-import { savedSummary, sourceDocs, type SourceExportResult } from "./source-control";
+import { conflictDetail, savedSummary, sourceDocs, type SourceExportResult } from "./source-control";
 import type { StudioFix } from "./types";
 import "./source-control.css";
 
@@ -15,6 +15,7 @@ type Save =
 /** What a save left for the user to do, for the saved step's tooltip. */
 function savedDetail(result: SourceExportResult): string {
   const lines = result.files.map((f) => f.path + (f.status === "merged" ? " (layout assignments merged)" : ""));
+  if (result.conflicts?.length) lines.push("", "Changed in your project, not replaced:", ...result.conflicts.map((c) => c.path));
   if (result.toRemove.length) lines.push("", "Deleted in the org — delete from source too:", ...result.toRemove.map((r) => r.path));
   if (result.missing.length) lines.push("", "Not found in the org:", ...result.missing.map((m) => `${m.type} ${m.fullName}`));
   if (result.orgOnly.length) lines.push("", "Org only, no source file:", ...result.orgOnly.map((o) => o.label));
@@ -28,7 +29,7 @@ function savedDetail(result: SourceExportResult): string {
  * the project. Draws nothing for orgs not deployed from source control or with nothing to save.
  */
 export default function SourceStep({ changes }: { changes: StudioFix[] }) {
-  const { deployed, reload } = useSourceControl();
+  const { deployed, folder, reload } = useSourceControl();
   const docs = useMemo(() => sourceDocs(changes), [changes]);
   const docsKey = docs.join("\n");
   const [save, setSave] = useState<Save>({ state: "idle" });
@@ -40,10 +41,10 @@ export default function SourceStep({ changes }: { changes: StudioFix[] }) {
 
   if (!deployed || docs.length === 0) return null;
 
-  const run = async () => {
+  const run = async (replace?: string[]) => {
     setSave({ state: "saving" });
     try {
-      const res = await window.lscApi.studioExportSource(changes);
+      const res = await window.lscApi.studioExportSource(changes, [], replace ? { replace } : {});
       if (res.canceled) setSave({ state: "idle" });
       else if (res.error || !res.data) setSave({ state: "error", message: res.error ?? "Nothing came back." });
       else setSave({ state: "saved", result: res.data, docs: docsKey });
@@ -67,6 +68,28 @@ export default function SourceStep({ changes }: { changes: StudioFix[] }) {
     );
   }
 
+  if (save.state === "saved" && save.result.conflicts?.length) {
+    const result = save.result;
+    return (
+      <div className="release-step-root source-step">
+        <span className="source-step-label" title={conflictDetail(result) + "\n\n" + savedDetail(result)}>
+          <TriangleAlert size={14} aria-hidden="true" className="source-step-conflict" />
+          <span className="source-step-text">{savedSummary(result)}</span>
+        </span>
+        <button
+          type="button"
+          className="studio-btn ghost sm"
+          onClick={() => setSave({ state: "saved", result: { ...result, conflicts: [] }, docs: save.docs })}
+        >
+          Keep mine
+        </button>
+        <button type="button" className="studio-btn sm" onClick={() => run(result.conflicts.map((c) => c.path))}>
+          Replace
+        </button>
+      </div>
+    );
+  }
+
   if (save.state === "saved") {
     const summary = savedSummary(save.result);
     const left = save.result.toRemove.length + save.result.missing.length;
@@ -77,8 +100,8 @@ export default function SourceStep({ changes }: { changes: StudioFix[] }) {
           <span className="source-step-text">{summary}</span>
           {left > 0 && <span className="ui-pill warning">{left} to check</span>}
         </span>
-        <button type="button" className="studio-btn ghost sm" onClick={run}>
-          Save again…
+        <button type="button" className="studio-btn ghost sm" onClick={() => run()}>
+          Save again
         </button>
       </div>
     );
@@ -99,13 +122,13 @@ export default function SourceStep({ changes }: { changes: StudioFix[] }) {
           {save.state === "error" ? "Couldn't save source files" : `Not in source control · ${files}`}
         </span>
       </span>
-      <button type="button" className="studio-btn sm" onClick={run}>
+      <button type="button" className="studio-btn sm" onClick={() => run()}>
         {save.state === "error" ? (
           <>
             <RotateCw aria-hidden="true" /> Retry
           </>
         ) : (
-          "Save as source files…"
+          folder ? "Save as source files" : "Save as source files…"
         )}
       </button>
     </div>

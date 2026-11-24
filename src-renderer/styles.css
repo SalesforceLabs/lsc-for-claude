@@ -1983,6 +1983,10 @@ body {
   color: var(--text-primary);
 }
 
+.settings-sublabel {
+  margin-top: var(--space-2);
+}
+
 .settings-note {
   display: flex;
   align-items: flex-start;

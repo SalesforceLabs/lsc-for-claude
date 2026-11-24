@@ -1921,3 +1921,88 @@
   gap: var(--space-1);
   margin-top: var(--space-1);
 }
+
+/* The app's place in the org's sfdx project (ProjectSaveControl.tsx). */
+.bld-project {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--control-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+}
+
+.bld-project-failed {
+  color: var(--error);
+}
+
+.bld-project-conflict {
+  color: var(--warning);
+}
+
+.bld-project-pop {
+  width: 320px;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.bld-project-pop p {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.bld-project-pop-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.bld-project-done {
+  color: var(--success);
+}
+
+/* After a deploy: the app's other components into the project (DeployExtras.tsx). */
+.bld-deploy-extras {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.bld-deploy-extras-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+}
+
+.bld-deploy-extras-row svg {
+  flex-shrink: 0;
+}
+
+.bld-deploy-extras-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.bld-deploy-extras-row .studio-btn {
+  flex-shrink: 0;
+}
+
+.bld-deploy-extras-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  line-height: 1.5;
+}
