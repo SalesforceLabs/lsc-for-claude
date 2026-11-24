@@ -100874,6 +100874,8 @@ function getKnownCauses() {
 // src/validation/diagnose.ts
 var MAX_MATCHES = 6;
 var MAX_RULE_MATCHES = 3;
+var MAX_SUGGESTED = 3;
+var SUGGESTED_MATCH = "(suggested from the cause list)";
 function statusOf(outcome) {
   if (!outcome) return "no-check";
   if (outcome.unavailable) return "unchecked";
@@ -100896,6 +100898,20 @@ async function diagnose(symptom, targetOrg, deps = {}) {
   const kept = matches.filter((m) => m.kind === "cause" || !linked.has(m.item.id) && rulesLeft-- > 0).slice(0, MAX_MATCHES);
   const possible = new Set(possibleCauses(symptom, causes, matches));
   kept.push(...possible);
+  const suggested = /* @__PURE__ */ new Set();
+  for (const id2 of [...new Set(deps.suggested ?? [])].slice(0, MAX_SUGGESTED)) {
+    const cause = causes.find((c) => c.id === id2);
+    if (!cause) continue;
+    const already = kept.find((m) => m.item.id === id2);
+    if (already) {
+      if (possible.has(already)) suggested.add(already);
+      continue;
+    }
+    const match = { kind: "cause", item: cause, score: 0, matched: SUGGESTED_MATCH };
+    suggested.add(match);
+    possible.add(match);
+    kept.push(match);
+  }
   const findById = (id2) => rules.find((r) => r.id === id2) ?? getRuleById(id2);
   const checked = await Promise.all(
     kept.map(async (match) => {
@@ -100935,10 +100951,14 @@ async function diagnose(symptom, targetOrg, deps = {}) {
       return { match, status, outcome, failedRules };
     })
   );
-  const findings = checked.map((f) => possible.has(f.match) ? { ...f, possible: true } : f);
+  const findings = checked.map(
+    (f) => possible.has(f.match) ? { ...f, possible: true, ...suggested.has(f.match) ? { suggested: true } : {} } : f
+  );
   const rank = (f) => f.possible ? 1 : 0;
+  const pick2 = (f) => f.suggested ? 0 : 1;
+  const order = new Map([...suggested].map((m, i) => [m, i]));
   findings.sort(
-    (a, b) => rank(a) - rank(b) || (targetOrg ? STATUS_ORDER[a.status] - STATUS_ORDER[b.status] : 0) || b.match.score - a.match.score
+    (a, b) => rank(a) - rank(b) || (targetOrg ? STATUS_ORDER[a.status] - STATUS_ORDER[b.status] : 0) || pick2(a) - pick2(b) || (order.get(a.match) ?? 0) - (order.get(b.match) ?? 0) || b.match.score - a.match.score
   );
   return { symptom, targetOrg, findings };
 }
@@ -101033,7 +101053,12 @@ _The check doesn't cover everything: ${cause.check_scope}_
 **Where:** ${rule.resolution.ui_path}
 `;
   }
-  out += `
+  out += match.matched === SUGGESTED_MATCH ? `
+_Suggested from the list of known causes; no symptom wording matched._
+
+---
+
+` : `
 _Matched on: "${match.matched}"_
 
 ---
@@ -101091,9 +101116,10 @@ These share some words with the message. Look at them if nothing above fits.
 }
 function diagnosisItems(diagnosis) {
   return diagnosis.findings.map(
-    ({ match, status, outcome, notApplicable, failedRules, possible }) => {
+    ({ match, status, outcome, notApplicable, failedRules, possible, suggested }) => {
       const base2 = {
         ...possible ? { possible: true } : {},
+        ...suggested ? { suggested: true } : {},
         status,
         notApplicable: Boolean(notApplicable),
         message: outcome?.message,
@@ -121114,7 +121140,7 @@ function resolveFeatureId(text12) {
 
 // src/tools/diagnose-shared.ts
 init_read_cache();
-async function diagnosePayload(text12, checkOrg) {
+async function diagnosePayload(text12, checkOrg, suggested) {
   let org;
   let orgNote;
   if (checkOrg !== false) {
@@ -121122,7 +121148,7 @@ async function diagnosePayload(text12, checkOrg) {
     if (connection.valid && connection.targetOrg) org = connection.targetOrg;
     else orgNote = connection.error || "No Salesforce org connected.";
   }
-  const diagnosis = await (org ? withSharedReads(() => diagnose(text12, org)) : diagnose(text12));
+  const diagnosis = await (org ? withSharedReads(() => diagnose(text12, org, { suggested })) : diagnose(text12, void 0, { suggested }));
   return {
     items: diagnosisItems(diagnosis),
     checkedOrg: org ?? null,
@@ -121237,14 +121263,20 @@ ${error2 instanceof Error ? error2.message : String(error2)}`
       checkOrg: external_exports.boolean().optional().describe("Run the checks against the connected org (default true). Read-only."),
       format: external_exports.enum(["markdown", "json"]).optional().describe(
         "markdown (default) for a readable report; json for { items, checkedOrg, orgNote? }, the form the app renders as a card"
+      ),
+      suggested: external_exports.array(external_exports.string()).max(10).optional().describe(
+        "Known cause ids that may fit, checked and listed as possible causes beside the word matches. Unknown ids are ignored."
       )
     },
-    async ({ symptom, checkOrg, format }) => {
+    async ({ symptom, checkOrg, format, suggested }) => {
       if (format === "json") {
         try {
           return {
             content: [
-              { type: "text", text: JSON.stringify(await diagnosePayload(symptom, checkOrg)) }
+              {
+                type: "text",
+                text: JSON.stringify(await diagnosePayload(symptom, checkOrg, suggested))
+              }
             ]
           };
         } catch (error2) {
@@ -121270,7 +121302,7 @@ ${error2 instanceof Error ? error2.message : String(error2)}`
 _No org checked: ${validation.error ?? "no org connected"}_
 `;
       }
-      const diagnosis = await diagnose(symptom, targetOrg);
+      const diagnosis = await diagnose(symptom, targetOrg, { suggested });
       return {
         content: [{ type: "text", text: formatDiagnosis(diagnosis) + orgNote }]
       };

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import { diagnose, diagnosisItems, formatDiagnosis } from "../../../src/validation/diagnose.js";
+import {
+  diagnose,
+  diagnosisItems,
+  formatDiagnosis,
+  SUGGESTED_MATCH,
+} from "../../../src/validation/diagnose.js";
 import type { KnownCause } from "../../../src/validation/known-causes.js";
 import type { RuleCheck, ValidationRule } from "../../../src/validation/rules-loader.js";
 import type { CheckOutcome } from "../../../src/validation/rules-executor.js";
@@ -103,6 +108,58 @@ describe("diagnose()", () => {
     const d = await diagnose("Something broke badly", undefined, { causes, rules, run });
     expect(run).not.toHaveBeenCalled();
     expect(d.findings.find((f) => f.match.item.id === "present")?.status).toBe("unchecked");
+  });
+});
+
+describe("diagnose() with causes the model suggested", () => {
+  it("checks a suggested cause no wording matched and lists it as possible", async () => {
+    const d = await diagnose("the weather is nice", "org", {
+      causes,
+      rules,
+      run,
+      suggested: ["present"],
+    });
+    expect(d.findings).toHaveLength(1);
+    expect(d.findings[0]).toMatchObject({ possible: true, suggested: true, status: "found" });
+    expect(d.findings[0].match.matched).toBe(SUGGESTED_MATCH);
+    expect(diagnosisItems(d)[0]).toMatchObject({ id: "present", possible: true, suggested: true });
+  });
+
+  it("ignores unknown ids, repeats, and more than three", async () => {
+    const d = await diagnose("the weather is nice", undefined, {
+      causes,
+      rules,
+      run,
+      suggested: ["nope", "absent", "absent", "present", "gated", "linked"],
+    });
+    // "nope" counts toward the three, so "linked" is never reached.
+    expect(d.findings.map((f) => f.match.item.id)).toEqual(["absent", "present"]);
+  });
+
+  it("never puts a suggestion ahead of a word match, nor lists a match twice", async () => {
+    const d = await diagnose("Something broke badly", undefined, {
+      causes,
+      rules,
+      run,
+      suggested: ["present", "linked"],
+    });
+    const ids = d.findings.map((f) => f.match.item.id);
+    expect(ids.filter((id) => id === "present")).toHaveLength(1);
+    expect(d.findings.find((f) => f.match.item.id === "present")?.suggested).toBeUndefined();
+    const linked = d.findings.findIndex((f) => f.match.item.id === "linked");
+    expect(d.findings.slice(0, linked).every((f) => !f.possible)).toBe(true);
+  });
+
+  it("says in the report that a suggestion matched no wording", async () => {
+    const text = formatDiagnosis(
+      await diagnose("the weather is nice", undefined, {
+        causes,
+        rules,
+        run,
+        suggested: ["absent"],
+      })
+    );
+    expect(text).toContain("Suggested from the list of known causes");
   });
 });
 

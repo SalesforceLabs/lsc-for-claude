@@ -82,3 +82,25 @@ export function diagnosePreflight(text: string, seen?: Set<string>): PreflightCa
   seen?.add(key);
   return [{ name: "diagnose_lsc_issue", input: { symptom: text.trim().slice(0, MAX_SYMPTOM_CHARS), format: "json" } }];
 }
+
+/**
+ * `diagnosePreflight`, with the causes `pick` names (the chat model choosing from the cause
+ * titles, `cause-picker.ts`) passed to diagnose as `suggested`. A pick that fails or finds
+ * nothing leaves the call as word matching alone.
+ */
+export async function diagnosePreflightWithPicks(
+  text: string,
+  seen: Set<string> | undefined,
+  pick: ((text: string) => Promise<string[]>) | undefined
+): Promise<PreflightCall[]> {
+  const calls = diagnosePreflight(text, seen);
+  if (!calls.length || !pick) return calls;
+  let picks: string[] = [];
+  try {
+    picks = await pick(text);
+  } catch {
+    picks = [];
+  }
+  if (!picks.length) return calls;
+  return calls.map((c) => ({ ...c, input: { ...c.input, suggested: picks } }));
+ }

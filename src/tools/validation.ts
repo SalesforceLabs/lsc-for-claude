@@ -134,13 +134,23 @@ export function register(server: McpServer) {
         .describe(
           "markdown (default) for a readable report; json for { items, checkedOrg, orgNote? }, the form the app renders as a card"
         ),
+      suggested: z
+        .array(z.string())
+        .max(10)
+        .optional()
+        .describe(
+          "Known cause ids that may fit, checked and listed as possible causes beside the word matches. Unknown ids are ignored."
+        ),
     },
-    async ({ symptom, checkOrg, format }) => {
+    async ({ symptom, checkOrg, format, suggested }) => {
       if (format === "json") {
         try {
           return {
             content: [
-              { type: "text", text: JSON.stringify(await diagnosePayload(symptom, checkOrg)) },
+              {
+                type: "text",
+                text: JSON.stringify(await diagnosePayload(symptom, checkOrg, suggested)),
+              },
             ],
           };
         } catch (error) {
@@ -164,7 +174,7 @@ export function register(server: McpServer) {
         if (validation.valid) targetOrg = validation.targetOrg;
         else orgNote = `\n_No org checked: ${validation.error ?? "no org connected"}_\n`;
       }
-      const diagnosis = await diagnose(symptom, targetOrg);
+      const diagnosis = await diagnose(symptom, targetOrg, { suggested });
       return {
         content: [{ type: "text", text: formatDiagnosis(diagnosis) + orgNote }],
       };

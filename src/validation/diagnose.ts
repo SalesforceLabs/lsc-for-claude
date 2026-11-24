@@ -23,6 +23,8 @@ export interface CauseFinding {
   failedRules: Array<{ rule: ValidationRule; outcome: CheckOutcome }>;
   /** A weaker match offered as a possible cause, not as an answer. */
   possible?: boolean;
+  /** Named by the chat model from the list of cause titles, not found by word matching. */
+  suggested?: boolean;
 }
 
 export interface Diagnosis {
@@ -34,6 +36,10 @@ export interface Diagnosis {
 /** How many matches to keep and check. */
 export const MAX_MATCHES = 6;
 export const MAX_RULE_MATCHES = 3;
+/** Causes the chat model may add. */
+export const MAX_SUGGESTED = 3;
+/** `matched` of a cause the model picked: no symptom text matched. */
+export const SUGGESTED_MATCH = "(suggested from the cause list)";
 
 function statusOf(outcome: CheckOutcome | undefined): CheckStatus {
   if (!outcome) return "no-check";
@@ -51,7 +57,13 @@ const STATUS_ORDER: Record<CheckStatus, number> = {
 export async function diagnose(
   symptom: string,
   targetOrg?: string,
-  deps: { causes?: KnownCause[]; rules?: ValidationRule[]; run?: typeof executeCheck } = {}
+  deps: {
+    causes?: KnownCause[];
+    rules?: ValidationRule[];
+    run?: typeof executeCheck;
+    /** Cause ids the chat model picked from the cause titles; unknown ids are ignored. */
+    suggested?: string[];
+  } = {}
 ): Promise<Diagnosis> {
   const causes = deps.causes ?? getKnownCauses();
   const rules = deps.rules ?? getAllRules();
@@ -71,6 +83,23 @@ export async function diagnose(
   // Weaker matches are worth a look when the message is a paraphrase no symptom covers.
   const possible = new Set(possibleCauses(symptom, causes, matches));
   kept.push(...possible);
+  // Causes the model picked catch paraphrases that share no words with any symptom. They are
+  // possible causes too: a lead to check, never the answer on the model's word alone.
+  const suggested = new Set<SymptomMatch>();
+  for (const id of [...new Set(deps.suggested ?? [])].slice(0, MAX_SUGGESTED)) {
+    const cause = causes.find((c) => c.id === id);
+    if (!cause) continue;
+    const already = kept.find((m) => m.item.id === id);
+    // A weak word match the model also picked moves up among the possible causes.
+    if (already) {
+      if (possible.has(already)) suggested.add(already);
+      continue;
+    }
+    const match: SymptomMatch = { kind: "cause", item: cause, score: 0, matched: SUGGESTED_MATCH };
+    suggested.add(match);
+    possible.add(match);
+    kept.push(match);
+  }
 
   const findById = (id: string) => rules.find((r) => r.id === id) ?? getRuleById(id);
 
@@ -114,16 +143,26 @@ export async function diagnose(
       return { match, status, outcome, failedRules };
     })
   );
-  const findings = checked.map((f) => (possible.has(f.match) ? { ...f, possible: true } : f));
+  const findings = checked.map((f) =>
+    possible.has(f.match)
+      ? { ...f, possible: true, ...(suggested.has(f.match) ? { suggested: true } : {}) }
+      : f
+  );
 
   // Matches first, then possible causes; within each, what the org shows first, then the best
   // match. A possible cause the org shows stays behind the matches: its check finds a problem
   // the org has whatever the user typed, so it is a lead, not the answer to this message.
+  // Among possible causes, the model's picks come before weak word matches: on paraphrases its
+  // first pick was right far more often than the best weak match.
   const rank = (f: CauseFinding) => (f.possible ? 1 : 0);
+  const pick = (f: CauseFinding) => (f.suggested ? 0 : 1);
+  const order = new Map([...suggested].map((m, i) => [m, i]));
   findings.sort(
     (a, b) =>
       rank(a) - rank(b) ||
       (targetOrg ? STATUS_ORDER[a.status] - STATUS_ORDER[b.status] : 0) ||
+      pick(a) - pick(b) ||
+      (order.get(a.match) ?? 0) - (order.get(b.match) ?? 0) ||
       b.match.score - a.match.score
   );
   return { symptom, targetOrg, findings };
@@ -217,7 +256,10 @@ function formatFinding(finding: CauseFinding, connected: boolean): string {
     rule.resolution.steps.forEach((step, i) => (out += `${i + 1}. ${step}\n`));
     if (rule.resolution.ui_path) out += `\n**Where:** ${rule.resolution.ui_path}\n`;
   }
-  out += `\n_Matched on: "${match.matched}"_\n\n---\n\n`;
+  out +=
+    match.matched === SUGGESTED_MATCH
+      ? `\n_Suggested from the list of known causes; no symptom wording matched._\n\n---\n\n`
+      : `\n_Matched on: "${match.matched}"_\n\n---\n\n`;
   return out;
 }
 
@@ -297,13 +339,16 @@ export interface DiagnosisItem {
   score: number;
   /** A weaker match: show it as a possible cause, apart from the matches. */
   possible?: boolean;
+  /** Picked from the cause list by the model; no wording matched. */
+  suggested?: boolean;
 }
 
 export function diagnosisItems(diagnosis: Diagnosis): DiagnosisItem[] {
   return diagnosis.findings.map(
-    ({ match, status, outcome, notApplicable, failedRules, possible }) => {
+    ({ match, status, outcome, notApplicable, failedRules, possible, suggested }) => {
       const base = {
         ...(possible ? { possible: true } : {}),
+        ...(suggested ? { suggested: true } : {}),
         status,
         notApplicable: Boolean(notApplicable),
         message: outcome?.message,
