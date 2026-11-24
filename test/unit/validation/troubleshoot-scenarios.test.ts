@@ -20,9 +20,16 @@ const heldout: { cases: { says: string; expect: string[] }[] } = fixture(
   "troubleshoot-heldout.json"
 );
 
+// A second set written from cause titles alone, never from symptoms or keywords.
+const heldout2: { cases: { says: string; expect: string[] }[] } = fixture(
+  "troubleshoot-heldout-2.json"
+);
+
 // Floors, not targets: raise them when a change does better, never lower them to pass.
 const HELDOUT_MIN_RIGHT = 78;
 const HELDOUT_MAX_FALSE = 19;
+const HELDOUT2_MIN_RIGHT = 32;
+const HELDOUT2_MAX_FALSE = 4;
 
 describe("troubleshooting scenarios", () => {
   const causes = getKnownCauses();
@@ -45,15 +52,29 @@ describe("troubleshooting scenarios", () => {
     expect(noisy).toEqual([]);
   });
 
-  it("handles held-out wording at least as well as before", () => {
+  const score = (cases: { says: string; expect: string[] }[]) => {
     let right = 0;
     let falseHits = 0;
-    for (const { says, expect: ids } of heldout.cases) {
+    for (const { says, expect: ids } of cases) {
       const id = top(says)?.item.id;
       if (ids.length && id && ids.includes(id)) right++;
       if (!ids.length && id) falseHits++;
     }
+    return { right, falseHits };
+  };
+
+  it("handles held-out wording at least as well as before", () => {
+    const { right, falseHits } = score(heldout.cases);
     expect(right).toBeGreaterThanOrEqual(HELDOUT_MIN_RIGHT);
     expect(falseHits).toBeLessThanOrEqual(HELDOUT_MAX_FALSE);
+  });
+
+  it("handles the second held-out set at least as well as before", () => {
+    const known = new Set([...causes, ...rules].map((c) => c.id));
+    const unknown = heldout2.cases.flatMap((c) => c.expect).filter((id) => !known.has(id));
+    expect(unknown).toEqual([]);
+    const { right, falseHits } = score(heldout2.cases);
+    expect(right).toBeGreaterThanOrEqual(HELDOUT2_MIN_RIGHT);
+    expect(falseHits).toBeLessThanOrEqual(HELDOUT2_MAX_FALSE);
   });
 });

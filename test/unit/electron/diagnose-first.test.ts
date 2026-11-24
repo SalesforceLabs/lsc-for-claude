@@ -25,6 +25,10 @@ const positives = [
   "UNABLE_TO_LOCK_ROW on visit submit",
   "deploy fails with INVALID_CROSS_REFERENCE_KEY",
   "REQUIRED_FIELD_MISSING: [Name]",
+  "Quotes created on the iPad don't lock after Submit and skip the approval workflow. On web the same flow works.",
+  "For every visit I save, the iPad shows an error",
+  "Count of visits on the iPad doesn't match web after sync",
+  "Audit trail shows the quote was unlocked but reps can't edit it",
 ];
 
 const negatives = [
@@ -53,6 +57,11 @@ const negatives = [
   "run the job that failed last night again",
   "what does the setting LSC_ENABLE_SAMPLES do?",
   "use MY_CUSTOM_SETTING for the field reps",
+  "Audit visit data in this org for the last 90 days: count visits by status, find reps who logged visits but have no territory, and find visited accounts that aren't aligned to any of the visiting rep's territories. Give me the numbers.",
+  "For every quote in this org, list its line items with each line's product, price book entry, list price and unit price, and flag any line whose unit price doesn't match its price book entry.",
+  "count the accounts that have no territory",
+  "For each rep, show how many visits are missing a signature",
+  "reconcile sample inventory that doesn't match the transfers",
 ];
 
 describe("readsLikeProblem", () => {
