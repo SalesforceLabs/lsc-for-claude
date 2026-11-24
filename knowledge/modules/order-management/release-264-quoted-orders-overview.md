@@ -55,14 +55,14 @@ Quote header -> select price book -> copy from last order / store assortment -> 
 All data setup entities must be configured, and products aligned to territories, before a quote is ready for capture.
 
 ## Licensing
-Order Management requires Life Sciences Cloud for Customer Engagement plus the new Life Sciences Cloud SKUs that include **Revenue Cloud Advanced**. The deck shows Revenue Cloud Advanced bundled in the newer SKU tiers (the Sales & Service Max tier shown as NEW), each with Data & AI flex credits and storage allotments; SKU tier contents were only partially legible in the source.
+Per Help, Order Management requires the **Life Sciences Cloud** licence, the **Life Sciences Cloud for Customer Engagement** add-on, the **Revenue Lifecycle Management** add-on licence, and the managed package. Which edition or bundle includes the Revenue Lifecycle Management add-on is a question for the customer's account team; don't name editions or bundles in answers.
 
 ## Limitations / Gotchas
 - Agent support to recommend orders from sales trends and stock-out risk is described as future; today reps start from last order or store assortment.
-- Setup depends on Revenue Cloud Advanced; without it the Salesforce Go Order Management checklist cannot complete (see the runbook).
+- Setup depends on the Revenue Lifecycle Management add-on; without it the Salesforce Go Order Management checklist cannot complete (see the runbook).
 
 ## Verified Against Official Help
-- **Licensing correction:** Help states the requirement as Life Sciences Cloud + Life Sciences Cloud for Customer Engagement add-on + **Revenue Lifecycle Management add-on license** (and the managed package); it does not mention new SKU tiers or "Revenue Cloud Advanced". Mobile is iPad only.
+- **Licensing correction:** Help states the requirement as Life Sciences Cloud + Life Sciences Cloud for Customer Engagement add-on + **Revenue Lifecycle Management add-on license** (and the managed package); it names no editions or bundles. Mobile is iPad only.
 - Help: reps can pre-populate orders from an account's last order or assortments, capture digital signatures, work offline, and use approval workflows that block edits to submitted orders while managers can unlock/approve.
 - Dev guide: an order is a **Quote** (Quote + QuoteLineItem); Life Sciences adds fields on Quote and QuoteLineItem. Store Check uses Consumer Goods objects (Assortment, StoreAssortment, AssortmentProduct, RetailStoreKpi, RetailVisitKpi, AssessmentIndicatorDefinition) with LS-added fields; Pricing uses Revenue Lifecycle Management objects.
 - Order Management scope/cost disclaimer (Orders and Pricing only): not found in fetched Help.

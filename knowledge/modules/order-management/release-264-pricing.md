@@ -23,7 +23,7 @@ List prices, volume (range) and tier (slab) discounts, manual line discounts, ma
 7. Register the procedure in Admin Console Orders and Pricing Settings (Transaction Configuration).
 
 ## Procedure elements (Life Sciences Commercial subtype, work online and offline)
-Pricing Setting; List Price; Volume Discount; Tier Discount; List Group; List Operation (listed as List Container in one slide); Assignment; Manual Discount; Price Adjustment Matrix; Formula Based Pricing; Discount Distribution Service. (The decks say 11 elements; the closing summary says "12-element procedure".)
+Pricing Setting; List Price; Volume Discount; Tier Discount; List Group; List Operation (listed as List Container in one slide); Assignment; Manual Discount; Price Adjustment Matrix; Formula Based Pricing; Discount Distribution Service. (The decks say 11 elements; the closing summary says "12-element procedure".) The live enablement session says the same: Revenue Cloud's pricing engine has about 22–23 elements, and these 11 are the ones the Life Sciences offline engine supports. A procedure using any other element won't price on the iPad.
 
 Typical chain: Pricing Setting -> List Price -> Volume Discount -> Tier Discount -> (Price Adjustment Matrix) -> Manual Discount (percent, amount) -> List Group (free goods formula) -> Discount Distribution Service (last).
 
@@ -51,7 +51,7 @@ Typical chain: Pricing Setting -> List Price -> Volume Discount -> Tier Discount
 - Choices: Discount Type (Amount / Percentage / Override; Override discounts the delta to a target total), Distribution Type (Net Unit Price / Item Net Total Price), Distribution Logic (Equal / Proportionate) = 12 combinations. Config fields: HeaderDiscountType, HeaderDiscountValue, HeaderDistributionType, HeaderDistributionLogic, MinimumNetUnitPrice.
 - Equal splits evenly regardless of line value; Proportionate weights by each line's List x Qty (not post-discount net).
 - Minimum Net Unit Price floor engages only when Distribution Type = Net Unit Price (line never drops below Product2.Minimum_Price); unapplied amount accumulates in Total Remainder Amount ("Store remainder amount"). Item Net Total Price applies no floor.
-- Setup: enable Header Adjustment in Revenue Settings (adds Manage Header Adjustment to the Transaction Line Editor); add DDS last with "Get Participating Products" lookup table, 10 input variables and 5 outputs; feed header values either by mapping DDS inputs directly or with a preceding Assignment (TotalPriceOverride__std -> HeaderAdjustmentValue__std, HeaderPriceOverride -> HeaderAdjustmentType__std).
+- Setup: enable Header Adjustment in Revenue Settings (adds Manage Header Adjustment to the Transaction Line Editor); add DDS last with "Get Participating Products" lookup table, 10 input variables and 5 outputs (a **participating products condition** on the DDS element isn't honoured offline: on the iPad a header discount always applies to every line of the quote, per the live enablement session); feed header values either by mapping DDS inputs directly or with a preceding Assignment (TotalPriceOverride__std -> HeaderAdjustmentValue__std, HeaderPriceOverride -> HeaderAdjustmentType__std).
 - Example (lines 1,000 and 3,000, header 400 Amount): Equal = 200 each (8.00 and 9.33/unit); Proportionate = 25%/75% so both land at 9.00. With 8% percentage header: Equal 8.40 / 9.47, Proportionate 9.20 both.
 
 ## Dynamic discounting (Price Adjustment Matrix, PAM)
@@ -79,6 +79,7 @@ Typical chain: Pricing Setting -> List Price -> Volume Discount -> Tier Discount
 - **Invocable actions (264 release note):** `getQualifiedProducts` (PricebookEntry IDs a user may use for an account and territories); `setLsQuoteDocumentDefaults` (default attributes on document recipients for a quote document based on its Lightning flexipage layout); `shareQuoteBasedOnAccount` (syncs Quote sharing to Account sharing by upserting QuoteShare from AccountShare); `evaluateAccess` (checks a user permission for the running user); also `cloneActvtyPlanTerritories`.
 
 ## Sources
+- Order Management live enablement session (internal recording, no URL)
 - https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_pricing_procedures.htm&release=264.0.0&type=5
 - https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_price_waterfall.htm&release=264.0.0&type=5
 - https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_setup_basics.htm&release=264.0.0&type=5

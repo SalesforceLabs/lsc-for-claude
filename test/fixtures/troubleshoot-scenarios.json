@@ -420,6 +420,22 @@
     {
       "says": "Selecting a brand fails because its parent therapeutic area is not aligned to the territory",
       "expect": ["unaligned-parent-therapeutic-area"]
+    },
+    {
+      "says": "The price waterfall popover opens but is empty",
+      "expect": ["om-waterfall-status-mismatch"]
+    },
+    {
+      "says": "Waterfall works online but is empty offline",
+      "expect": ["om-waterfall-status-mismatch"]
+    },
+    {
+      "says": "Rep can't see a colleague's quote from the same territory",
+      "expect": ["om-quote-sharing-not-running"]
+    },
+    {
+      "says": "Territory manager cannot see the quote the rep created",
+      "expect": ["om-quote-sharing-not-running"]
     }
   ],
   "silent": [
@@ -658,9 +674,7 @@
     "price didn't change",
     "I tap Net Unit Price and nothing opens",
     "Price waterfall button is there but admin turned it off",
-    "The price waterfall popover opens but is empty",
     "Waterfall is empty although it is turned on",
-    "Waterfall works online but is empty offline",
     "Waterfall for a previous quote is not there offline",
     "Waterfall for last week's closed quote is gone",
     "I set retention to 30 days but reps only see 15",
@@ -733,8 +747,6 @@
     "Mark Status as Complete",
     "extra stages on the path",
     "Manager or admin can't see the rep's quotes",
-    "Rep can't see a colleague's quote from the same territory",
-    "Territory manager cannot see the quote the rep created",
     "I requested unlock offline: did it go?",
     "I can't find the Unlock button on the iPad",
     "I can't unlock a locked transfer order",

@@ -2495,9 +2495,10 @@ causes:
       was inserted or set Active by API so it was never published.
     fix:
       - "Check the product's ProductTerritoryAvailability rows: Purpose Quote, Alignment Type Territory Inclusion, Usage Type LifeSciences, on the rep's territory or one above it."
-      - "If Quote rows for the territory were set Active by API and have no ProductTerrDtlAvailability, delete them (Status can't go back to Draft)."
-      - "Insert one row per product with Status Draft (not Active), then run Publish Draft Product Territory Alignments Batch Job from the Admin Console. Or insert it by API with Status Queued and let the platform process it."
+      - "If Quote rows for the territory were set Active by API and have no ProductTerrDtlAvailability, delete them (Status can't go back to Draft) with delete_record, one record at a time, after the user approves. Never give Apex or DML for this. Never delete Territory Exclusion rows: they have no detail rows on purpose."
+      - "Re-create each row in one of two documented ways (name both): insert it by API with Status Queued and the platform processes it (per row), or insert it with Status Draft and run Publish Draft Product Territory Alignments Batch Job from the Admin Console (bulk). Never insert it as Active."
       - "Confirm ProductTerrDtlAvailability rows with Purpose Quote now exist for the rep's territory."
+      - "Availability alone isn't enough: confirm the product is in the catalog (ProductCategoryProduct) and has a PricebookEntry in the quote's price book and currency."
       - "Have the rep sync. No metadata cache regeneration is needed."
     ui_path: "Admin Console > Product > Product Alignment Jobs > Publish Draft Product Territory Alignments Batch Job"
     check:
@@ -2505,10 +2506,11 @@ causes:
       query: >
         SELECT Id, Name, Product.Name, Territory.Name, Status FROM ProductTerritoryAvailability
         WHERE Purpose = 'Quote' AND Status IN ('Active', 'Draft')
+        AND AlignmentType != 'Territory Exclusion'
         AND Id NOT IN (SELECT ProdtTerritoryAvailabilityId FROM ProductTerrDtlAvailability WHERE Purpose = 'Quote')
         LIMIT 200
       expect: "records.length == 0"
-    check_scope: "Finds Quote alignments that were never published. It doesn't know which rep you mean, so a product with no Quote alignment for their territory at all isn't caught; check that rep's territories by hand."
+    check_scope: "Finds Quote inclusion alignments that were never published (Territory Exclusion rows are left out: they never get detail rows, because they block the product on purpose). It doesn't know which rep you mean, so a product with no Quote alignment for their territory at all isn't caught; check that rep's territories by hand."
 
   - id: om-quote-pdf-in-progress
     title: Quote PDF stays In Progress because the rep can't create QuoteDocumentCreationEvent
@@ -3231,3 +3233,105 @@ causes:
           query: "SELECT DeveloperName FROM CustomNotificationType WHERE DeveloperName LIKE '%Quote%' AND (Desktop = false OR Mobile = false)"
           expect: "records.length == 0"
     check_scope: "Checks that every org-wide email address is verified and that custom notification types with Quote in the name are on for desktop and mobile. It doesn't check the App Alert's JSON."
+
+  - id: om-ipad-quote-opportunity-field
+    title: iPad quote won't open or save because the mobile Quote layout or a related list references an Opportunity field
+    module: order-management
+    symptoms:
+      - "Invalid configuration for lists. Field database wasn't found or there's no access to that field."
+      - "Invalid configuration for lists"
+      - "Field database wasn't found or there's no access to that field"
+      - "Opening or creating a quote on the iPad fails"
+      - "Quote creation is blocked on the iPad"
+    keywords: [Quote layout, related list, Opportunity, OpportunityId, mobile quote, list configuration]
+    cause: |
+      Salesforce Help (Troubleshooting Order Management, 264): the Quote layout or
+      a related list on the iPad references an Opportunity field that isn't
+      available or accessible in the mobile quote configuration. Quote Line Item
+      has no object permissions of its own (its access comes from the quote), so
+      missing ObjectPermissions rows for it are normal and aren't this cause.
+    fix:
+      - "Open the Quote page layout(s) and record page used by the rep's profile, and the related lists on them; find fields from Opportunity (for example Opportunity on Quote, or Opportunity columns in a related list)."
+      - "Remove the Opportunity field reference from the mobile Quote layout or related list, or make the field available and accessible to the mobile context."
+      - "Don't grant reps broad object or field access to fix this."
+      - "Generate a new mobile metadata cache for the rep's profile, then sync and reopen the app."
+    no_check_reason: "Which layout and related list columns reach the iPad depends on the profile's layout assignment and record page; inspect them in Studio's iPad preview or Setup."
+
+  - id: om-ipad-quote-record-type-cleared
+    title: iPad quotes don't lock or follow their approval workflow because the context drops RecordTypeId on save
+    module: order-management
+    symptoms:
+      - "Quotes created on the iPad don't lock after Submit"
+      - "iPad quotes skip the approval workflow"
+      - "Quote created on iPad doesn't follow Generic Workflow, web works"
+      - "Quote record type is blank after saving on the iPad"
+    keywords: [RecordTypeId, Sales Transaction Context]
+    cause: |
+      Salesforce Help (Troubleshooting Order Management, 264): a quote created and
+      saved on the iPad doesn't lock or follow its approval workflow, though Generic
+      Workflow is configured for its record type, because its record type is cleared
+      on save when RecordTypeId isn't in the active Sales Transaction Context.
+      Help says web works but doesn't say why web is unaffected; don't explain the
+      difference, and don't add consequences Help doesn't name.
+    fix:
+      - "Open the active Sales Transaction Context extension (Context Service) used for quotes."
+      - "Add RecordTypeId to the Quote node mapping so it isn't nullified on save."
+      - "Generate a new mobile metadata cache, sync, and test with a new quote created on the iPad."
+    no_check_reason: "Diagnose has no automatic check for the context mapping; confirm it by checking a new iPad quote for a blank RecordTypeId and the context extension in Setup."
+
+  - id: om-quote-sharing-not-running
+    title: Reps don't see quotes other reps created for accounts in their territory because quote sharing isn't running
+    module: order-management
+    symptoms:
+      - "Reps can't see quoted orders that other reps in the same territory created"
+      - "Rep sees only their own quotes"
+      - "How is quote sharing supposed to work"
+      - "Quote history from other reps is missing on the iPad"
+    keywords: [Manage Quote Sharing, Share Created Quote, Share Quotes, quote sharing, QuoteShare]
+    cause: |
+      Salesforce Help (Quoted Order Sharing by Territory, Order Management Flows,
+      264): quotes have no relationship to territory; the territory comes from the
+      account's territory assignment. The Manage Quote Sharing batch job runs on a
+      schedule and shares Quotes, Quote Line Items and Quote Line Price
+      Adjustments with users in the account's territory. The Share Created Quote
+      flow shares a new quote, and the Share Quotes flow shares quotes on a
+      recurring schedule; both must be customized and activated. With a Private
+      Quote org-wide default and these not running, reps see only their own.
+    fix:
+      - "Confirm the account is assigned to the rep's territory (ObjectTerritory2Association)."
+      - "Customize and activate the Share Created Quote and Share Quotes flows; schedule the Manage Quote Sharing batch job."
+      - "Add the Account for Quote field to the Quote page layout header so reps pick the account."
+      - "Don't add a territory field to Quote or build criteria sharing rules on one."
+      - "Sync the iPad after the job runs."
+    check:
+      type: soql_count
+      query: >
+        SELECT COUNT() FROM FlowDefinitionView
+        WHERE Label LIKE 'Share Quotes%' AND ActiveVersionId != null
+      expect: "count > 0"
+    check_scope: "Fails when no Share Quotes flow (the scheduled one, or a copy whose label starts with Share Quotes) has an active version. It doesn't check the Share Created Quote flow, that the Manage Quote Sharing job is scheduled, or that accounts are aligned to the reps' territories."
+
+  - id: om-waterfall-status-mismatch
+    title: Price waterfall popover is empty because the quote's status isn't in the configured open or closed quote statuses
+    module: order-management
+    symptoms:
+      - "Price waterfall popover is empty"
+      - "Waterfall empty offline"
+      - "Price waterfall data is gone after a few days"
+    keywords: [Price Waterfall Persistence, Waterfall Open Quotes Retention Days, open quote statuses, closed quote statuses]
+    cause: |
+      Salesforce Help (Troubleshooting Order Management, Price Waterfall
+      Considerations, 264): the popover is empty when the quote's Status doesn't
+      exactly match a value in the configured open or closed quote statuses,
+      including case; if both lists are empty no waterfall data syncs. Empty only
+      offline means Price Waterfall Persistence is off. Data is kept 7 days after
+      the quote's last modification by default (Waterfall Open Quotes Retention
+      Days), capped at 15. Only lines priced through a waterfall-eligible
+      (discount flow) rule have data.
+    fix:
+      - "Compare the quote's Status picklist value with the open and closed quote status lists in Orders and Pricing Settings, including capitalization; add every active status the org uses to one of the lists."
+      - "Empty only offline: turn on Price Waterfall Persistence."
+      - "Old quotes: raise Waterfall Open Quotes Retention Days (at most 15 days apply)."
+      - "Can't tap Net Unit Price: confirm Price Waterfall is on and statuses are configured, then have the rep log out and back in."
+      - "Regenerate the metadata cache and sync after changing the settings."
+    no_check_reason: "The status lists are Admin Console values compared against each quote's status; read them with list_admin_settings and compare with the Quote Status picklist."
