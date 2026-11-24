@@ -17,6 +17,8 @@ export interface Settings {
   sourceControl?: Record<string, { deployed: boolean; folder?: string }>;
   /** Per org (lowercased username): the Salesforce API version pinned from the status bar; none = the org's own. */
   apiVersions?: Record<string, string>;
+  /** The version of the first-run tour last seen (src-renderer/onboarding.ts); it opens on its own when this is behind. */
+  onboardingSeen?: number;
 }
 
 const DEFAULT_SETTINGS: Settings = {

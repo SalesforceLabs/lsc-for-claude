@@ -1,18 +1,22 @@
 import React from "react";
-import { Pin, RefreshCw, Settings, TriangleAlert } from "lucide-react";
+import { CircleQuestionMark, Compass, Pin, Rocket, RefreshCw, Settings, TriangleAlert } from "lucide-react";
 import Menu, { type MenuItem } from "./ui/Menu";
 import Spinner from "./ui/Spinner";
 import { useApiVersion } from "../hooks/useApiVersion";
 import { useOrgs } from "../hooks/useOrgs";
 import { useUpdate } from "../hooks/useUpdate";
 
-/** App-wide bottom bar: Settings and how many tools the assistant has, Restart to update once an update has downloaded, and the selected org's API version. The org lives at the top of the sidebar. */
+/** App-wide bottom bar: Settings and how many tools the assistant has, Help (the tour, getting started), Restart to update once an update has downloaded, and the selected org's API version. The org lives at the top of the sidebar. */
 interface StatusBarProps {
   toolCount: number;
   onSettingsClick: () => void;
+  /** Opens the first-run tour again. */
+  onTakeTour: () => void;
+  /** A new chat with /lsc:getting-started in the composer. */
+  onGettingStarted: () => void;
 }
 
-export default function StatusBar({ toolCount, onSettingsClick }: StatusBarProps) {
+export default function StatusBar({ toolCount, onSettingsClick, onTakeTour, onGettingStarted }: StatusBarProps) {
   return (
     <div className="status-bar">
       <button className="status-bar-settings" onClick={onSettingsClick} title="Settings">
@@ -20,6 +24,22 @@ export default function StatusBar({ toolCount, onSettingsClick }: StatusBarProps
         <span>Settings</span>
         {toolCount > 0 && <span className="status-bar-meta">{toolCount} tools</span>}
       </button>
+      <Menu
+        className="status-bar-help"
+        label="Help"
+        above
+        title="Help"
+        trigger={
+          <>
+            <CircleQuestionMark size={13} strokeWidth={1.9} aria-hidden="true" />
+            <span>Help</span>
+          </>
+        }
+        items={[
+          { label: "Take the tour", icon: Compass, onSelect: onTakeTour },
+          { label: "Get started in chat", icon: Rocket, onSelect: onGettingStarted },
+        ]}
+      />
       <UpdateReady />
       <ApiVersionMenu />
     </div>
