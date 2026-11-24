@@ -100085,6 +100085,7 @@ var TERMS = [
   "browse catalog",
   "store assortment"
 ].map((t) => [new RegExp(`\\b${t}\\b`, "g"), t.replace(" ", "_")]);
+TERMS.push([/\bprice list\b/g, "price_book"]);
 function joinTerms(text12) {
   return TERMS.reduce((t, [re, joined2]) => t.replace(re, joined2), text12);
 }
@@ -100094,7 +100095,18 @@ var SYNONYMS = {
   browser: "web",
   desktop: "web",
   spins: "spinner",
-  spinning: "spinner"
+  spinning: "spinner",
+  doctor: "hcp",
+  doctors: "hcp",
+  physician: "hcp",
+  physicians: "hcp",
+  stock: "inventory",
+  passcode: "password",
+  deck: "presentation",
+  decks: "presentation",
+  dropdown: "picklist",
+  customer: "account",
+  customers: "account"
 };
 function stem(t) {
   if (t.includes("_") || t.length <= 4) return t;
@@ -100218,8 +100230,20 @@ function scoreCause(query2, cause, df = /* @__PURE__ */ new Map(), nCauses = 1) 
   };
 }
 var RULE_WEIGHT = 0.8;
+var VAGUE_SYMPTOM_WEIGHT = 0.5;
+var VAGUE = /\b(?:not working|doesn't work|does not work|broken)\b/i;
 function scoreRule(query2, rule) {
-  const bySymptom = best(query2, rule.symptoms ?? []);
+  const symptoms = rule.symptoms ?? [];
+  const specific = best(
+    query2,
+    symptoms.filter((s11) => !VAGUE.test(s11))
+  );
+  const vague = best(
+    query2,
+    symptoms.filter((s11) => VAGUE.test(s11)),
+    VAGUE_SYMPTOM_WEIGHT
+  );
+  const bySymptom = vague.score > specific.score ? vague : specific;
   const byName = best(query2, [rule.name], 0.7);
   const byDescription = best(query2, [rule.description], 0.5);
   const top = [bySymptom, byName, byDescription].reduce((a, b) => b.score > a.score ? b : a);
