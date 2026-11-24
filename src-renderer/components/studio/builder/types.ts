@@ -119,6 +119,21 @@ export interface AppProject {
   runAs?: AppRunAs;
   /** Tab apps: profiles that get the tab and the app it joins. */
   tab?: AppTabSettings;
+  /** How saving into the org's sfdx project went (Settings → Deployed from source control). */
+  folder?: AppFolderLink;
+}
+
+/** An app's bundles in the org's sfdx project (src-electron/engine/app-folder.ts). */
+export interface AppFolderLink {
+  /** The project folder (the one with sfdx-project.json). */
+  path: string;
+  /** The version last saved there, and when. */
+  savedVersionId?: string;
+  savedAt?: string;
+  /** Files in the project with edits Studio would lose (relative to the folder); the version wasn't saved. */
+  conflict?: { versionId: string; files: string[] };
+  /** Why the last save failed. */
+  error?: string;
 }
 
 /** A starter app (`studio_app_starters`): a working LSC app from the afls-ideas GitHub account, copied at a pinned commit. */

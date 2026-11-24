@@ -68,6 +68,8 @@ import { chatModels, cleanConnection, createProvider, testConnection } from "../
 import { loadSettings, migrateSettings, saveSettings, Settings } from "../settings.js";
 import { applyAppIcon } from "../app-icon.js";
 import { sourceControlFor, withSourceControl } from "../source-control.js";
+import { fileHashStore, gitBranch, type SourceHashStore } from "../source-files.js";
+import { folderProblem } from "../engine/app-folder.js";
 import {
   appDocumentPath,
   documentationPdfPath,
@@ -151,6 +153,10 @@ const CACHE_DOWNLOAD_TOOLS = new Set([
   "studio_metadata_cache_contents",
   "studio_metadata_cache_file",
 ]);
+let hashStore: SourceHashStore | null = null;
+/** What Studio last wrote into each sfdx project (app bundles and Save as source files…). */
+const sourceHashes = (): SourceHashStore => (hashStore ??= fileHashStore(path.join(app.getPath("userData"), "source-files.json")));
+
 const STUDIO_CACHED_TOOLS = new Set([
   "studio_feature_map",
   "studio_item_detail",
@@ -1026,6 +1032,11 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       return ref ? { username: ref.username, target: pool.target } : null;
     },
     invalidate: (tools) => invalidate(loadSettings().sfTargetOrg ?? "", tools),
+    projectFolder: (org) => {
+      const sc = sourceControlFor(loadSettings(), org);
+      return sc.deployed ? sc.folder : undefined;
+    },
+    hashes: sourceHashes(),
   });
 
   // --- Intelligent Content drafts (Studio -> Build) ---
@@ -1142,7 +1153,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   ipcMain.handle("sourceControl:get", async () => {
     const { ref } = await selectedOrg();
-    return { org: ref?.username ?? null, ...sourceControlFor(loadSettings(), ref?.username) };
+    const sc = sourceControlFor(loadSettings(), ref?.username);
+    return { org: ref?.username ?? null, ...sc, ...(sc.folder ? { branch: await gitBranch(sc.folder) } : {}) };
   });
 
   ipcMain.handle("sourceControl:set", async (_event, deployed: boolean) => {
@@ -1182,34 +1194,57 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return { org: ref.username, ...res };
   });
 
-  // Pick the project folder (opening on the one last used for this org), then retrieve the changes' documents into it.
+  // Pick the org's sfdx project folder (Settings, and the first Save as source files…).
+  const chooseProjectFolder = async (username: string, title: string): Promise<{ folder?: string; canceled?: boolean; error?: string }> => {
+    const last = sourceControlFor(loadSettings(), username).folder;
+    const res = await dialog.showOpenDialog(mainWindow, {
+      title,
+      message: "Choose the org's sfdx project (the folder with sfdx-project.json). Files go in its default package.",
+      buttonLabel: "Use This Project",
+      defaultPath: last ?? app.getPath("home"),
+      properties: ["openDirectory"],
+    });
+    if (res.canceled || res.filePaths.length === 0) return { canceled: true };
+    const folder = res.filePaths[0];
+    const problem = folderProblem(folder);
+    if (problem) return { error: problem };
+    saveSettings(withSourceControl(loadSettings(), username, { folder }));
+    return { folder };
+  };
+
+  ipcMain.handle("sourceControl:chooseFolder", async () => {
+    const { ref } = await selectedOrg();
+    if (!ref?.username) return { error: "No Salesforce org selected." };
+    const picked = await chooseProjectFolder(ref.username, "Org's project folder");
+    return picked.folder ? { ...picked, branch: await gitBranch(picked.folder) } : picked;
+  });
+
+  // Retrieve the changes' documents into the org's project (asking for it the first time).
+  // `replace` names files edited in the project that the user chose to overwrite.
   ipcMain.handle(
     "studio:exportSource",
-    async (_event, changes: unknown[] = [], items: unknown[] = []) => {
+    async (_event, changes: unknown[] = [], items: unknown[] = [], opts: { replace?: string[] } = {}) => {
       const { ref } = await selectedOrg();
       if (!ref?.username) return { error: "No Salesforce org selected." };
-      const last = sourceControlFor(loadSettings(), ref.username).folder;
-      const res = await dialog.showOpenDialog(mainWindow, {
-        title: "Save as source files",
-        message:
-          "Choose your sfdx project folder. Files go in its default package (force-app/main/default).",
-        buttonLabel: "Save Here",
-        defaultPath: last ?? app.getPath("home"),
-        properties: ["openDirectory", "createDirectory"],
-      });
-      if (res.canceled || res.filePaths.length === 0) return { canceled: true };
-      const folder = res.filePaths[0];
-      saveSettings(withSourceControl(loadSettings(), ref.username, { folder }));
+      let folder = sourceControlFor(loadSettings(), ref.username).folder;
+      if (!folder || folderProblem(folder)) {
+        const picked = await chooseProjectFolder(ref.username, "Save as source files");
+        if (!picked.folder) return picked;
+        folder = picked.folder;
+      }
       const client = await readyMcpClient();
       if (!client) return { error: "Engine not started" };
       try {
+        const replace = Array.isArray(opts.replace) ? opts.replace.filter((r) => typeof r === "string") : [];
         const result = await client.callTool(
           "studio_export_source",
-          { folder, changes, items },
+          { folder, changes, items, known: sourceHashes().get(folder), replace },
           { timeoutMs: 5 * 60_000 }
         );
         const data = JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}");
-        return data?.error ? { error: String(data.error) } : { data };
+        if (data?.error) return { error: String(data.error) };
+        if (data?.hashes && typeof data.hashes === "object") sourceHashes().update(folder, data.hashes);
+        return { data };
       } catch (error) {
         return { error: error instanceof Error ? error.message : String(error) };
       }

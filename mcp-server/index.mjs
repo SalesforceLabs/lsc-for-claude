@@ -147569,9 +147569,32 @@ ${appendix(a, sims, days)}
 // src/studio/source-export.ts
 init_cli();
 init_direct_metadata();
-init_helpers2();
 import * as fs22 from "fs";
 import * as path22 from "path";
+
+// src/studio/git-clean.ts
+import { execFile as execFile6 } from "child_process";
+import { createHash as createHash8 } from "crypto";
+var hashText = (s11) => createHash8("sha1").update(s11).digest("hex");
+var git = (folder, args) => new Promise((resolve4) => {
+  execFile6(
+    "git",
+    ["-C", folder, "--literal-pathspecs", ...args],
+    { timeout: 15e3, maxBuffer: 16 * 1024 * 1024 },
+    (err, stdout) => resolve4(err ? null : stdout)
+  );
+});
+async function cleanInGit(folder, rels) {
+  if (rels.length === 0) return /* @__PURE__ */ new Set();
+  const tracked2 = await git(folder, ["ls-files", "-z", "--", ...rels]);
+  if (tracked2 === null) return /* @__PURE__ */ new Set();
+  const modified = await git(folder, ["ls-files", "-z", "-m", "--", ...rels]) ?? tracked2;
+  const dirty = new Set(modified.split("\0").filter(Boolean));
+  return new Set(tracked2.split("\0").filter((p) => p && !dirty.has(p)));
+}
+
+// src/studio/source-export.ts
+init_helpers2();
 init_xml2();
 var SOURCE_TYPES = [
   "Layout",
@@ -147581,7 +147604,9 @@ var SOURCE_TYPES = [
   "CustomApplication",
   "Profile",
   "ValidationRule",
-  "LifeSciConfigRecord"
+  "LifeSciConfigRecord",
+  "QuickAction",
+  "CustomTab"
 ];
 var PACKAGE_XML_PATH = path22.join("manifest", "studio-package.xml");
 var ORG_ONLY = {
@@ -147684,6 +147709,8 @@ var FILE_LAYOUT = {
   CustomApplication: { dir: "applications", suffix: "app" },
   Profile: { dir: "profiles", suffix: "profile" },
   LifeSciConfigRecord: { dir: "lifeSciConfigRecords", suffix: "lifeSciConfigRecord" },
+  QuickAction: { dir: "quickActions", suffix: "quickAction" },
+  CustomTab: { dir: "tabs", suffix: "tab" },
   CompactLayout: { dir: "compactLayouts", suffix: "compactLayout", child: true },
   ListView: { dir: "listViews", suffix: "listView", child: true },
   ValidationRule: { dir: "validationRules", suffix: "validationRule", child: true }
@@ -147857,7 +147884,9 @@ async function exportSource(input, org) {
     }),
     orgOnly: plan3.orgOnly,
     missing: [],
-    notes
+    notes,
+    conflicts: [],
+    hashes: {}
   };
   if (items.length === 0) return result2;
   const { dirs, errors } = await retrieveAll(items, await layoutRecordTypes(items, org), org);
@@ -147868,7 +147897,10 @@ async function exportSource(input, org) {
     for (const file of filesUnder(dir))
       retrieved.set(path22.relative(dir, file).split(path22.sep).join("/"), file);
   const layoutNames = items.filter((i) => i.type === "Layout").map((i) => i.fullName);
+  const known = input.known ?? {};
+  const replace = new Set(input.replace ?? []);
   try {
+    const planned = [];
     for (const item2 of items) {
       const want = sourcePathFor(item2);
       const sub = retrieved.has(want) ? want : [...retrieved.keys()].find((k) => safeDecode(k) === safeDecode(want));
@@ -147878,28 +147910,49 @@ async function exportSource(input, org) {
         continue;
       }
       const to = path22.join(root2, sub);
-      fs22.mkdirSync(path22.dirname(to), { recursive: true });
+      let next = fs22.readFileSync(from);
       let status = "written";
       if (item2.type === "Profile") {
         if (fs22.existsSync(to)) {
-          fs22.writeFileSync(
-            to,
-            mergeProfileAssignments(
-              fs22.readFileSync(to, "utf-8"),
-              fs22.readFileSync(from, "utf-8"),
-              layoutNames
-            )
+          next = mergeProfileAssignments(
+            fs22.readFileSync(to, "utf-8"),
+            next.toString("utf-8"),
+            layoutNames
           );
           status = "merged";
         } else {
-          fs22.copyFileSync(from, to);
           status = "partial";
           notes.push(
             `${rel5(to)} holds only this profile's layout assignments; merge it into your full profile file if you keep one elsewhere.`
           );
         }
-      } else fs22.copyFileSync(from, to);
-      result2.files.push({ type: item2.type, fullName: item2.fullName, path: rel5(to), status });
+      }
+      planned.push({ item: item2, to, rel: rel5(to), next, status });
+    }
+    const changing = planned.filter((p) => {
+      if (p.status === "merged" || !fs22.existsSync(p.to)) return false;
+      const onDisk = fs22.readFileSync(p.to);
+      return !onDisk.equals(Buffer.from(p.next)) && known[p.rel] !== hashText(onDisk) && !replace.has(p.rel);
+    });
+    const clean = await cleanInGit(
+      folder,
+      changing.map((p) => p.rel)
+    );
+    const held = new Set(changing.filter((p) => !clean.has(p.rel)).map((p) => p.rel));
+    for (const p of planned) {
+      if (held.has(p.rel)) {
+        result2.conflicts.push({ type: p.item.type, fullName: p.item.fullName, path: p.rel });
+        continue;
+      }
+      fs22.mkdirSync(path22.dirname(p.to), { recursive: true });
+      fs22.writeFileSync(p.to, p.next);
+      result2.hashes[p.rel] = hashText(p.next);
+      result2.files.push({
+        type: p.item.type,
+        fullName: p.item.fullName,
+        path: p.rel,
+        status: p.status
+      });
     }
     if (result2.files.length > 0) {
       const manifest2 = path22.join(folder, PACKAGE_XML_PATH);
@@ -147914,7 +147967,7 @@ async function exportSource(input, org) {
 }
 
 // src/studio/apps/check.ts
-import { createHash as createHash8 } from "node:crypto";
+import { createHash as createHash9 } from "node:crypto";
 init_inline_lwc();
 
 // src/studio/apps/lint.ts
@@ -148749,7 +148802,7 @@ function compileIssue(err, files) {
   };
 }
 function compileApp(input) {
-  const key5 = createHash8("sha256").update(JSON.stringify([input.name, input.files.map((f) => [f.path, f.source])])).digest("hex");
+  const key5 = createHash9("sha256").update(JSON.stringify([input.name, input.files.map((f) => [f.path, f.source])])).digest("hex");
   let job = compiles.get(key5);
   if (!job) {
     job = buildInlineLwc(input.name, input.files).then(
@@ -153229,9 +153282,11 @@ function registerSyncHealthTools(server2) {
   );
   server2.tool(
     "studio_export_source",
-    "LSC Studio (GUI data): save the org's current version of applied Studio changes (or named metadata items) as sfdx source files in a local folder (force-app/main/default, or the project's default package), plus manifest/studio-package.xml. Read-only against the org \u2014 it only retrieves. Returns JSON { folder, packageDir, manifest, files, toRemove, orgOnly (changes with no source file, with why), missing, notes }.",
+    "LSC Studio (GUI data): save the org's current version of applied Studio changes (or named metadata items) as sfdx source files in a local folder (force-app/main/default, or the project's default package), plus manifest/studio-package.xml. Read-only against the org \u2014 it only retrieves. A file already in the folder that differs is replaced only when Git has it committed and unedited, its hash is in `known` (what Studio last wrote) or its path is in `replace`; otherwise it's left alone and listed in `conflicts`. Returns JSON { folder, packageDir, manifest, files, toRemove, orgOnly (changes with no source file, with why), missing, notes, conflicts, hashes (of the files written) }.",
     {
       folder: external_exports.string().min(1).max(1024),
+      known: external_exports.record(external_exports.string().max(1024), external_exports.string().max(64)).optional(),
+      replace: external_exports.array(external_exports.string().max(1024)).max(400).optional(),
       changes: external_exports.array(fixSchema).max(200).optional(),
       items: external_exports.array(
         external_exports.object({
@@ -153240,7 +153295,7 @@ function registerSyncHealthTools(server2) {
         })
       ).max(200).optional()
     },
-    async ({ folder, changes, items }) => {
+    async ({ folder, changes, items, known, replace }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
@@ -153251,7 +153306,9 @@ function registerSyncHealthTools(server2) {
             {
               folder,
               changes,
-              items
+              items,
+              known,
+              replace
             },
             connection.targetOrg
           )

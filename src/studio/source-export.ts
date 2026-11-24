@@ -10,13 +10,21 @@
  * Schema, actions, tabs, settings — `lifeSciConfigRecords/<DeveloperName>`).
  * Everything else Studio changes is data in the org (permission set and territory
  * assignments, PSLs, custom script code, trigger handler switches) and is reported
- * as org-only with why.
+ * as org-only with why. LSC app deploys add QuickAction and CustomTab (their LWC
+ * bundles are saved into the project by the app builder as they're built).
+ *
+ * Nothing the user has edited is overwritten: a file already in the project that
+ * differs is replaced only when Git has it committed and unedited, or it's what
+ * Studio last wrote (`known`), or the user said to (`replace`). Otherwise it's left
+ * alone and listed in `conflicts`. A profile Studio merges into keeps the rest of the
+ * file, so it's always written.
  */
 
 import * as fs from "fs";
 import * as path from "path";
 import { orgApiVersion, retrieveMetadata } from "../salesforce/cli.js";
 import { parseMetadataSpecs } from "../salesforce/direct-metadata.js";
+import { cleanInGit, hashText } from "./git-clean.js";
 import { inList, query } from "./helpers.js";
 import { appsReferencingPage } from "./metadata/live.js";
 import { profileFullName } from "./metadata/copy.js";
@@ -31,7 +39,9 @@ export type SourceType =
   | "CustomApplication"
   | "Profile"
   | "ValidationRule"
-  | "LifeSciConfigRecord";
+  | "LifeSciConfigRecord"
+  | "QuickAction"
+  | "CustomTab";
 
 export const SOURCE_TYPES: readonly SourceType[] = [
   "Layout",
@@ -42,6 +52,8 @@ export const SOURCE_TYPES: readonly SourceType[] = [
   "Profile",
   "ValidationRule",
   "LifeSciConfigRecord",
+  "QuickAction",
+  "CustomTab",
 ];
 
 export interface SourceItem {
@@ -182,6 +194,8 @@ const FILE_LAYOUT: Record<SourceType, { dir: string; suffix: string; child?: boo
   CustomApplication: { dir: "applications", suffix: "app" },
   Profile: { dir: "profiles", suffix: "profile" },
   LifeSciConfigRecord: { dir: "lifeSciConfigRecords", suffix: "lifeSciConfigRecord" },
+  QuickAction: { dir: "quickActions", suffix: "quickAction" },
+  CustomTab: { dir: "tabs", suffix: "tab" },
   CompactLayout: { dir: "compactLayouts", suffix: "compactLayout", child: true },
   ListView: { dir: "listViews", suffix: "listView", child: true },
   ValidationRule: { dir: "validationRules", suffix: "validationRule", child: true },
@@ -299,6 +313,10 @@ export interface SourceExportInput {
   items?: SourceItem[];
   /** Absolute path of the project (or empty folder) to write into. */
   folder: string;
+  /** Hash of each file as Studio last wrote it, by path relative to the folder: safe to replace. */
+  known?: Record<string, string>;
+  /** Paths (relative to the folder) to replace even though they were edited. */
+  replace?: string[];
 }
 
 export interface SourceFileWritten {
@@ -323,6 +341,10 @@ export interface SourceExportResult {
   /** Asked for, but the org returned nothing (deleted since, or not readable). */
   missing: SourceItem[];
   notes: string[];
+  /** Already in the project with edits that replacing would lose; not written. */
+  conflicts: { type: SourceType; fullName: string; path: string }[];
+  /** Hash of each file written, by path relative to the folder (the app keeps them as `known`). */
+  hashes: Record<string, string>;
 }
 
 const safeDecode = (s: string) => {
@@ -441,6 +463,8 @@ export async function exportSource(
     orgOnly: plan.orgOnly,
     missing: [],
     notes,
+    conflicts: [],
+    hashes: {},
   };
   if (items.length === 0) return result;
 
@@ -455,7 +479,17 @@ export async function exportSource(
       retrieved.set(path.relative(dir, file).split(path.sep).join("/"), file);
 
   const layoutNames = items.filter((i) => i.type === "Layout").map((i) => i.fullName);
+  const known = input.known ?? {};
+  const replace = new Set(input.replace ?? []);
   try {
+    // What each item's file would hold, before anything is written.
+    const planned: {
+      item: SourceItem;
+      to: string;
+      rel: string;
+      next: string | Buffer;
+      status: SourceFileWritten["status"];
+    }[] = [];
     for (const item of items) {
       // The CLI may percent-encode a name differently from how it was asked for: compare decoded.
       const want = sourcePathFor(item);
@@ -468,28 +502,54 @@ export async function exportSource(
         continue;
       }
       const to = path.join(root, sub);
-      fs.mkdirSync(path.dirname(to), { recursive: true });
+      let next: string | Buffer = fs.readFileSync(from);
       let status: SourceFileWritten["status"] = "written";
       if (item.type === "Profile") {
         if (fs.existsSync(to)) {
-          fs.writeFileSync(
-            to,
-            mergeProfileAssignments(
-              fs.readFileSync(to, "utf-8"),
-              fs.readFileSync(from, "utf-8"),
-              layoutNames
-            )
+          next = mergeProfileAssignments(
+            fs.readFileSync(to, "utf-8"),
+            next.toString("utf-8"),
+            layoutNames
           );
           status = "merged";
         } else {
-          fs.copyFileSync(from, to);
           status = "partial";
           notes.push(
             `${rel(to)} holds only this profile's layout assignments; merge it into your full profile file if you keep one elsewhere.`
           );
         }
-      } else fs.copyFileSync(from, to);
-      result.files.push({ type: item.type, fullName: item.fullName, path: rel(to), status });
+      }
+      planned.push({ item, to, rel: rel(to), next, status });
+    }
+    // A merged profile keeps the file's own content apart from the layout assignments Studio set, so it's never held.
+    const changing = planned.filter((p) => {
+      if (p.status === "merged" || !fs.existsSync(p.to)) return false;
+      const onDisk = fs.readFileSync(p.to);
+      return (
+        !onDisk.equals(Buffer.from(p.next)) &&
+        known[p.rel] !== hashText(onDisk) &&
+        !replace.has(p.rel)
+      );
+    });
+    const clean = await cleanInGit(
+      folder,
+      changing.map((p) => p.rel)
+    );
+    const held = new Set(changing.filter((p) => !clean.has(p.rel)).map((p) => p.rel));
+    for (const p of planned) {
+      if (held.has(p.rel)) {
+        result.conflicts.push({ type: p.item.type, fullName: p.item.fullName, path: p.rel });
+        continue;
+      }
+      fs.mkdirSync(path.dirname(p.to), { recursive: true });
+      fs.writeFileSync(p.to, p.next);
+      result.hashes[p.rel] = hashText(p.next);
+      result.files.push({
+        type: p.item.type,
+        fullName: p.item.fullName,
+        path: p.rel,
+        status: p.status,
+      });
     }
     if (result.files.length > 0) {
       const manifest = path.join(folder, PACKAGE_XML_PATH);

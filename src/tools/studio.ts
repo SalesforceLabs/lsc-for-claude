@@ -2384,9 +2384,11 @@ function registerSyncHealthTools(server: McpServer) {
 
   server.tool(
     "studio_export_source",
-    "LSC Studio (GUI data): save the org's current version of applied Studio changes (or named metadata items) as sfdx source files in a local folder (force-app/main/default, or the project's default package), plus manifest/studio-package.xml. Read-only against the org — it only retrieves. Returns JSON { folder, packageDir, manifest, files, toRemove, orgOnly (changes with no source file, with why), missing, notes }.",
+    "LSC Studio (GUI data): save the org's current version of applied Studio changes (or named metadata items) as sfdx source files in a local folder (force-app/main/default, or the project's default package), plus manifest/studio-package.xml. Read-only against the org — it only retrieves. A file already in the folder that differs is replaced only when Git has it committed and unedited, its hash is in `known` (what Studio last wrote) or its path is in `replace`; otherwise it's left alone and listed in `conflicts`. Returns JSON { folder, packageDir, manifest, files, toRemove, orgOnly (changes with no source file, with why), missing, notes, conflicts, hashes (of the files written) }.",
     {
       folder: z.string().min(1).max(1024),
+      known: z.record(z.string().max(1024), z.string().max(64)).optional(),
+      replace: z.array(z.string().max(1024)).max(400).optional(),
       changes: z.array(fixSchema).max(200).optional(),
       items: z
         .array(
@@ -2398,7 +2400,7 @@ function registerSyncHealthTools(server: McpServer) {
         .max(200)
         .optional(),
     },
-    async ({ folder, changes, items }) => {
+    async ({ folder, changes, items, known, replace }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
@@ -2410,6 +2412,8 @@ function registerSyncHealthTools(server: McpServer) {
               folder,
               changes: changes as StudioFix[] | undefined,
               items: items as Parameters<typeof exportSource>[0]["items"],
+              known,
+              replace,
             },
             connection.targetOrg
           )

@@ -12,6 +12,7 @@ import CodePane from "./CodePane";
 import Conversation from "./Conversation";
 import DeployDialog from "./DeployDialog";
 import PreviewPane from "./PreviewPane";
+import ProjectSaveControl from "./ProjectSaveControl";
 import RunAsControl, { resolveRunAs } from "./RunAs";
 import { useMobileLogins } from "../../../hooks/useMobileLogins";
 import type { AppProjectsStore } from "./useAppProjects";
@@ -150,6 +151,7 @@ export default function AppWorkspace({ store, project, onBack, onAddToIpad }: Ap
                   )}
                 </div>
               )}
+              <ProjectSaveControl project={project} />
               <button
                 type="button"
                 className={`studio-btn sm${deployedNow ? "" : " primary"}`}

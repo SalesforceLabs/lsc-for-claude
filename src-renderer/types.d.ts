@@ -416,18 +416,31 @@ interface LscApi {
   perfOpenFile(): Promise<{ canceled: boolean; text?: string }>;
 
   // Source control — per org (the selected one): deployed from Git, and saving Studio's changes as source files
-  sourceControlGet(): Promise<{ org: string | null; deployed: boolean; folder?: string }>;
+  sourceControlGet(): Promise<{
+    org: string | null;
+    deployed: boolean;
+    folder?: string;
+    branch?: string | null;
+  }>;
   sourceControlSet(deployed: boolean): Promise<{ ok: boolean; error?: string }>;
+  /** Pick the org's sfdx project folder (it must have sfdx-project.json). */
+  sourceControlChooseFolder(): Promise<{
+    folder?: string;
+    branch?: string | null;
+    canceled?: boolean;
+    error?: string;
+  }>;
   /** The selected org's Salesforce API version: in use, pinned (null = the org's own), the org's own, and those it serves. */
   apiVersionGet(): Promise<{ org: string | null; data?: ApiVersionInfo; error?: string }>;
   /** Pin a version for the selected org (null: back to the org's own). */
   apiVersionSet(
     version: string | null
   ): Promise<{ org: string | null; data?: ApiVersionInfo; error?: string }>;
-  /** Asks for the project folder (opening on the org's last one), then writes the changes' org versions there. */
+  /** Writes the changes' org versions into the org's project folder (asking for one if none is set). `replace` lists files to overwrite despite edits. */
   studioExportSource(
     changes: unknown[],
-    items?: { type: string; fullName: string }[]
+    items?: { type: string; fullName: string }[],
+    opts?: { replace?: string[] }
   ): Promise<{ canceled?: boolean; data?: SourceExportResult; error?: string }>;
   perfSaveFile(
     defaultName: string,

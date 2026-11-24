@@ -27,6 +27,17 @@ import {
   sourcePathFor,
 } from "../../../src/studio/source-export.js";
 import { sourceControlFor, withSourceControl } from "../../../src-electron/source-control.js";
+import { hashText } from "../../../src/studio/git-clean.js";
+import { execFileSync } from "node:child_process";
+
+const git = (cwd: string, ...args: string[]): boolean => {
+  try {
+    execFileSync("git", args, { cwd, stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+};
 import { orgOnlyReason as rendererOrgOnlyReason, savedSummary, sourceDocs } from "../../../src-renderer/components/studio/source-control.js";
 import type { StudioFix } from "../../../src/studio/types.js";
 
@@ -138,6 +149,13 @@ describe("renderer copy", () => {
 
   it("savedSummary shortens the home folder", () => {
     expect(savedSummary({ folder: "/Users/sam/proj", files: [{}, {}] } as never)).toBe("Saved 2 files to ~/proj");
+  });
+
+  it("savedSummary counts files held back as edited", () => {
+    expect(savedSummary({ folder: "/Users/sam/proj", files: [{}], conflicts: [{}, {}] } as never)).toBe(
+      "Saved 1 file to ~/proj, 2 changed there"
+    );
+    expect(savedSummary({ folder: "/Users/sam/proj", files: [], conflicts: [{}] } as never)).toBe("1 file changed in ~/proj");
   });
 });
 
@@ -403,6 +421,64 @@ describe("exportSource", () => {
     expect(retrieveMetadata).not.toHaveBeenCalled();
     expect(result.manifest).toBeNull();
     expect(result.orgOnly).toHaveLength(1);
+  });
+
+  describe("files already in the project", () => {
+    const LAYOUT = "force-app/main/default/layouts/Visit-Visit Layout.layout-meta.xml";
+    const run = (opts: { known?: Record<string, string>; replace?: string[] } = {}) => {
+      write("layouts/Visit-Visit Layout.layout-meta.xml", "<Layout>org</Layout>");
+      retrieveMetadata.mockResolvedValue({ success: true, data: { outputDir: out } });
+      return exportSource({ folder: project, items: [{ type: "Layout", fullName: "Visit-Visit Layout" }], ...opts }, "org");
+    };
+    const put = (text: string) => {
+      fs.mkdirSync(path.dirname(path.join(project, LAYOUT)), { recursive: true });
+      fs.writeFileSync(path.join(project, LAYOUT), text);
+    };
+    const onDisk = () => fs.readFileSync(path.join(project, LAYOUT), "utf-8");
+
+    it("keeps an edited file Studio didn't write, and writes no manifest when nothing was written", async () => {
+      put("<Layout>mine</Layout>");
+      const result = await run();
+      expect(result.conflicts).toEqual([{ type: "Layout", fullName: "Visit-Visit Layout", path: LAYOUT }]);
+      expect(result.files).toEqual([]);
+      expect(result.manifest).toBeNull();
+      expect(onDisk()).toBe("<Layout>mine</Layout>");
+    });
+
+    it("replaces a file that is what Studio last wrote, and returns the new hash", async () => {
+      put("<Layout>before</Layout>");
+      const result = await run({ known: { [LAYOUT]: hashText("<Layout>before</Layout>") } });
+      expect(result.conflicts).toEqual([]);
+      expect(onDisk()).toBe("<Layout>org</Layout>");
+      expect(result.hashes).toEqual({ [LAYOUT]: hashText("<Layout>org</Layout>") });
+    });
+
+    it("replaces an edited file the user chose to replace", async () => {
+      put("<Layout>mine</Layout>");
+      const result = await run({ replace: [LAYOUT] });
+      expect(result.conflicts).toEqual([]);
+      expect(onDisk()).toBe("<Layout>org</Layout>");
+    });
+
+    it("replaces a file Git has committed and unedited, but not once it's edited", async () => {
+      if (!git(project, "init", "-q")) return; // no git on this machine
+      put("<Layout>committed</Layout>");
+      git(project, "add", ".");
+      git(project, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "x");
+      expect((await run()).conflicts).toEqual([]);
+      expect(onDisk()).toBe("<Layout>org</Layout>");
+
+      put("<Layout>edited</Layout>");
+      write("layouts/Visit-Visit Layout.layout-meta.xml", "<Layout>org 2</Layout>");
+      const again = await exportSource({ folder: project, items: [{ type: "Layout", fullName: "Visit-Visit Layout" }] }, "org");
+      expect(again.conflicts.map((c) => c.path)).toEqual([LAYOUT]);
+      expect(onDisk()).toBe("<Layout>edited</Layout>");
+    });
+  });
+
+  it("knows where quick actions and tabs go", () => {
+    expect(sourcePathFor({ type: "QuickAction", fullName: "Account.lscMobileQuickAction_x" })).toBe("quickActions/Account.lscMobileQuickAction_x.quickAction-meta.xml");
+    expect(sourcePathFor({ type: "CustomTab", fullName: "lscMobileInline_x" })).toBe("tabs/lscMobileInline_x.tab-meta.xml");
   });
 
   it("refuses a relative or missing folder", async () => {

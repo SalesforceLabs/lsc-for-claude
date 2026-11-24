@@ -4,6 +4,7 @@ import type { McpClient } from "../mcp/client.js";
 import { AppBuilder, parseStudioResult, type StudioCall } from "../engine/app-builder.js";
 import { sqliteAppStore, type AppStore } from "../engine/app-store.js";
 import type { AppBuilderEvent, AppDeployPlan, AppDeployResult, AppObjectInfo, AppProject, AppRunAs, AppStarter, AppTabSettings, AppTarget, OrgApp } from "../engine/app-types.js";
+import type { SourceHashStore } from "../source-files.js";
 import { INVALIDATED_BY_APP_DEPLOY } from "../engine/studio-invalidation.js";
 
 export interface AppBuilderDeps {
@@ -16,6 +17,9 @@ export interface AppBuilderDeps {
   selectedOrg: () => Promise<{ username: string; target: string } | null>;
   /** Drop the selected org's cached Studio results after a deploy. */
   invalidate: (tools: string[]) => void;
+  /** The org's sfdx project when it's deployed from source control. */
+  projectFolder?: (org: string) => string | undefined;
+  hashes?: SourceHashStore;
   /** A test user's credentials by login id (main process only). */
   mobileLogin?: (loginId: string) => Promise<Record<string, unknown>>;
   store?: AppStore;
@@ -38,7 +42,7 @@ export function createAppBuilder(deps: AppBuilderDeps): { builder: AppBuilder; c
   const store = deps.store ?? sqliteAppStore;
   // Builds still "running" belong to a previous run of the app.
   store.recoverInterrupted();
-  const builder = new AppBuilder({ llm: deps.llm, model: deps.model, call, store, emit: send, mobileLogin: deps.mobileLogin });
+  const builder = new AppBuilder({ llm: deps.llm, model: deps.model, call, store, emit: send, mobileLogin: deps.mobileLogin, projectFolder: deps.projectFolder, hashes: deps.hashes });
   return { builder, call };
 }
 
@@ -65,6 +69,8 @@ export function registerAppBuilderHandlers(deps: AppBuilderDeps): void {
   ipcMain.handle("appBuilder:rename", (_e, id: string, label: string) => builder.rename(id, label));
   ipcMain.handle("appBuilder:restore", (_e, id: string, versionId: string) => builder.restore(id, versionId));
   ipcMain.handle("appBuilder:editFile", (_e, id: string, path: string, source: string) => builder.editFile(id, path, source));
+  ipcMain.handle("appBuilder:saveToProject", (_e, id: string, replace?: boolean) => builder.saveToProject(id, replace === true));
+  ipcMain.handle("appBuilder:keepProjectFiles", (_e, id: string) => builder.keepProjectFiles(id));
   ipcMain.handle("appBuilder:preview", (_e, id: string, versionId?: string) => builder.preview(id, versionId));
   ipcMain.handle("appBuilder:import", async (_e, name: string) => {
     const o = await org();

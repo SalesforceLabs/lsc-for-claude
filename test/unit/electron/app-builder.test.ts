@@ -2,6 +2,10 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { AppBuilder, followWrite, parseAppPath, pickBuilderModel, nameFromLabel, helperName, renameBundle, strongestModel, uniqueName } from "../../../src-electron/engine/app-builder.js";
 import { memoryAppStore, INTERRUPTED_MESSAGE } from "../../../src-electron/engine/app-store.js";
+import { memoryHashStore } from "../../../src-electron/source-files.js";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import type { LLMProvider, Message, StreamChunk } from "../../../src-electron/llm/provider.js";
 import type { AppBuilderEvent, AppCheckResult, AppProject } from "../../../src-electron/engine/app-types.js";
 
@@ -48,7 +52,7 @@ const badCheck: AppCheckResult = {
   placeholders: [],
 };
 
-function setup(script: Step[], checks: AppCheckResult | AppCheckResult[] | ((n: number) => AppCheckResult), opts: { apps?: string[]; mobileLogin?: (id: string) => Promise<Record<string, unknown>>; starter?: unknown } = {}) {
+function setup(script: Step[], checks: AppCheckResult | AppCheckResult[] | ((n: number) => AppCheckResult), opts: { apps?: string[]; mobileLogin?: (id: string) => Promise<Record<string, unknown>>; starter?: unknown; projectFolder?: string } = {}) {
   const store = memoryAppStore();
   const events: Array<{ projectId: string; event: AppBuilderEvent }> = [];
   const toolCalls: Array<{ tool: string; args: Record<string, unknown> }> = [];
@@ -58,6 +62,8 @@ function setup(script: Step[], checks: AppCheckResult | AppCheckResult[] | ((n: 
     llm: () => llm,
     model: () => "claude-opus-5-5",
     mobileLogin: opts.mobileLogin,
+    projectFolder: opts.projectFolder ? () => opts.projectFolder : undefined,
+    hashes: memoryHashStore(),
     store,
     emit: (projectId, event) => events.push({ projectId, event }),
     call: async (tool, args) => {
@@ -460,6 +466,45 @@ const starter = {
   ],
   starter: { id: "hcp-engagement", label: "HCP engagement", description: "Visits and inquiries.", repo: "afls-ideas/x", sha: "a".repeat(40), url: "https://github.com/afls-ideas/x/tree/aaa", name: SN, target: "record", objects: ["Visit"], tryNext: ["Add a chart"] },
 };
+
+describe("saving into the org's sfdx project", () => {
+  it("writes each new current version into the project's default package", async () => {
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), "app-builder-proj-"));
+    try {
+      fs.writeFileSync(path.join(folder, "sfdx-project.json"), JSON.stringify({ packageDirectories: [{ path: "force-app", default: true }] }));
+      const { builder, events } = setup([{ tools: [write("Todo")] }, { text: "ok" }], okCheck, { projectFolder: folder });
+      const { project } = await builder.create("o", { prompt: "x", target: "home" });
+      let done = await finished(builder, project!.id);
+      for (let i = 0; i < 200 && !done.folder?.savedVersionId; i++) {
+        await new Promise((r) => setTimeout(r, 5));
+        done = builder.get(project!.id)!;
+      }
+      expect(done.folder).toMatchObject({ path: folder, savedVersionId: done.currentVersionId });
+      const js = path.join(folder, "force-app/main/default/lwc", done.name, `${done.name}.js`);
+      expect(fs.readFileSync(js, "utf-8")).toBe("js");
+
+      fs.writeFileSync(js, "// edited by hand");
+      const held = await builder.saveToProject(project!.id);
+      expect(held.project?.folder?.conflict?.files).toEqual([`force-app/main/default/lwc/${done.name}/${done.name}.js`]);
+      events.length = 0;
+      builder.keepProjectFiles(project!.id);
+      expect(builder.get(project!.id)?.folder?.conflict).toBeUndefined();
+      // The window hears about it, so the header stops showing the conflict.
+      expect(events.some((e) => e.event.type === "project" && !("conflict" in ((e.event as { project: AppProject }).project.folder ?? {})))).toBe(true);
+      expect((await builder.saveToProject(project!.id, true)).project?.folder?.conflict).toBeUndefined();
+      expect(fs.readFileSync(js, "utf-8")).toBe("js");
+    } finally {
+      fs.rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("saves nothing without a project folder", async () => {
+    const { builder } = setup([{ tools: [write("Todo")] }, { text: "ok" }], okCheck);
+    const { project } = await builder.create("o", { prompt: "x", target: "home" });
+    expect((await finished(builder, project!.id)).folder).toBeUndefined();
+    expect((await builder.saveToProject(project!.id)).error).toMatch(/source control/);
+  });
+});
 
 describe("starter apps", () => {
   it("renames a bundle in its paths and in every file that names it, and nothing else", () => {
