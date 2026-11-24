@@ -79,6 +79,18 @@ await size(1440, 900);
 await page.waitForTimeout(5000);
 
 if (mode === "tour") {
+  // The first-run tour opens over the app until it's been seen: shoot each step, then close it
+  // (which marks it seen in that user-data folder's settings.json).
+  if (await page.locator(".onboarding").count()) {
+    const steps = await page.locator(".onboarding-step").count();
+    for (let i = 0; i < steps; i++) {
+      await page.locator(".onboarding-step").nth(i).click();
+      await page.waitForTimeout(400);
+      await shot(`00-onboarding-${i + 1}`);
+    }
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
+  }
   await step("01-chat-home", async () => {});
   await step("02-library", () => nav(".sidebar-nav-item", "Library"));
   await step("03-commands", () => nav(".sidebar-nav-item", "Commands"));

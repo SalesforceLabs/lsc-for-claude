@@ -12,6 +12,8 @@ import { type LlmConnection, type LlmConnectionKind } from "./connection";
 import { modelOptionsFor } from "./models";
 import StudioView from "./components/studio/StudioView";
 import StatusBar from "./components/StatusBar";
+import OnboardingTour from "./components/OnboardingTour";
+import { HEALTH_CHECK_PROMPT, ONBOARDING_VERSION, shouldShowOnboarding } from "./onboarding";
 import { useOrgs, useSelectedOrgId } from "./hooks/useOrgs";
 import { useSidebarLayout } from "./hooks/useSidebarLayout";
 import { StudioTrayProvider } from "./hooks/useStudioTray";
@@ -54,11 +56,15 @@ function AppShell() {
   >([]);
   const [defaultModel, setDefaultModel] = useState<string | undefined>();
   const sidebar = useSidebarLayout();
+  // The first-run tour: opens on its own once connected until this version is seen, and from Help any time.
+  const [tourDue, setTourDue] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
 
   useEffect(() => {
     window.lscApi?.listCommands().then(setCommands).catch(() => {});
     window.lscApi?.getSettings().then((s) => {
       if (s.model) setDefaultModel(s.model);
+      setTourDue(shouldShowOnboarding(s.onboardingSeen));
     }).catch(() => {});
   }, []);
 
@@ -94,6 +100,27 @@ function AppShell() {
     setDetected(found);
     setSavedConnection(settings.connection);
     setChangingConnection(true);
+  }, []);
+
+  // Shown after the first connection, not over the setup screen.
+  useEffect(() => {
+    if (tourDue && engine.connected && !changingConnection) {
+      setTourDue(false);
+      setTourOpen(true);
+    }
+  }, [tourDue, engine.connected, changingConnection]);
+
+  const closeTour = useCallback(async () => {
+    setTourOpen(false);
+    try {
+      // settings:save replaces the whole file, so merge into the current settings.
+      const saved = await window.lscApi.getSettings();
+      if (saved.onboardingSeen !== ONBOARDING_VERSION) {
+        await window.lscApi.saveSettings({ ...saved, onboardingSeen: ONBOARDING_VERSION });
+      }
+    } catch {
+      // Not saved: the tour opens again next launch, which is harmless.
+    }
   }, []);
 
   const modelOptions = useMemo(
@@ -361,7 +388,42 @@ function AppShell() {
         />
       )}
       </div>
-      <StatusBar toolCount={engine.toolCount} onSettingsClick={() => setShowSettings(true)} />
+      {tourOpen && (
+        <OnboardingTour
+          onClose={closeTour}
+          onHealthCheck={() => {
+            void closeTour();
+            setStudioOpen(false);
+            setLibraryPanelOpen(false);
+            chat.clear();
+            void chat.sendMessage(HEALTH_CHECK_PROMPT, defaultModel);
+          }}
+          onOpenStudio={(request) => {
+            void closeTour();
+            openStudio(request);
+          }}
+          onNewChat={() => {
+            void closeTour();
+            setStudioOpen(false);
+            setLibraryPanelOpen(false);
+            chat.clear();
+          }}
+        />
+      )}
+      <StatusBar
+        toolCount={engine.toolCount}
+        onSettingsClick={() => setShowSettings(true)}
+        onTakeTour={() => {
+          setShowSettings(false);
+          setTourOpen(true);
+        }}
+        onGettingStarted={() => {
+          chat.clear();
+          setStudioOpen(false);
+          setLibraryPanelOpen(false);
+          setPrefillInput("/lsc:getting-started ");
+        }}
+      />
     </div>
   );
 }

@@ -274,6 +274,13 @@ body {
   background: color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
+/* Help sits beside Settings at the left end, so its list opens up and to the right. */
+.status-bar-help .ui-menu-list {
+  right: auto;
+  left: 0;
+  min-width: 200px;
+}
+
 /* The API version menu sits at the right end; its list opens upward and scrolls (orgs serve dozens of versions). */
 .status-bar-api {
   margin-left: auto;

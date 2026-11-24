@@ -118,6 +118,7 @@ interface LscApi {
     sfTargetOrg?: string;
     mobileClientId?: string;
     appIcon?: string;
+    onboardingSeen?: number;
   }>;
   saveSettings(settings: Record<string, unknown>): Promise<{ ok: boolean }>;
   /** Shows an appearance without saving it (Settings' live preview). */
