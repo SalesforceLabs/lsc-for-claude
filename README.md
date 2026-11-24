@@ -5,96 +5,164 @@
 [![Build Desktop App](https://github.com/SalesforceLabs/lsc-for-claude/actions/workflows/build-app.yml/badge.svg)](https://github.com/SalesforceLabs/lsc-for-claude/actions/workflows/build-app.yml)
 [![Release](https://github.com/SalesforceLabs/lsc-for-claude/actions/workflows/release.yml/badge.svg)](https://github.com/SalesforceLabs/lsc-for-claude/actions/workflows/release.yml)
 
-A [Claude Code](https://claude.ai/code) plugin that brings expert LSC knowledge, Salesforce org tools, and implementation guidance directly into your terminal. The MCP server also works on its own with other AI coding tools such as OpenAI Codex and Cursor; see [Use with Codex and other MCP clients](#use-with-codex-and-other-mcp-clients).
+LSC knowledge, Salesforce org tools and implementation guidance for Life Sciences Cloud for Customer Engagement (LSC4CE), for consultants, admins and developers.
+
+## Two ways to use it
+
+This repo ships one knowledge base and one set of org tools, packaged two ways. Use whichever fits how you work, or both.
+
+| | **Claude Code plugin + MCP server** (terminal) | **Roz for LSC** (desktop app) |
+|---|---|---|
+| What it is | A [Claude Code](https://claude.ai/code) plugin: `/lsc:` commands, auto-invoked skills, agents and the `lsc` MCP server. The MCP server also works in Codex, Cursor and other MCP clients. | A Mac app (Electron) with chat plus **Studio**, a visual workspace for an LSC org: readiness checks, an iPad preview, builders and sync testing. |
+| Best for | People who already live in Claude Code or another AI coding tool, scripting, working beside a source project | Admins and consultants who want a dedicated window, a picture of what reps see on the iPad, and reviewed changes |
+| Model | Whatever your Claude Code (or other client) uses | Your choice: Salesforce's AI Model Gateway through Claude Code's settings, an Anthropic key, a company gateway, OpenAI, or an OpenAI-compatible endpoint |
+| Writes to the org | The tools run when the model calls them (Claude Code asks for permission as usual) | Every write is reviewed: queued in Studio's tray or approved with **Allow** / **Deny** in chat |
+| Install | `/plugin marketplace add SalesforceLabs/lsc-for-claude` | Download the `.dmg` from [Releases](https://github.com/SalesforceLabs/lsc-for-claude/releases); it updates itself |
+
+Both talk to your org through the [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) (`sf`) and your existing `sf org login`. Neither needs anything installed in the org.
 
 <p align="center">
   <img src="docs/media/export-config-demo.gif" alt="Exporting LSC DB Schema configuration from the terminal and generating a browsable HTML report" width="820">
 </p>
 
-<p align="center"><sub><code>/lsc:export-config</code> — snapshot org configuration and generate a browsable HTML report in one step</sub></p>
+<p align="center"><sub><code>/lsc:export-config</code> in Claude Code: snapshot org configuration and generate a browsable HTML report</sub></p>
 
-## What It Does
+## What it can do
 
-This plugin gives Claude deep expertise in Salesforce LSC for Customer Engagement (LSC4CE), enabling it to:
+In both the plugin and the app:
 
-- **Guide implementations** across 29 LSC modules with best practices, correct object names, and source citations
-- **Run interactive configuration wizards** for visits, samples, accounts, activity plans, territory alignment, users, home page, and quick actions
-- **Inspect and manage** your Salesforce LSC org directly — SOQL, CRUD, Tooling API, metadata deploy/retrieve, anonymous Apex
-- **Configure Admin Console settings** programmatically — Application Settings, DB Schema, trigger handlers, Quick/Custom Actions, navigation tabs, and more
-- **Audit configurations** with 151 validation rules across 19 rule files to catch misconfigurations before they cause issues
-- **Troubleshoot issues** using LSC-specific knowledge and automated diagnostics
-- **Validate mobile configurations** before deployment — metadata cache, sync settings, DB Schema records
-- **Generate mobile metadata cache** programmatically via the Connect API
-- **Explain LSC concepts** like ARC, Sample Limits, NBC/NBA/NBM, DCR, Agentforce, and more — with source citations linking to documentation files and Salesforce help URLs
-- **Compare orgs** side-by-side to identify configuration drift between environments
-- **Export/import configurations** as JSON for org-to-org migration
-- **Manage users** — permission sets, PSLs, profiles, role hierarchy, and license capacity
+- **Answer LSC questions** across 40+ modules with correct object names and citations to the source docs, plus live search of official Salesforce Help
+- **Work with your org**: SOQL, describe, CRUD, Tooling API, metadata deploy/retrieve, anonymous Apex, bulk loads
+- **Configure the Admin Console**: Application Settings, DB Schema, trigger handlers, Quick and Custom Actions, navigation tabs
+- **Check configuration**: per-module config checks, a health check, and an audit of about 160 validation rules
+- **Diagnose errors**: paste an error or describe a symptom and it's matched against 143 known causes from real misconfiguration cases, then checked in your org
+- **Check a rep**: why a given user can't see or do something, traced through license, permissions, territory, sync and metadata cache
+- **Mobile**: validate sync settings, generate the mobile metadata cache, predict a rep's sync volume, simulate a first sync, assess performance against NFR targets
+- **Intelligent Content**: upload presentations (PPTX, PDF, HTML ZIP), distribute them to territories, tag topics and products
+- **Move configuration**: export, diff two orgs, and import selectively (create and update only, never delete)
 
-## Quick Start
+Only in the desktop app, through **Studio**:
+
+- **Setup**: an org overview with go-live readiness per feature and per profile, a board of every configuration surface for each feature, and **What changed** (snapshots and recent changes)
+- **iPad**: a preview of what a profile's reps have on their iPads now (read from the published metadata cache), what they'll get after the next publish, and the two side by side. Layouts, record headers, Lightning pages, list views and the tab bar can be edited right in the preview
+- **Build**: a custom script editor with a test runner, an LSC app builder (describe an iPad app, Roz writes the LWC and runs it live before deploy), and Intelligent Content presentations, including draft pages
+- **Testing**: org-wide sync health from device telemetry, test plans against NFR targets with a sign-off report, first-sync simulation as a real test user, and test-user logins
+- **Release bar**: every change shows where it is: **Your changes** (queued), **In the org**, or **On iPads** (published). Changes are previewed before apply, can be undone, and can be saved as sfdx source files
+
+---
+
+## Roz for LSC (desktop app)
+
+### Install
+
+Download `Roz-for-LSC-<version>-arm64.dmg` from the latest [Release](https://github.com/SalesforceLabs/lsc-for-claude/releases), open it and drag **Roz for LSC** to Applications. Release builds are signed and notarized, so they open with no prompt.
+
+The app updates itself from GitHub Releases: it checks after launch and every 4 hours, downloads in the background, and installs when you quit. When an update is ready the status bar shows **Restart to update**. Settings → **Updates** shows the version and has **Check for updates**. An app run straight from the disk image doesn't update, so copy it to Applications first.
+
+Prebuilt installers are for Apple silicon Macs only. On an Intel Mac, Windows or Linux, [build it from source](#build-the-app-from-source).
+
+### Connect to a model
+
+On first launch the app asks how to reach a model. Each option is tested (list models plus one small message) before it's saved:
+
+| Connection | Use it when |
+|---|---|
+| **Salesforce AI Model Gateway (Claude Code settings)** | You're a Salesforce employee with Claude Code set up for the gateway. The app reads the token helper and headers from `~/.claude/settings.json` when it connects. |
+| **Anthropic API key** | You have a personal key from [console.anthropic.com](https://console.anthropic.com/settings/keys) |
+| **Claude through a company gateway** | Your company serves `/v1/messages` at its own URL |
+| **OpenAI API key** | You use OpenAI directly |
+| **OpenAI-compatible endpoint** | Azure OpenAI, LiteLLM, Ollama, or a gateway serving `/chat/completions` |
+
+OpenAI-style connections are best effort; the prompts were written and tested with Claude. Keys and tokens are kept in the macOS keychain, never in the settings file, and only sent over https (http is allowed for localhost). If nothing is saved, the app tries Claude Code's gateway settings, then `ANTHROPIC_API_KEY`.
+
+### Connect an org
+
+The app uses your Salesforce CLI logins. A first-run tour walks you through it: install the `sf` CLI if it's missing, log in (`sf org login web`, or **Log in to production…** / **Log in to a sandbox…** in the app), and pick an org. The tour can be reopened from the status bar's **Help** menu.
+
+The selected org is your workspace: Studio, sessions and the Library follow it. Each chat session stays bound to the org it was started in, so you can keep a session running against one org while working in another. The org switcher lists connections where you hold the LSC admin permission set; others are folded under "Other connections". Production orgs are marked, and Roz confirms before writing to one.
+
+### Reviewed writes
+
+Chat never writes to the org unreviewed. When Studio can express a change itself (Admin Console fields, DB Schema, trigger handlers, permission sets), it's queued in Studio's tray, where you preview it, apply it and can undo it. Anything else asks for **Allow** or **Deny** in the chat before it runs.
+
+### Build the app from source
+
+You need Node.js 18+ and npm. From Claude Code with the plugin loaded:
+
+```
+/lsc:launch-app
+```
+
+or from a clone of this repo:
+
+```bash
+bash scripts/launch-electron-app.sh   # builds what's missing, then opens the app
+npm run electron:dev                  # development, with reload on save
+```
+
+The first run installs dependencies, builds the MCP server and the Electron bundles and rebuilds the SQLite native module; later runs just relaunch. `electron:dev` reloads the renderer with Vite HMR, respawns the MCP server when `src/` changes, and restarts the app when the main process changes. `npm run electron:pack` produces installers for the platform you're on.
+
+Builds from the **Build Desktop App** workflow (Actions → run → Artifacts) are unsigned, so macOS blocks them on first open. Right-click the app and choose **Open**, or run `xattr -dr com.apple.quarantine "/Applications/Roz for LSC.app"`. Unsigned builds don't update themselves.
+
+### Troubleshooting the app
+
+- **Window never appears, or a native module error:** the build log is at `$TMPDIR/lsc-assistant.log`. The usual fix is `npx @electron/rebuild -f -w better-sqlite3`.
+- **Rebuild everything:** `LSC_FORCE_BUILD=1 bash scripts/launch-electron-app.sh`.
+- **No orgs listed:** run `sf org list` in a terminal. If that fails, the app can't see the CLI either.
+
+---
+
+## Claude Code plugin (CLI and MCP server)
 
 ### Prerequisites
 
 - [Claude Code](https://claude.ai/code) 1.0.33+
 - Node.js 18+
-- A Salesforce org with LSC (optional, for org tools)
+- The Salesforce CLI and an LSC org, for the org tools (the plugin offers to install the CLI)
 
-### Installation
+### Install
 
-**Option 1: Plugin Marketplace (Recommended)**
+**From the marketplace (recommended).** In Claude Code:
 
-In Claude Code, run:
 ```
 /plugin marketplace add SalesforceLabs/lsc-for-claude
 /plugin install lsc@lsc
 ```
 
-This installs the plugin directly — no `npm install` or build step needed. The bundled MCP server ships in `mcp-server/index.mjs`.
+No `npm install` or build step: the MCP server ships prebuilt in `mcp-server/index.mjs`.
 
-**Option 2: Local Development (Recommended)**
+**From a clone (for development):**
 
 ```bash
 git clone https://github.com/SalesforceLabs/lsc-for-claude.git
 cd lsc-for-claude
 npm install
 npm run build
-claude --plugin-dir ./lsc-for-claude
+claude --plugin-dir .
 ```
 
-### First-Time Setup
-
-Run `/lsc:setup-plugin` to check your environment and connect to a Salesforce org:
+### First-time setup
 
 ```
 /lsc:setup-plugin
 ```
 
-The plugin will guide you through:
-1. Installing Salesforce CLI (if needed)
-2. Authenticating to your LSC org
-3. Selecting a target org for queries
+It checks for the Salesforce CLI (and offers to install it), checks your logins (`sf org login web --alias my-lsc-org` if you have none), and picks the org. With one org logged in it's used automatically; with several, Claude asks once. `/lsc:getting-started` gives a guided tour of what you can do.
 
-### Bundled MCP Servers
+### MCP servers
 
-The plugin ships two MCP servers, both declared in [`.mcp.json`](.mcp.json):
+The plugin declares two MCP servers in [`.mcp.json`](.mcp.json):
 
 | Server | Transport | Purpose |
 |--------|-----------|---------|
-| `lsc` | local (`node dist/index.js`) | The plugin's own 60+ tools — knowledge base, org/Tooling operations, config import/export |
-| `salesforce-docs` | remote (HTTP) | Live official Salesforce Help documentation search, used by the `lsc-docs-researcher` agent |
+| `lsc` | local (`node mcp-server/index.mjs`) | The plugin's own tools: knowledge base, org and Tooling operations, config checks, audit and diagnosis, performance, config import/export |
+| `salesforce-docs` | remote (HTTP) | Live search of official Salesforce Help, used by the `lsc-docs-researcher` agent |
 
-**Enabling the remote docs server:** Because `salesforce-docs` is declared in a project-scoped `.mcp.json`, Claude Code asks you to **approve** it the first time you open the project. If you dismissed that prompt (or started the session before the entry existed), the server stays disabled and the `lsc-docs-researcher` agent will fail to spawn with a "zero tools" error.
+Claude Code asks you to approve `salesforce-docs` the first time. If you dismissed that prompt, the `lsc-docs-researcher` agent fails with a "zero tools" error. Run `/mcp`, enable or reconnect `salesforce-docs`, and restart the session if needed. It needs no key; if it still won't connect, check that `https://salesforce-docs-76258744c9d7.herokuapp.com/api/mcp` is reachable from your network.
 
-To check status or enable it, run:
+### Use the MCP server with Codex and other clients
 
-```
-/mcp
-```
-
-Select `salesforce-docs` and enable/reconnect it, then restart the session if needed. The server requires no API keys or authentication — if it still won't connect, confirm you're on Claude Code 1.0.33+ (remote MCP support) and that `https://salesforce-docs-76258744c9d7.herokuapp.com/api/mcp` is reachable from your network.
-
-### Use with Codex and other MCP clients
-
-The `lsc` server is a standard [MCP](https://modelcontextprotocol.io/) server over stdio, so any client that can launch a local MCP server can use its tools: OpenAI Codex CLI, Cursor, VS Code agent mode, Windsurf, Cline, Gemini CLI and others. Clone the repo (no build needed; the server is prebuilt in `mcp-server/index.mjs`), install the [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli), and log in to your org with `sf org login web`.
+The `lsc` server is a standard [MCP](https://modelcontextprotocol.io/) server over stdio, so any client that can start a local MCP server can use it: OpenAI Codex CLI, Cursor, VS Code agent mode, Windsurf, Cline, Gemini CLI and others. Clone the repo (no build needed), install the Salesforce CLI and log in with `sf org login web`.
 
 **Codex CLI:**
 
@@ -102,7 +170,7 @@ The `lsc` server is a standard [MCP](https://modelcontextprotocol.io/) server ov
 codex mcp add lsc -- node /path/to/lsc-for-claude/mcp-server/index.mjs
 ```
 
-Then raise the tool timeout in `~/.codex/config.toml`. Deploys, health checks and performance runs on a large org can take several minutes, longer than Codex's default:
+Then raise the tool timeout in `~/.codex/config.toml`. Deploys, health checks and performance runs on a large org can take several minutes:
 
 ```toml
 [mcp_servers.lsc]
@@ -111,9 +179,9 @@ args = ["/path/to/lsc-for-claude/mcp-server/index.mjs"]
 tool_timeout_sec = 600
 ```
 
-If your company manages Codex with an approved list of MCP servers, `lsc` won't load until an admin adds it to that list.
+If your company manages Codex with an approved list of MCP servers, `lsc` won't load until an admin adds it.
 
-**Other clients** take the same command and arguments in their own MCP config, for example Cursor's `.cursor/mcp.json`:
+**Other clients** take the same command and arguments, for example Cursor's `.cursor/mcp.json`:
 
 ```json
 {
@@ -126,833 +194,239 @@ If your company manages Codex with an approved list of MCP servers, `lsc` won't 
 }
 ```
 
-**What you get outside Claude Code:** every tool, plus the resources and prompts. The server sends its usage rules when the client connects (which tools to use for Admin Console and DB Schema records, correct LSC object names, how to pick an org), and clients that support MCP server instructions pass them to the model. You don't get the `/lsc:` commands, the auto-invoked skills or the agents; those are Claude Code plugin features. The tool descriptions and prompts were written and tested with Claude, so other models may need more direction.
+Outside Claude Code you get every tool, the resources and the prompts. The server sends its usage rules when the client connects (which tools to use for Admin Console and DB Schema records, correct object names, how to pick an org), and clients that support MCP server instructions pass them to the model. The `/lsc:` commands, skills and agents are Claude Code features, so you don't get those. The tools were written and tested with Claude; other models may need more direction.
 
-## Desktop App (Roz for LSC)
-
-The plugin ships an optional desktop app, **Roz for LSC** — a standalone chat UI (Electron + React) backed by the same knowledge base, skills, and Salesforce org tools as the plugin. Use it when you want a dedicated window with conversation history, a saved-answer library, and inline Mermaid/PDF rendering, outside of Claude Code.
-
-### Launch it
-
-From inside Claude Code:
-
-```
-/lsc:launch-app
-```
-
-This builds the app from source on first run (installs dependencies, compiles the MCP server + Electron bundles, rebuilds native modules) and then opens the window. It's idempotent — subsequent runs just relaunch. **Prerequisites:** Node.js 18+ and npm. No downloads or code signing are involved.
-
-You can also run it directly:
-
-```bash
-bash scripts/launch-electron-app.sh
-# or, for development with hot reload:
-npm run electron:dev
-```
-
-`electron:dev` reloads each layer on save: the renderer via Vite HMR, the MCP server (`src/` → `dist/`) by respawning it in place, and the Electron main process / preload by restarting the app.
-
-### Prebuilt downloads (macOS)
-
-CI also packages the app as a `.dmg`/`.zip` — download the installers from a
-tagged **Release**, or from the **Build Desktop App** workflow run (Actions tab →
-run → Artifacts) for any commit.
-
-Release builds are signed with a Developer ID certificate and notarized by
-Apple, so they open with no prompt. Builds from the **Build Desktop App**
-workflow are unsigned, and macOS Gatekeeper blocks them on first open. To open
-one:
-
-- **Right-click the app → Open**, then confirm (only needed the first time), or
-- strip the download-quarantine flag:
-  ```bash
-  xattr -dr com.apple.quarantine "/Applications/Roz for LSC.app"
-  ```
-
-The quarantine flag is only applied to files downloaded via a browser — an app
-built locally with `/lsc:launch-app` isn't affected.
-
-### Cutting a release
-
-```bash
-scripts/bump-version.sh 0.2.3     # bump all three manifests, commit, tag v0.2.3
-git push --follow-tags            # the Release workflow builds, signs and notarizes
-scripts/publish-release.sh v0.2.3 # then publish it (see below)
-```
-
-The SalesforceLabs org has an IP allow list that GitHub's hosted runners aren't
-on, so the workflow can't create the GitHub Release itself. It uploads the
-signed installers as a run artifact instead, and `publish-release.sh` waits for
-the run, downloads them and creates the release from your machine (you need to
-be on an allowed network, with `gh` logged in as an account that can write to
-the repo).
-
-### First-run onboarding
-
-The first time the app opens, it asks how to connect to Claude:
-
-- **Anthropic API key** — paste an `sk-ant-…` key from [console.anthropic.com](https://console.anthropic.com/settings/keys). Stored locally; only sent to Anthropic.
-- **Bedrock / custom gateway** — a base URL for any Anthropic-compatible endpoint (e.g. an Amazon Bedrock proxy or internal LLM gateway) plus an API key/token (sent as `x-api-key`).
-
-If you already have `ANTHROPIC_API_KEY`, or `ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_BEDROCK_BASE_URL`, set in your environment, the app auto-detects them and connects without prompting. You can switch providers or Salesforce orgs later from **Settings**.
-
-### Troubleshooting
-
-- **Window never appears / native module error:** the build log is at `$TMPDIR/lsc-assistant.log`. The usual fix is rebuilding the SQLite native module for Electron: `npx @electron/rebuild -f -w better-sqlite3`.
-- **Rebuild everything:** `LSC_FORCE_BUILD=1 bash scripts/launch-electron-app.sh`.
-
-## Commands
+### Commands
 
 | Command | Description |
 |---------|-------------|
 | `/lsc:setup-plugin` | Check plugin status and connect to Salesforce |
-| `/lsc:soql-query <soql>` | Run a SOQL query against your org |
-| `/lsc:describe <object>` | Describe a Salesforce object's fields |
-| `/lsc:help <topic>` | Search the LSC knowledge base by topic |
-| `/lsc:docs` | Browse and navigate LSC documentation by category |
-| `/lsc:audit [group]` | Audit configuration against validation rules |
-| `/lsc:validate-mobile` | Validate mobile app configuration |
-| `/lsc:generate-metadata-cache` | Generate mobile metadata cache |
-| `/lsc:configure-home-page` | Configure and validate home page |
+| `/lsc:getting-started` | Guided onboarding: check setup and see what you can do |
+| `/lsc:status` | Dashboard of the connected org |
+| `/lsc:open-org` | Open the org in the browser |
+| `/lsc:soql-query <soql>` | Run a SOQL query |
+| `/lsc:describe <object>` | Describe an object's fields |
+| `/lsc:help <topic>` | Search the LSC knowledge base |
+| `/lsc:docs` | Browse documentation by category |
+| `/lsc:release-notes` | LSC release notes by Salesforce release |
+| `/lsc:health-check` | Full org health check |
+| `/lsc:audit [group]` | Audit configuration against the validation rules |
+| `/lsc:validate-mobile` | Validate mobile app configuration before rollout |
+| `/lsc:generate-metadata-cache` | Generate the mobile metadata cache |
+| `/lsc:perf-assessment` | Assess mobile sync against an NFR profile (pass / warn / fail) |
+| `/lsc:configure-accounts` | Configure and check account management |
+| `/lsc:configure-activity-plan` | Configure and check activity plans |
+| `/lsc:configure-briefings` | Configure and check Briefings (Daily Podcasts) |
+| `/lsc:configure-custom-scripts` | Configure and check custom scripts |
+| `/lsc:configure-home-page` | Configure and check the home page |
 | `/lsc:configure-quick-actions` | Configure quick and custom actions |
-| `/lsc:configure-visits` | Configure and validate visit management |
-| `/lsc:configure-samples` | Configure and validate sample management |
-| `/lsc:configure-accounts` | Configure and validate account management |
-| `/lsc:configure-activity-plan` | Configure and validate activity plans |
-| `/lsc:configure-territory` | Configure and validate territory alignment |
-| `/lsc:configure-users` | Configure and validate user management |
-| `/lsc:open-org` | Open the Salesforce org in the browser |
-| `/lsc:diff-orgs` | Compare configuration between two Salesforce orgs |
-| `/lsc:health-check` | Run a comprehensive LSC org health check |
-| `/lsc:release-notes` | View LSC release notes by Salesforce release |
-| `/lsc:export-config` | Export LSC org configuration as JSON |
-| `/lsc:import-config` | Import LSC configuration from JSON export |
-| `/lsc:status` | Dashboard view of the connected LSC org |
-| `/lsc:getting-started` | Interactive onboarding and capability discovery |
-| `/lsc:launch-app` | Build and launch the Roz for LSC desktop app |
+| `/lsc:configure-samples` | Configure and check sample management |
+| `/lsc:configure-territory` | Configure and check territory alignment |
+| `/lsc:configure-users` | Configure and check user management |
+| `/lsc:configure-visits` | Configure and check visit management |
+| `/lsc:diagnose-briefings` | Find out why Briefings isn't working |
+| `/lsc:diff-orgs` | Compare configuration between two orgs |
+| `/lsc:export-config` | Export org configuration as JSON |
+| `/lsc:import-config` | Import configuration from an export (create and update only) |
+| `/lsc:launch-app` | Build (first run) and launch the Roz for LSC desktop app |
 
-## Skills (Auto-Invoked)
+### Skills
 
-Claude automatically activates the right skill based on what you're asking about. Skills are thin routing layers (60–200 lines) that direct Claude to call MCP tools for sourced documentation — they don't embed knowledge inline. There are 36 skills covering every major LSC module:
+Claude picks the right skill from what you ask. Skills are short routing guides that point Claude at the MCP tools, so answers carry citations instead of knowledge baked into the prompt. There are 38:
 
-| Skill | Description |
-|-------|-------------|
-| `lsc-implementation` | Guides module implementations with best practices |
-| `lsc-implementation-review` | Reviews a design against field-observed anti-patterns and flags known-bad decisions before go-live |
-| `lsc-troubleshoot` | Diagnoses and resolves LSC issues |
-| `lsc-mobile-validation` | Validates mobile app configuration (DB Schema, sync settings) |
-| `lsc-mobile-app-settings` | Manages mobile Application Settings (browser, password, search, notifications) |
-| `lsc-home-page-configuration` | Home page setup including Agentforce Welcome Center utterances |
-| `lsc-quick-actions-configuration` | Quick actions and custom actions for web and mobile |
-| `lsc-visit-management` | Visit management configuration and troubleshooting for web and mobile (Status editable on create, late-submit delay reason, Additional Information on Visit Engagement, iPad child records missing after sync) |
-| `lsc-sample-management` | Sample inventory and sample limits configuration |
-| `lsc-account-management` | Account management (addresses, affiliations, licenses, DCR, search) |
-| `lsc-activity-plan` | Activity plan configuration (goals, weighted plans, measures) |
-| `lsc-territory-alignment` | Territory alignment (explicit assignments, geo/affiliation rules) |
-| `lsc-key-account-management` | KAM account plans, objectives, action plans, stakeholders |
-| `lsc-lists-filters` | Account lists, dynamic filters, static lists, bulk actions |
-| `lsc-field-email` | Field email setup — templates, jobs, queue, consent integration |
-| `lsc-intelligent-content` | CLM/presentation management — upload, distribution, tracking |
-| `lsc-calendar-tot-routine` | Calendar, Time Off Territory, routines, Planner Administration |
-| `lsc-surveys` | Survey configuration, sharing, launch points, response tracking |
-| `lsc-product-management` | Product hierarchy, territory alignment, messages/objectives |
-| `lsc-app-alerts` | App alerts and notifications — creation, targeting, deep links |
-| `lsc-next-best` | NBC/NBA/NBM configuration — data model, widgets, Einstein Studio |
-| `lsc-consent-management` | Consent capture, communication subscriptions, compliance snapshots |
-| `lsc-agentforce` | Agentforce for LSC (Winter '26) — Field Sales Agent, topics, actions |
-| `lsc-db-schema` | DB Schema records (mobile object sync, SOQL filters, enable/disable) |
-| `lsc-user-management` | User provisioning, permission sets, PSLs, profiles, role hierarchy, licenses |
-| `lsc-data-model` | Expert knowledge of the LSC data model |
-| `lsc-health-check` | Guides org health assessment and configuration verification |
-| `lsc-data-migration` | Guides data loading and migration (Veeva CRM, account hierarchies) |
-| `lsc-integration-patterns` | Guides integration patterns (MDM, ERP, IQVIA, email/video providers) |
-| `lsc-reporting-analytics` | Guides CRM Analytics, reports, dashboards, and KPI configuration |
-| `salesforce-query` | Helps construct and execute SOQL queries |
+| Area | Skills |
+|------|--------|
+| Implementation | `lsc-implementation`, `lsc-implementation-review` (flags known-bad design decisions before go-live), `lsc-troubleshoot`, `lsc-health-check`, `lsc-data-model`, `salesforce-query` |
+| Accounts and territories | `lsc-account-management`, `lsc-territory-alignment`, `lsc-lists-filters`, `lsc-user-management` |
+| Field activity | `lsc-visit-management`, `lsc-sample-management`, `lsc-activity-plan`, `lsc-calendar-tot-routine`, `lsc-key-account-management`, `lsc-events-management`, `lsc-provider-engagement-compliance` |
+| Content and engagement | `lsc-intelligent-content`, `lsc-field-email`, `lsc-consent-management`, `lsc-surveys`, `lsc-product-management`, `lsc-app-alerts`, `lsc-next-best`, `lsc-briefings`, `lsc-agentforce` |
+| Mobile | `lsc-mobile-validation`, `lsc-mobile-app-settings`, `lsc-db-schema`, `lsc-home-page-configuration`, `lsc-quick-actions-configuration`, `lsc-custom-scripts`, `lsc-performance-validation` |
+| Data and integration | `lsc-data-migration`, `lsc-config-migration`, `lsc-demo-data-loading`, `lsc-integration-patterns`, `lsc-reporting-analytics` |
 
-## Example Usage
+### Agents
 
-### First-time setup
-
-```
-/lsc:setup-plugin
-```
-
-```
-Checking Salesforce CLI... ✓ sf v2.42.6
-Checking authenticated orgs... 2 orgs found
-
-Which org would you like to use?
-1. my-lsc-sandbox (sandbox) — last used 2 days ago
-2. lsc-uat (sandbox)
-
-> 1
-
-Target org set to: my-lsc-sandbox
-You're ready to use all LSC tools.
-```
+- **lsc-consultant**: senior implementation consultant for complex projects
+- **lsc-admin**: day-to-day configuration, troubleshooting and maintenance
+- **lsc-developer**: Apex, LWC, OmniStudio (web only) and integrations
+- **lsc-docs-researcher**: searches live official Salesforce Help for setup and admin steps
 
 ---
 
-### Implementation guidance
+## Examples
 
-Ask about any module in plain English — Claude activates the right skill automatically:
+These work the same in Claude Code and in the app's chat.
 
-```
-How do I set up Visit Management with product detailing and mobile signature capture?
-```
+**Ask how to set something up**
 
 ```
-Here's how to configure Visit Management end-to-end:
-
-## 1. Record Types
-Create matching record types on both Visit and ProviderVisit:
-- Visit: "Detail Visit", "Remote Visit"  ← Setup > Object Manager > Visit > Record Types
-- ProviderVisit: same names            ← Setup > Object Manager > ProviderVisit > Record Types
-
-⚠️  Record type names MUST match between Visit and ProviderVisit — mismatches
-    prevent the detailing summary from saving.
-
-## 2. Product Detailing
-In Admin Console > Visit Settings > Product Detailing:
-- Enable: Product Detailing Enabled = true
-- Set: Default Detailing Mode = "Standard"
-
-## 3. Signature Capture
-Create a ComplianceStatementDef record:
-  Module:        Visit
-  StatementType: Pre-Call
-  IsActive:      true
-  Body:          "I confirm this interaction complies with company policy."
-
-## 4. Mobile Metadata Cache
-After all settings are saved, regenerate the cache for affected profiles:
-  /lsc:generate-metadata-cache
+How do I set up Visit Management with product detailing and signature capture on the iPad?
 ```
 
----
-
-### Run a configuration wizard
+**Run a wizard**
 
 ```
 /lsc:configure-visits
 ```
 
-```
-## Visit Management Configuration Report
+It checks record types, detailing, compliance statements, trigger handlers and the mobile cache, then lists what needs attention and offers to fix it.
 
-### Overall Status: NEEDS ATTENTION
-
-### Visit Record Types
-- Visit record types: 2 (Detail Visit, Remote Visit)
-- ProviderVisit record types: 1 (Detail Visit)
-- Alignment: ⚠️  MISMATCHED — "Remote Visit" missing from ProviderVisit
-
-### Product Detailing
-- ProviderVisitProdDetailing records: 847
-- ProviderVisitProdDiscussion records: 312
-- Status: ✓ Configured
-
-### Signature Configuration
-- ComplianceStatementDefs: 0 (Visit module)
-- Status: ⚠️  NOT CONFIGURED — signature page requires at least one active statement
-
-### Mobile Metadata Cache
-- Status: ✓ Active
-- Last Updated: 2026-02-10 (12 days ago)
-- ⚠️  Cache is stale — recommend regeneration
-
-### Issues Found
-1. ProviderVisit missing "Remote Visit" record type
-2. No compliance statements defined for the Visit module
-3. Metadata cache is 12 days old
-
-### Recommendations
-1. Create "Remote Visit" record type in ProviderVisit to match Visit
-2. Create at least one ComplianceStatementDef with ModuleType = 'Visit'
-3. Regenerate mobile metadata cache after fixing above items
-
-Want me to fix any of these now? [Yes / No / Show details]
-```
-
----
-
-### Audit a specific module
+**Diagnose an error**
 
 ```
-/lsc:audit visit-config-check
+My reps see "Device sync transaction record was not found" when they sync
 ```
 
-```
-## LSC Audit: visit-config-check
-Org: my-lsc-sandbox | 14 checks
+The error is matched against the known causes, each one is checked in your org, and you get the causes found and the records to fix.
 
-SUMMARY
-  Passed:   10
-  Warnings:  2
-  Failed:    2
-
-─────────────────────────────────────────
-FAILED
-─────────────────────────────────────────
-✗  ProviderVisit record types match Visit
-   Expected: Detail Visit, Remote Visit
-   Actual:   Detail Visit only
-   Fix: Create "Remote Visit" record type in ProviderVisit
-
-✗  ComplianceStatementDef exists for Visit module
-   Expected: ≥1 active record
-   Actual: 0 records
-   Fix: Create a ComplianceStatementDef with ModuleType='Visit'
-
-─────────────────────────────────────────
-WARNINGS
-─────────────────────────────────────────
-⚠  Mobile metadata cache age
-   Last generated: 2026-02-10 (12 days ago)
-   Recommendation: Regenerate cache after config changes
-
-⚠  Visit trigger handler status
-   VisitTriggerHandler: INACTIVE
-   Recommendation: Enable in Admin Console > Trigger Handlers
-   Want me to enable it now? [Yes / No]
-
-─────────────────────────────────────────
-PASSED (10)  ✓ Visit record types exist  ✓ ProviderAcctTerritoryInfo populated ...
-```
-
----
-
-### Run a SOQL query
+**Check one rep**
 
 ```
-/lsc:soql-query SELECT Id, Name, AccountId, RecordType.Name, Status FROM Visit
-WHERE Status = 'Planned' AND CreatedDate = THIS_WEEK LIMIT 20
+Why can't Carmen Diaz see the Samples tab on her iPad?
 ```
 
-```
-Returned 20 records.
-
-ID                  | NAME             | ACCOUNT         | RECORD TYPE   | STATUS
---------------------|------------------|-----------------|---------------|--------
-0OC5g000004xyzAB   | Visit 2026-02-22 | Mercy Hospital  | Detail Visit  | Planned
-0OC5g000004xyzAC   | Visit 2026-02-21 | St. Luke's      | Remote Visit  | Planned
-...
-```
-
----
-
-### Describe an object
+**Change mobile sync**
 
 ```
-/lsc:describe ProviderVisit
+Add Product2 to mobile sync for the Medical Sales Representative profile, active products only
 ```
 
-```
-## ProviderVisit — Field Reference
+In the app this is queued in Studio's tray for review; in Claude Code it runs after you approve the tool call. Either way, publish the metadata cache afterwards so reps get it.
 
-TYPE       FIELD NAME                    LABEL                        NOTES
-─────────────────────────────────────────────────────────────────────────────
-Id         Id                            Record ID
-Lookup     VisitId                       Visit                        → Visit
-Lookup     AccountId                     Account
-Lookup     OwnerId                       Owner
-Picklist   Status                        Status                       Planned, In Progress, Complete
-Date       ActualStartTime               Actual Start Time
-Date       ActualEndTime                 Actual End Time
-Text       DetailingNotes                Detailing Notes
-Lookup     RecordTypeId                  Record Type
-...
-
-34 total fields. Use `/lsc:describe ProviderVisit --all` to include system fields.
-```
-
----
-
-### Manage Admin Console settings
+**Distribute content**
 
 ```
-Show me all mobile Application Settings
+Upload ~/Q1_CardioPresentation.pptx and distribute it to the Northeast territory and below
 ```
 
-```
-## Admin Console — Mobile Application Settings (12 settings)
+## Configuration audit
 
-SETTING                              VALUE          LAST MODIFIED
-─────────────────────────────────────────────────────────────────
-Default Browser                      In-App         2025-11-14
-Password Policy                      6 char min     2025-11-14
-Dynamic Actions Enabled              true           2026-01-03
-Offline Data Retention (days)        30             2025-11-14
-Search Results Limit                 50             2025-11-14
-Push Notifications Enabled           true           2026-01-03
-Notification Badge Count             true           2026-01-03
-...
+LSC setup is easy to get wrong, so the plugin includes about 160 validation rules in 22 rule files (`knowledge/validation-rules/`). Run them all with `/lsc:audit`, or one group:
 
-Which setting would you like to update?
-```
-
-```
-Set Dynamic Actions Enabled to false
-```
-
-```
-Updated Admin Console setting:
-  Category: Mobile > Application Settings
-  Field:    Dynamic Actions Enabled
-  Old:      true
-  New:      false
-
-⚠️  Regenerate the mobile metadata cache for this change to take effect.
-    Run: /lsc:generate-metadata-cache
-```
-
----
-
-### Configure DB Schema records
-
-```
-Add Product2 to mobile sync. Only sync active products.
-```
-
-```
-Creating DB Schema record for Product2...
-
-✓  Created: DB Schema — Product2
-   Type:         OBJECT
-   SObject:      Product2
-   WhereSoql:    IsActive = true
-   OneWaySync:   true (web → mobile)
-   IsActive:     true
-
-Assigned to profiles:
-  ✓ Medical Sales Representative
-  ✓ Key Account Manager
-
-⚠️  Regenerate the mobile metadata cache for Product2 to appear on iPad.
-    Run: /lsc:generate-metadata-cache
-```
-
----
-
-### Manage Quick Actions
-
-```
-Create a "Log Call" quick action on the home page for the Field Sales Representative profile
-```
-
-```
-Creating Quick Action: Log Call...
-
-✓  Created Quick Action
-   Name:     LogCall
-   Label:    Log Call
-   Type:     LogCall
-   Page:     Home
-   Order:    5
-   Profile:  Field Sales Representative
-   Active:   true
-
-The action will appear in the iPad quick actions bar after cache regeneration.
-Run: /lsc:generate-metadata-cache
-```
-
----
-
-### Upload and distribute a presentation
-
-```
-Upload the file /Users/me/Q1_CardioPresentation.pptx and distribute it to the Northeast territory
-```
-
-```
-Step 1/3 — Uploading presentation...
-  Converting PPTX via LibreOffice... done
-  Uploading to LSC Intelligent Content (Bulk Presentation API)...
-  ✓  Created: ContentDocument 069Bg000003xyzAB
-              Presentation: "Q1 Cardio Presentation" (14 slides)
-
-Step 2/3 — Looking up Northeast territory...
-  ✓  Found: Territory2 — Northeast (ID: 0MWBg000003xyzCD)
-
-Step 3/3 — Distributing to territory...
-  ✓  Created PresentationShare record
-     Territory: Northeast (TerritoryAndSubordinates — cascades to sub-territories)
-
-Done. The presentation is now available to all reps in the Northeast territory and below.
-```
-
----
-
-### Generate mobile metadata cache
-
-```
-/lsc:generate-metadata-cache Medical Sales Representative
-```
-
-```
-Generating mobile metadata cache for: Medical Sales Representative
-  Creating cache parent record...    ✓
-  Triggering Connect API generation... ✓
-  Polling status...
-    [00:10] Processing...
-    [00:30] Processing...
-    [01:15] Processing...
-    [02:00] Complete ✓
-
-✓  Cache generated successfully
-   Profile:        Medical Sales Representative
-   Generated at:   2026-02-22 14:37:02 UTC
-   Duration:       ~2 minutes
-
-Next steps:
-  1. Force close the LSC Mobile app
-  2. Reopen and perform a full sync
-  3. Verify new objects and settings appear
-```
-
----
-
-### Troubleshoot an error
-
-```
-My reps are seeing "Device sync transaction record was not found" when they try to sync
-```
-
-```
-That error indicates the mobile sync session record is missing or was deleted
-before sync completed. Common causes:
-
-1. Stale metadata cache
-   The cache may reference objects or fields that no longer exist in the org.
-   Fix: Regenerate the metadata cache → /lsc:generate-metadata-cache
-
-2. Trigger handler inactive
-   The SyncSessionTriggerHandler may be disabled.
-   Checking now...
-
-   ✓  SyncSessionTriggerHandler: ACTIVE — not the cause
-
-3. Concurrent sync sessions
-   If a rep force-closes mid-sync, the session record can be orphaned.
-   Fix: Have the rep wait 10 minutes and retry a full sync.
-
-4. DB Schema misconfiguration
-   A DB Schema record may have an invalid SOQL filter.
-   Run: /lsc:audit sync-troubleshooting
-
-Which of these should I investigate further?
-```
-
----
-
-### Explore LSC concepts
-
-```
-Explain how Sample Limits work with ARC in LSC
-```
-
-```
-## Sample Limits + ARC in LSC
-
-### What is ARC?
-ARC (Allocation, Requests, Compliance) is LSC's three-tier model for managing
-sample distribution:
-
-  Allocation → Request → Compliance check → Disbursement
-
-### How Sample Limits Fit In
-ProviderSampleLimit records define how many units of a product a rep can
-disburse to a specific provider within a time period:
-
-  ProviderSampleLimit
-  ├── AccountId         (the HCP)
-  ├── Product2Id        (the marketable product)
-  ├── MaxQuantity       (cap per period)
-  ├── QuantityDisbursed (running total)
-  └── TimePeriodId      (e.g., Q1 2026)
-
-When a rep submits a ProductDisbursement, LSC checks:
-  QuantityDisbursed + requested qty ≤ MaxQuantity
-
-If exceeded, the request is blocked on both web and mobile.
-
-### Admin Setup
-1. Enable Sample Limits in Admin Console > Sample Settings
-2. Create TimePeriod records for each enforcement window
-3. Run the Sample Limits batch job to generate ProviderSampleLimit records
-4. Assign limits to territories or individual reps
-
-Run /lsc:configure-samples to check your current setup.
-```
-
-## Configuration Audit
-
-One of the biggest challenges with LSC is misconfiguration — the setup is complex and easy to get wrong. The plugin includes an **automated audit system** with 151 validation rules across 19 rule files.
-
-### Run an Audit
-
-```
-/lsc:audit
-```
-
-This produces a report showing:
-- What's configured correctly
-- What needs to be fixed (with step-by-step resolution)
-- Warnings about potential issues
-
-### Validation Groups
-
-Target specific modules or scenarios:
-
-| Group | When to Use |
+| Group | When to use |
 |-------|-------------|
-| `/lsc:audit mobile-login-check` | Users can't log into the mobile app |
-| `/lsc:audit pre-deployment` | Before rolling out mobile to users |
-| `/lsc:audit sync-troubleshooting` | Mobile sync not working |
-| `/lsc:audit full-mobile-audit` | Comprehensive mobile health check |
-| `/lsc:audit visit-config-check` | Visit management issues |
-| `/lsc:audit sample-config-check` | Sample management issues |
-| `/lsc:audit account-config-check` | Account management issues |
-| `/lsc:audit activity-plan-config-check` | Activity plan issues |
-| `/lsc:audit territory-config-check` | Territory alignment issues |
-| `/lsc:audit kam-config-check` | KAM account plan issues |
-| `/lsc:audit field-email-config-check` | Field email issues |
-| `/lsc:audit intelligent-content-config-check` | Intelligent content / CLM issues |
-| `/lsc:audit next-best-config-check` | NBC/NBA/NBM issues |
-| `/lsc:audit consent-config-check` | Consent management issues |
-| `/lsc:audit home-page-check` | Home page configuration issues |
-| `/lsc:audit quick-actions-config-check` | Quick and custom action issues |
-| `/lsc:audit surveys-config-check` | Survey configuration issues |
-| `/lsc:audit app-alerts-config-check` | App alerts / notification issues |
-| `/lsc:audit agentforce-config-check` | Agentforce configuration issues |
+| `mobile-login-check` | Users can't log in to the mobile app |
+| `pre-deployment` | Before rolling mobile out to users |
+| `sync-troubleshooting` | Mobile sync isn't working |
+| `full-mobile-audit` | Full mobile check |
+| `visit-config-check`, `sample-config-check`, `account-config-check`, `activity-plan-config-check`, `territory-config-check` | Core module issues |
+| `kam-config-check`, `field-email-config-check`, `intelligent-content-config-check`, `next-best-config-check`, `consent-config-check`, `surveys-config-check`, `app-alerts-config-check`, `agentforce-config-check` | Other module issues |
+| `home-page-check`, `quick-actions-check`, `custom-actions-check` | Home page and actions |
 
-Run `/lsc:audit` with no arguments to see all available groups.
+`/lsc:audit` with no arguments lists every group. In the app, the same rules drive Studio's Readiness views.
 
-### Diagnose Specific Errors
+## Covered modules
 
-If a user reports a specific error message, Claude can find matching issues:
+Account Management, Visit Management, Sample Management, Activity Plan, Territory Alignment, User Management, Key Account Management, Next Best (NBC/NBA/NBM), Field Email, Intelligent Content, Calendar / Time Off Territory / Routines, Consent Management, Surveys, Product Management, App Alerts, Lists & Filters, Home Page, Quick Actions, Custom Scripts, Briefings, Events Management, Provider Engagement Compliance (EPPV/MID), Order Management, Medical Inquiries, Agentforce for LSC, Mobile App Settings, Mobile Metadata Cache, Starter Config, Segmentation, Workflow Management, Data Cloud, LSC Apps, Data Migration, Integration Patterns and Reporting & Analytics.
+
+Release notes are included through Winter '27 (`/lsc:release-notes`), and official Salesforce Help is searched live through the `salesforce-docs` server rather than bundled.
+
+Every knowledge tool answer ends with its source:
 
 ```
-My users are seeing "Device sync transaction record was not found" - what's wrong?
+> 📖 **Source:** PM Enablement — Visit Management
+> 🔗 **Link:** https://help.salesforce.com/s/articleView?id=sf.ls_engagement_execution.htm
+> 📂 **File:** knowledge/modules/visit-management/admin-console-transcript.md
 ```
-
-Claude will identify the likely causes and run targeted checks.
-
-## MCP Server Tools
-
-The plugin exposes 60+ tools via its MCP server, organized into these categories:
-
-### Knowledge & Documentation (10 tools)
-Search and retrieve LSC documentation, module guides, help docs, troubleshooting, and exercises. All responses include source citations with file paths and URLs.
-
-### Salesforce Org (12 tools)
-Connect to orgs, run SOQL, describe objects, CRUD operations, deploy/retrieve metadata, generate mobile metadata cache.
-
-### Admin Console & Trigger Handlers (5 tools)
-List, update, and create Admin Console settings by category. List and toggle trigger handlers.
-
-### LSC Actions (6 tools)
-List, create, update, and delete Quick Actions and Custom Actions via the Tooling API. Check mobile metadata cache status.
-
-### DB Schema (5 tools)
-List, get details, create, update, and toggle DB Schema records for mobile object sync configuration.
-
-### Navigation Tabs (2 tools)
-List and add mobile navigation tabs configured in Admin Console > Mobile > UI Settings.
-
-### Configuration Checks (6 tools)
-Check visit, sample, account, activity plan, territory, and user management configuration.
-
-### User Management (4 tools)
-List users, list permission sets with capacity, assign and unassign permission sets.
-
-### Presentations / Intelligent Content (3 tools)
-Upload presentations (PPTX, PDF, HTML ZIP), distribute to territories, assign topics and products.
-
-### Health Check & Status (5 tools)
-Comprehensive org health check, org status dashboard, export/import configuration as JSON, release notes.
-
-### Developer & Integrator (5 tools)
-Execute anonymous Apex, bulk create/update records, deploy/retrieve metadata.
-
-### Validation & Audit (3 tools)
-Run automated audits against 151 validation rules, list validation groups, diagnose specific error messages.
-
-### Diff (1 tool)
-Compare LSC configuration between two orgs to identify configuration drift.
-
-## Covered Modules
-
-The plugin includes skills, documentation, and validation rules for all major LSC4CE modules:
-
-| Module | Key Topics |
-|--------|------------|
-| Account Management | Provider Card, Addresses, Affiliations, Ratings, Search/SBC, DCR, Business Licenses |
-| Visit Management | Page Layout, Admin Console, Compliance, Web & Mobile |
-| Sample Management | Inventory, Sample Limits, Locations, Batches |
-| Activity Plan | Account Goals, Weighted Plans, Product-based Plans, Shared Territory Goals |
-| Territory Alignment | Territory Models, Geo/Affiliation Rules, Territory Info |
-| Key Account Management | KAM Account Plans, Objectives, Action Plans, Stakeholders |
-| Next Best (NBC/NBA/NBM) | Next Best Customer, Action, Message scoring |
-| Field Email | Templates, Consent, iPad & Web, Fragments |
-| Intelligent Content | Presentations, Dynamic Content, Territory Distribution |
-| Calendar/TOT/Routine | Calendar, Time Off Territory, Routines, My Team |
-| Consent Management | Subscriptions, Channel Types, Digital Signatures |
-| Surveys | Survey configuration, questions, invitations |
-| Product Management | Products, Marketable Products, Guidance, Hierarchy |
-| App Alerts/Notifications | Admin & End User notification setup |
-| Lists & Filters | List views, filters, saved lists |
-| Agentforce for LSC | Winter '26 AI agent — Field Sales Agent, topics, actions |
-| Home Page | Widget configuration, Agentforce Welcome Center utterances |
-| Quick Actions | Quick and custom action setup for web and mobile |
-| Mobile App Settings | Application Settings — browser, password, search, notifications |
-| User Management | Permission sets, PSLs, profiles, role hierarchy, license capacity |
-| Mobile Metadata Cache | DB Schema, sync, programmatic cache generation |
-| Data Migration | Account hierarchies, territory assignments, Veeva CRM migration |
-| Integration Patterns | MDM, ERP, IQVIA, email/video provider integrations |
-| Reporting & Analytics | CRM Analytics, reports, dashboards, KPIs |
-| Segmentation | Admin configuration |
-| Data Cloud / Singularity | TabNext Metrics, NBC Predictive Model |
-| LSC Apps | App configuration |
 
 ## Architecture
 
 ```mermaid
 flowchart TB
-    subgraph CC["Claude Code"]
-        subgraph Plugin["LSC-for-Claude (Plugin)"]
-            direction LR
-            Skills["<b>36 Skills (routing)</b><br/>• Thin tool delegation<br/>• Object name guardrails<br/>• Config mode workflows"]
-            Commands["<b>24 Commands (/lsc:*)</b><br/>• /lsc:setup-plugin<br/>• /lsc:soql-query<br/>• /lsc:audit<br/>• /lsc:configure-*"]
-            Agents["<b>3 Agents (Subagents)</b><br/>• lsc-consultant<br/>• lsc-admin<br/>• lsc-developer"]
-            MCP["<b>MCP Server (60+ Tools)</b><br/>• Knowledge + citations<br/>• SOQL / CRUD / Tooling<br/>• Admin Console settings<br/>• Config check tools<br/>• Validation (151 rules)"]
-            KB["<b>Knowledge Base</b><br/>• 29 modules (86 files)<br/>• live help via MCP<br/>• 2 guides, 2 exercises"]
-            Cite["<b>Citation System</b><br/>• 106 citation entries<br/>• File paths + URLs<br/>• Blockquote format"]
-        end
+    subgraph Clients["Where you use it"]
+        direction LR
+        CC["<b>Claude Code</b><br/>/lsc: commands, skills, agents"]
+        Other["<b>Other MCP clients</b><br/>Codex, Cursor, VS Code…"]
+        Roz["<b>Roz for LSC</b> (Electron)<br/>Chat + Studio"]
     end
 
-    Plugin --> CLI["Salesforce CLI (sf)"]
-    CLI --> Org["Your LSC Salesforce Org"]
+    MCP["<b>lsc MCP server</b> (src/ → mcp-server/index.mjs)<br/>knowledge + citations · org tools · config checks<br/>audit + diagnosis · performance · Studio data"]
+    KB["<b>Knowledge base</b> (knowledge/)<br/>modules · guides · release notes<br/>validation rules · known causes"]
+    Docs["<b>salesforce-docs</b><br/>live Salesforce Help"]
+
+    CC --> MCP
+    Other --> MCP
+    Roz -->|"one server per org"| MCP
+    CC --> Docs
+    MCP --> KB
+    MCP --> CLI["Salesforce CLI (sf) and REST / Tooling / Metadata APIs"]
+    CLI --> Org["Your LSC org"]
 ```
 
-## Citation System
+The desktop app runs its own model loop (`src-electron/engine/`) with the same skills and commands as the plugin, and starts one `lsc` MCP server per org connection. Studio calls the server's `studio_*` tools directly; those are hidden from the chat model, and the ones that write are only registered inside the app.
 
-All knowledge tool responses include source citations with links:
-
-```
-> 📖 **Source:** PM Enablement — Visit Management
-> 🔗 **Link:** https://help.salesforce.com/s/articleView?id=sf.ls_engagement_execution.htm
-> 📂 **File:** /path/to/knowledge/modules/visit-management/admin-console-transcript.md
-```
-
-- **106 citation entries** covering 86 PM Enablement files, 2 guides, 2 exercises, 1 troubleshooting doc
-- Official Salesforce help documentation is served live via the `salesforce-docs` MCP server (not bundled locally)
-- All citations include local file paths for quick access
-- Citations are returned in blockquote format by MCP tools
-- Skills delegate to tools (rather than embedding knowledge inline) to ensure citations always flow through
-
-Use `/lsc:help <topic>` to search the knowledge base and see citations in action.
-
-## Specialized Agents
-
-For complex tasks, the plugin provides specialized agents:
-
-- **lsc-consultant** — Senior implementation consultant for complex projects
-- **lsc-admin** — Administrator for day-to-day configuration, troubleshooting, and maintenance
-- **lsc-developer** — Developer for OmniStudio components, Apex, integrations, and custom development
-
-## Project Structure
+## Project structure
 
 ```
-LSC-for-Claude/
-├── .claude-plugin/           # Plugin manifest
-│   └── plugin.json
-├── skills/                   # 30 thin routing skills (60-200 lines each)
-│   ├── lsc-visit-management/ # Example: routes to check_visit_config, get_lsc_module_docs
-│   ├── lsc-account-management/
-│   ├── ... (28 more)
-│   └── salesforce-query/
-├── commands/                 # 24 user-invocable slash commands
-│   ├── setup-plugin.md
-│   ├── help.md
-│   ├── configure-visits.md
-│   ├── ... (21 more)
-│   └── getting-started.md
-├── agents/                   # 3 specialized subagents
-│   ├── lsc-consultant.md
-│   ├── lsc-admin.md
-│   └── lsc-developer.md
-├── src/                      # MCP server source (TypeScript)
-│   ├── index.ts              # Server entry point
-│   ├── knowledge-loader.ts   # Knowledge base loader, search, citation formatting
-│   ├── citation-map.ts       # 106 citation entries with URLs and file paths
-│   ├── cache.ts              # Caching layer
-│   ├── presentation-converter.ts
-│   ├── salesforce/            # SF CLI wrapper & org auth
-│   ├── tools/                 # 18 tool modules (60+ tools)
-│   └── validation/            # YAML rule engine (151 rules)
-├── knowledge/                # Processed knowledge base (markdown)
-│   ├── modules/              # 29 module directories (86 files)
-│   ├── help/                 # (official help served live via salesforce-docs MCP)
-│   ├── guides/               # Dev guide, mobile setup guide
-│   ├── exercises/            # Hands-on training (2 files)
-│   ├── troubleshooting/      # Common issues (4 files)
-│   └── validation-rules/     # 19 YAML rule files (151 rules)
-├── test/                     # Vitest test suite (595 tests)
-│   ├── unit/                 # Unit tests (citations, knowledge-loader, CLI, validation)
-│   └── integration/          # Integration tests (real filesystem, skill checks)
-├── documentation/            # Source documentation (.docx, .pdf)
-├── dist/                     # Compiled JavaScript
-├── CLAUDE.md                 # Claude Code instructions (tool guardrails)
-├── README.md                 # This file
-├── package.json
-├── tsconfig.json
-└── vitest.config.ts
+lsc-for-claude/
+├── .claude-plugin/     # Plugin and marketplace manifests
+├── .mcp.json           # MCP servers for Claude Code
+├── commands/           # 29 /lsc: slash commands
+├── skills/             # 38 skills
+├── agents/             # 4 subagents
+├── src/                # lsc MCP server (TypeScript)
+│   ├── tools/          #   tool modules
+│   ├── salesforce/     #   sf CLI wrapper, direct REST/Tooling/Metadata paths, API version
+│   ├── validation/     #   YAML rule engine and diagnosis
+│   ├── perf/           #   sync volume, telemetry, first-sync simulator
+│   ├── studio/         #   data and changes behind the app's Studio
+│   └── config/         #   config export, diff and import
+├── mcp-server/         # Bundled server (committed build artifact)
+├── src-electron/       # Desktop app main process: model connections, engine, org pool, updater
+├── src-renderer/       # Desktop app UI (React)
+├── knowledge/          # Knowledge base
+│   ├── modules/        #   43 module directories
+│   ├── guides/         #   admin, developer and mobile setup guides
+│   ├── release-notes/
+│   ├── troubleshooting/#   common issues, anti-patterns, known-causes.yaml
+│   ├── validation-rules/
+│   └── app-starters/   #   pinned starter apps for the app builder
+├── test/               # Vitest unit and integration tests
+├── scripts/            # build, launch, release, screenshots, doc processing
+├── build/              # app icons and packaging hooks
+└── docs/               # design notes, NFR profile example, media
 ```
 
 ## Development
 
 ```bash
-npm install          # Install dependencies
-npm run build        # Compile TypeScript
-npm run dev          # Watch mode
-npm test             # Run tests (595 passing)
-npm run lint         # Lint source
+npm install
+npm run build          # compile the MCP server to dist/
+npm run dev            # watch mode
+npm test               # Vitest
+npm run lint
+npm run verify         # every CI check locally; run before pushing
+npm run electron:dev   # desktop app with reload on save
 ```
 
-### Test Suite
+`mcp-server/index.mjs` is a committed build artifact. After changing anything under `src/`, run `npm run bundle` and commit the result, or CI's bundle-sync check fails.
 
-The project has comprehensive test coverage across citations, knowledge loading, skills, validation rules, and tool schemas:
+UI changes under `src-renderer/` follow the `roz-ui` skill (`.claude/skills/roz-ui/SKILL.md`). Look at a change with `node scripts/ui-shots.mjs tour` after `npm run electron:build`.
 
-```
- Test Files  17 passed | 1 skipped (18)
-      Tests  595 passed | 20 skipped (615)
-```
-
-Key test files:
-
-| Test | What It Validates |
-|------|-------------------|
-| `unit/citations.test.ts` | Citation map entries, getCitation dispatch, formatCitation output with file paths |
-| `integration/skill-citations.test.ts` | Every skill follows thin routing pattern with tool delegation |
-| `integration/citations.integration.test.ts` | Real tool responses contain citation blocks |
-| `integration/knowledge-integrity.test.ts` | Knowledge base structure and content integrity |
-| `unit/validation/rules-consistency.test.ts` | All 151 validation rules are well-formed |
-| `integration/claude-md-consistency.test.ts` | CLAUDE.md matches actual tools, skills, and commands |
-
-### Adding a New Module
+### Adding a module
 
 1. Add markdown files to `knowledge/modules/<module-slug>/`
-2. Add citation entries to `src/citation-map.ts` (both `moduleCitationMap` for the module slug and each file slug)
-3. Create a thin skill at `skills/<skill-name>/SKILL.md` following the routing pattern — reference `get_lsc_module_docs` and `search_lsc_knowledge`, not inline knowledge
-4. Run `npm test` to verify citation coverage and skill structure
+2. Add citation entries to `src/citation-map.ts` (`moduleCitationMap` for the module slug and one per file)
+3. Add a skill at `skills/<skill-name>/SKILL.md` with `description` frontmatter that routes to `get_lsc_module_docs` and `search_lsc_knowledge` rather than repeating the docs
+4. Run `npm test` to check citation coverage and skill structure
+
+### Cutting a release
+
+The plugin and the desktop app share one version.
+
+```bash
+scripts/bump-version.sh 0.9.1     # bump the manifests, commit, tag v0.9.1
+git push --follow-tags            # the Release workflow builds, signs and notarizes
+scripts/publish-release.sh v0.9.1 # then publish it from your machine
+```
+
+The SalesforceLabs org has an IP allow list that GitHub's hosted runners aren't on, so the workflow can't create the GitHub Release itself. It uploads the signed installers as a run artifact, and `publish-release.sh` waits for the run, downloads them and creates the release (you need to be on an allowed network, with `gh` logged in as an account that can write to the repo). Every release must include `latest-mac.yml`, or installed apps won't see it.
 
 ## Resources
 
-- [Salesforce LSC Documentation](https://help.salesforce.com/s/articleView?id=sf.health_life_sciences.htm)
-- [OmniStudio Documentation](https://help.salesforce.com/s/articleView?id=sf.omnistudio.htm)
-- [Claude Code Plugin Documentation](https://code.claude.com/docs/en/plugins)
-- [MCP Specification](https://modelcontextprotocol.io/)
+- [Salesforce LSC documentation](https://help.salesforce.com/s/articleView?id=sf.health_life_sciences.htm)
+- [Claude Code plugins](https://code.claude.com/docs/en/plugins)
+- [MCP specification](https://modelcontextprotocol.io/)
+- [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli)
 
 ## Acknowledgments
 
