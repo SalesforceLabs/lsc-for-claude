@@ -689,7 +689,7 @@ causes:
       - "Setting changed at org level has no effect"
       - "Sample Inventory Validation Mode set to Warning still blocks submit"
       - "Visit Conflict Validation shows a blocking error"
-      - "Works for one user but not another"
+      - "Admin Console setting works for one user but not another"
       - "I changed the setting for the whole org and nothing changed for reps"
       - "a setting set to warning still blocks the rep, old profile-level entry exists"
     keywords: [precedence, profile level, user level, org level, override]
@@ -1163,7 +1163,6 @@ causes:
       [
         navigation tab,
         tab bar,
-        UI Settings,
         UISchema,
         Samples Management,
         samples_management,
@@ -1232,6 +1231,7 @@ causes:
       - "tab is set to hidden for the profile so reps can't see it"
       - "tab shows on the iPad for one profile but not another"
       - "tab is default off on one profile so its reps don't see it on the iPad"
+      - "tab is missing from one profile's iPad tab bar while other profiles have it"
     keywords:
       [tab visibility, Default On, Default Off, Hidden, Lightning app, App Manager, permission set]
     cause: |
@@ -1562,6 +1562,7 @@ causes:
       - "plan review grid says no records for reps"
       - "rep in a child territory doesn't see the activity plan"
       - "activity plan territory list holds territory names instead of ids"
+      - "rep assigned to both a plan territory and its parent is treated as the manager"
     keywords: [TerritoryList, ActivityPlanTerritory, parent territory]
     cause: |
       ActivityPlan.TerritoryList must hold territory Ids. A user who is an
@@ -2168,6 +2169,7 @@ causes:
       - "Need a matrix of plans by cycle"
       - "compliance report only lists the first five cycles"
       - "can't build a report of plans by cycle with owner and account"
+      - "cycle report shows fewer cycles than a SOQL query returns"
     keywords: [report type, PrvdEngmtComplianceCycle, EPPV Cycle Matrix, EppvCycleMatrixController]
     cause: |
       There is no standard report type for cycles; the cycle-to-plan lookup
@@ -2271,11 +2273,12 @@ causes:
     title: New Experts picker shows "Empty list" on a managed event
     module: events
     symptoms:
-      - "Empty list"
+      - "New Experts picker says Empty list"
       - "New Experts picker is empty"
       - "No experts when inviting a speaker"
       - "inviting a speaker shows an empty list"
       - "no speakers to choose when adding a new expert to the event"
+      - "speaker list is blank when adding experts to a managed event"
     keywords: [Expert, ExpertSubject, Subject, Speaker Bureau, ExpirationDate, Attendees, Experts]
     cause: |
       The picker lists only experts with Status Approved, a Type (for example
@@ -2683,6 +2686,7 @@ causes:
       - "Before creating this custom price, create a standard price"
       - "can't create a custom price, asked to create the standard price first"
       - "price list entry fails because the standard price doesn't exist yet"
+      - "adding a product to a custom price book asks for a standard price first"
     keywords: [PricebookEntry, Standard Price Book, Pricebook2, ProductSellingModel]
     cause: |
       A custom PricebookEntry needs an active Standard entry for the same
@@ -3617,13 +3621,12 @@ causes:
     module: order-management
     symptoms:
       - "Invalid configuration for lists. Field database wasn't found or there's no access to that field."
-      - "Invalid configuration for lists"
       - "Field database wasn't found or there's no access to that field"
       - "Opening or creating a quote on the iPad fails"
       - "Quote creation is blocked on the iPad"
       - "iPad quote won't open, invalid configuration for lists"
       - "error says field database wasn't found when opening a quote"
-    keywords: [Quote layout, related list, Opportunity, OpportunityId, mobile quote, list configuration]
+    keywords: [Quote layout, Quote related list, Opportunity, OpportunityId, mobile quote, list configuration]
     cause: |
       Salesforce Help (Troubleshooting Order Management, 264): the Quote layout or
       a related list on the iPad references an Opportunity field that isn't
@@ -3666,10 +3669,9 @@ causes:
     module: order-management
     symptoms:
       - "Reps can't see quoted orders that other reps in the same territory created"
-      - "Rep sees only their own quotes"
+      - "Rep sees only the quotes they created"
       - "How is quote sharing supposed to work"
       - "Quote history from other reps is missing on the iPad"
-      - "rep only sees their own quotes"
     keywords: [Manage Quote Sharing, Share Created Quote, Share Quotes, quote sharing, QuoteShare]
     cause: |
       Salesforce Help (Quoted Order Sharing by Territory, Order Management Flows,
