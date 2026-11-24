@@ -142,6 +142,8 @@ const TERMS = [
   "browse catalog",
   "store assortment",
 ].map((t) => [new RegExp(`\\b${t}\\b`, "g"), t.replace(" ", "_")] as const);
+// "Price list" is the everyday name for a price book.
+TERMS.push([/\bprice list\b/g, "price_book"]);
 
 function joinTerms(text: string): string {
   return TERMS.reduce((t, [re, joined]) => t.replace(re, joined), text);
@@ -155,6 +157,17 @@ const SYNONYMS: Record<string, string> = {
   desktop: "web",
   spins: "spinner",
   spinning: "spinner",
+  doctor: "hcp",
+  doctors: "hcp",
+  physician: "hcp",
+  physicians: "hcp",
+  stock: "inventory",
+  passcode: "password",
+  deck: "presentation",
+  decks: "presentation",
+  dropdown: "picklist",
+  customer: "account",
+  customers: "account",
 };
 
 /** Light suffix stripping so "tiered" meets "tier" and "ordering" meets "order". */
@@ -377,8 +390,25 @@ function scoreCause(
  */
 export const RULE_WEIGHT = 0.8;
 
+/**
+ * "Next Best Action not working" names a feature, not what went wrong: a query naming the
+ * feature shares all its words whatever the problem is. Such symptoms count for this much.
+ */
+export const VAGUE_SYMPTOM_WEIGHT = 0.5;
+const VAGUE = /\b(?:not working|doesn't work|does not work|broken)\b/i;
+
 function scoreRule(query: string, rule: ValidationRule): { score: number; matched: string } {
-  const bySymptom = best(query, rule.symptoms ?? []);
+  const symptoms = rule.symptoms ?? [];
+  const specific = best(
+    query,
+    symptoms.filter((s) => !VAGUE.test(s))
+  );
+  const vague = best(
+    query,
+    symptoms.filter((s) => VAGUE.test(s)),
+    VAGUE_SYMPTOM_WEIGHT
+  );
+  const bySymptom = vague.score > specific.score ? vague : specific;
   const byName = best(query, [rule.name], 0.7);
   const byDescription = best(query, [rule.description], 0.5);
   const top = [bySymptom, byName, byDescription].reduce((a, b) => (b.score > a.score ? b : a));
