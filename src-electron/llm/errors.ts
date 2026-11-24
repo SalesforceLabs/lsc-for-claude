@@ -28,7 +28,8 @@ function shorten(text: string, max = 300): string {
 function bodyMessage(body: string): string {
   try {
     const parsed = JSON.parse(body) as { error?: { message?: string } | string; message?: string };
-    const message = typeof parsed.error === "string" ? parsed.error : parsed.error?.message ?? parsed.message;
+    const message =
+      typeof parsed.error === "string" ? parsed.error : (parsed.error?.message ?? parsed.message);
     if (message) return message;
   } catch {
     // not JSON
@@ -36,12 +37,22 @@ function bodyMessage(body: string): string {
   return body;
 }
 
-export function describeHttpError(status: number, body: string, ctx: ErrorContext): ProviderHttpError {
+/** Error text for a request over the model's context window (Anthropic, Bedrock, OpenAI, LiteLLM wordings). */
+const CONTEXT_FULL =
+  /prompt is too long|context.?window|context_length_exceeded|maximum context length|too many (input )?tokens/i;
+
+export function describeHttpError(
+  status: number,
+  body: string,
+  ctx: ErrorContext
+): ProviderHttpError {
   const detail = shorten(bodyMessage(body));
   const mentionsModel = ctx.model !== undefined && /model/i.test(detail);
   let message: string;
   if (status === 401 || status === 403) {
     message = `${ctx.service} rejected the credentials (HTTP ${status}). Check the API key or token.`;
+  } else if ((status === 400 || status === 413) && CONTEXT_FULL.test(detail)) {
+    message = `The conversation is now too long for the model to read (HTTP ${status}). Start a new session, and ask for less at once (for example, a narrower query).`;
   } else if ((status === 404 || status === 400) && mentionsModel) {
     message = `${ctx.service} doesn't serve the model "${ctx.model}". Pick another model.`;
   } else if (status === 404) {
@@ -69,7 +80,9 @@ export function describeNetworkError(error: unknown, url: string): Error {
     // keep the raw URL
   }
   if (code === "ENOTFOUND" || /ERR_NAME_NOT_RESOLVED/.test(text)) {
-    return new Error(`Couldn't find ${host}. Check the base URL, or connect to your company's VPN.`);
+    return new Error(
+      `Couldn't find ${host}. Check the base URL, or connect to your company's VPN.`
+    );
   }
   if (code === "ECONNREFUSED" || /ERR_CONNECTION_REFUSED/.test(text)) {
     return new Error(`Nothing is listening at ${host}. Is the server running?`);

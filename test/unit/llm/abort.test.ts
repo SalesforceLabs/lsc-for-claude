@@ -20,14 +20,20 @@ describe("abort signal", () => {
     const { signals, fetch } = recordingFetch();
     const ctl = new AbortController();
     await new AnthropicProvider({ ...base, fetch }).chat("s", [{ role: "user", content: "hi" }], [], { signal: ctl.signal });
-    expect(signals[0]).toBe(ctl.signal);
+    // The request gets a signal that follows the caller's (it also carries the first-response timeout).
+    expect(signals[0]?.aborted).toBe(false);
+    ctl.abort();
+    expect(signals[0]?.aborted).toBe(true);
   });
 
   it("reaches the OpenAI request", async () => {
     const { signals, fetch } = recordingFetch();
     const ctl = new AbortController();
     await new OpenAIProvider({ ...base, authHeader: "bearer", fetch }, "m").chat("s", [{ role: "user", content: "hi" }], [], { signal: ctl.signal });
-    expect(signals[0]).toBe(ctl.signal);
+    // The request gets a signal that follows the caller's (it also carries the first-response timeout).
+    expect(signals[0]?.aborted).toBe(false);
+    ctl.abort();
+    expect(signals[0]?.aborted).toBe(true);
   });
 
   it("rethrows the abort itself, not a network message", async () => {
@@ -39,9 +45,10 @@ describe("abort signal", () => {
     ).rejects.toMatchObject({ name: "AbortError" });
   });
 
-  it("sends no signal when none is given", async () => {
+  it("still sends a signal (for the first-response timeout) when none is given", async () => {
     const { signals, fetch } = recordingFetch();
     await new AnthropicProvider({ ...base, fetch }).chat("s", [{ role: "user", content: "hi" }], []);
-    expect(signals[0]).toBeUndefined();
+    expect(signals[0]).toBeInstanceOf(AbortSignal);
+    expect(signals[0]?.aborted).toBe(false);
   });
 });

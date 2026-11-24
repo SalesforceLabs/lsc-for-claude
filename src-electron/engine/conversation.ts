@@ -4,8 +4,14 @@ import type { ToolHost } from "../mcp/pool.js";
 import { PromptBuilder, READ_SKILL_TOOL } from "./prompt-builder.js";
 import { ASK_USER_RESULT, ASK_USER_TOOL, ASK_USER_TOOL_DEF, parseAskUser } from "./ask-user.js";
 import type { StoredMessage } from "./history.js";
-import { spendToolBudget } from "./tool-budget.js";
-import { ORG_SWITCH_TOOLS, orgPromptSection, orgSwitchRefusal, type SessionOrg } from "./session-org.js";
+import { refundToolBudget, spendToolBudget } from "./tool-budget.js";
+import { capToolResult } from "./result-cap.js";
+import {
+  ORG_SWITCH_TOOLS,
+  orgPromptSection,
+  orgSwitchRefusal,
+  type SessionOrg,
+} from "./session-org.js";
 
 export interface ConversationCallbacks {
   onTextDelta: (text: string) => void;
@@ -25,9 +31,16 @@ export interface ConversationCallbacks {
  * in its place — e.g. a write queued for review instead of run.
  */
 export interface ConversationHooks {
-  preflight?: (userText: string) => Promise<Array<{ name: string; input: Record<string, unknown> }>>;
+  preflight?: (
+    userText: string
+  ) => Promise<Array<{ name: string; input: Record<string, unknown> }>>;
   /** `signal` aborts when the run is stopped or replaced, so a gate waiting on the user doesn't hang it. */
-  gateTool?: (call: { id: string; name: string; input: Record<string, unknown>; signal: AbortSignal }) => Promise<{ text: string; isError: boolean } | null>;
+  gateTool?: (call: {
+    id: string;
+    name: string;
+    input: Record<string, unknown>;
+    signal: AbortSignal;
+  }) => Promise<{ text: string; isError: boolean } | null>;
 }
 
 interface AbortToken {
@@ -42,7 +55,13 @@ function stopRun(token: AbortToken): void {
   token.controller.abort();
 }
 
-const MAX_TOOL_ROUNDS = 25;
+export const MAX_TOOL_ROUNDS = 25;
+
+/** What the model reads when it has used every tool round of a message and must answer now. */
+export const TOOL_BUDGET_SPENT_TEXT =
+  "You have used every tool call available for this message, and no more can run. Answer the user now from what you have " +
+  "already found: lead with the answer, say plainly which points you couldn't verify in the org, and offer to keep " +
+  "investigating if they reply.";
 
 /** What the model reads for a tool call whose run was stopped before it answered. */
 export const STOPPED_TEXT = "Stopped by the user before this tool finished.";
@@ -59,7 +78,12 @@ export function unansweredToolResults(messages: Message[]): ContentBlock[] {
   if (!last || last.role !== "assistant" || !Array.isArray(last.content)) return [];
   return (last.content as ContentBlock[])
     .filter((b) => b.type === "tool_use")
-    .map((b) => ({ type: "tool_result" as const, tool_use_id: b.id, content: STOPPED_TEXT, is_error: true }));
+    .map((b) => ({
+      type: "tool_result" as const,
+      tool_use_id: b.id,
+      content: STOPPED_TEXT,
+      is_error: true,
+    }));
 }
 
 export class ConversationEngine {
@@ -76,7 +100,13 @@ export class ConversationEngine {
   private model?: string;
   private hooks: ConversationHooks;
 
-  constructor(llm: LLMProvider, mcp: ToolHost, promptBuilder: PromptBuilder, org: SessionOrg | null = null, hooks: ConversationHooks = {}) {
+  constructor(
+    llm: LLMProvider,
+    mcp: ToolHost,
+    promptBuilder: PromptBuilder,
+    org: SessionOrg | null = null,
+    hooks: ConversationHooks = {}
+  ) {
     this.llm = llm;
     this.mcp = mcp;
     this.promptBuilder = promptBuilder;
@@ -120,8 +150,13 @@ export class ConversationEngine {
         this.messages.push({ role: "user", content: msg.text });
       } else {
         // Assistant message
-        const toolCalls: Array<{ id: string; name: string; input?: Record<string, unknown>; result?: string; isError?: boolean }> =
-          msg.toolCalls ? JSON.parse(msg.toolCalls) : [];
+        const toolCalls: Array<{
+          id: string;
+          name: string;
+          input?: Record<string, unknown>;
+          result?: string;
+          isError?: boolean;
+        }> = msg.toolCalls ? JSON.parse(msg.toolCalls) : [];
 
         if (toolCalls.length === 0) {
           // Text-only assistant message
@@ -175,7 +210,11 @@ export class ConversationEngine {
     // Abort any previous run
     if (this.currentAbort) stopRun(this.currentAbort);
 
-    const abort: AbortToken = { aborted: false, controller: new AbortController(), budget: new Map() };
+    const abort: AbortToken = {
+      aborted: false,
+      controller: new AbortController(),
+      budget: new Map(),
+    };
     this.currentAbort = abort;
 
     // A stopped run never writes to the history again, so answer the calls it left open first.
@@ -205,7 +244,10 @@ export class ConversationEngine {
     const tools = [...this.mcp.getTools(), this.promptBuilder.readSkillTool(), ASK_USER_TOOL_DEF];
 
     const userText = Array.isArray(userInput)
-      ? userInput.filter((b) => b.type === "text").map((b) => (b as { text?: string }).text ?? "").join("\n")
+      ? userInput
+          .filter((b) => b.type === "text")
+          .map((b) => (b as { text?: string }).text ?? "")
+          .join("\n")
       : userInput;
 
     this.activeRuns++;
@@ -223,7 +265,12 @@ export class ConversationEngine {
   }
 
   /** Run the tools `preflight` asks for, as one assistant turn of tool calls the model then reads. */
-  private async runPreflight(userText: string, callbacks: ConversationCallbacks, messages: Message[], abort: AbortToken): Promise<void> {
+  private async runPreflight(
+    userText: string,
+    callbacks: ConversationCallbacks,
+    messages: Message[],
+    abort: AbortToken
+  ): Promise<void> {
     if (!this.hooks.preflight) return;
     let calls: Array<{ name: string; input: Record<string, unknown> }> = [];
     try {
@@ -242,7 +289,9 @@ export class ConversationEngine {
       let isError: boolean;
       try {
         // Short: the user sees nothing from the model until this returns.
-        const result = await this.mcp.callTool(call.name, call.input, { timeoutMs: PREFLIGHT_TIMEOUT_MS });
+        const result = await this.mcp.callTool(call.name, call.input, {
+          timeoutMs: PREFLIGHT_TIMEOUT_MS,
+        });
         text = result.content.map((c) => c.text).join("\n");
         isError = result.isError ?? false;
       } catch (error) {
@@ -355,7 +404,12 @@ export class ConversationEngine {
           });
           if (abort.aborted) throw new Error("aborted");
           if (gated) {
-            toolResults.push({ type: "tool_result", tool_use_id: toolCall.id, content: gated.text, is_error: gated.isError });
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: toolCall.id,
+              content: gated.text,
+              is_error: gated.isError,
+            });
             callbacks.onToolResult(toolCall.id!, gated.text, gated.isError);
             callbacks.onToolEnd(toolCall.id!);
             continue;
@@ -364,10 +418,12 @@ export class ConversationEngine {
             toolCall.name!,
             toolCall.input as Record<string, unknown>
           );
-          const resultText = result.content
-            .map((c) => c.text)
-            .join("\n");
+          const resultText = capToolResult(
+            toolCall.name!,
+            result.content.map((c) => c.text).join("\n")
+          );
           const isError = result.isError ?? false;
+          refundToolBudget(toolCall.name!, resultText, abort.budget);
 
           toolResults.push({
             type: "tool_result",
@@ -382,8 +438,7 @@ export class ConversationEngine {
           }
         } catch (error) {
           if (abort.aborted) throw new Error("aborted");
-          const errMsg =
-            error instanceof Error ? error.message : String(error);
+          const errMsg = error instanceof Error ? error.message : String(error);
           toolResults.push({
             type: "tool_result",
             tool_use_id: toolCall.id,
@@ -409,8 +464,59 @@ export class ConversationEngine {
       }
     }
 
-    callbacks.onError(
-      `Reached maximum tool call rounds (${MAX_TOOL_ROUNDS})`
-    );
+    await this.answerWithoutTools(tools, callbacks, messages, abort);
+  }
+
+  /**
+   * The tool budget is spent: one last round with tools switched off, so the user gets an answer from
+   * what was gathered instead of only an error. The last message is the user turn of tool results;
+   * the instruction rides along with them so the history keeps alternating.
+   */
+  private async answerWithoutTools(
+    tools: ReturnType<ToolHost["getTools"]>,
+    callbacks: ConversationCallbacks,
+    messages: Message[],
+    abort: AbortToken
+  ): Promise<void> {
+    const limitError = `Reached maximum tool call rounds (${MAX_TOOL_ROUNDS})`;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "user" || !Array.isArray(last.content)) {
+      callbacks.onError(limitError);
+      return;
+    }
+    (last.content as ContentBlock[]).push({ type: "text", text: TOOL_BUDGET_SPENT_TEXT });
+
+    let response: Message;
+    try {
+      response = await this.llm.chat(
+        this.systemPrompt,
+        messages,
+        tools,
+        { model: this.model, toolChoice: "none" },
+        (chunk: StreamChunk) => {
+          if (abort.aborted) return;
+          if (chunk.type === "text_delta" && chunk.text) callbacks.onTextDelta(chunk.text);
+        }
+      );
+    } catch (error) {
+      if (abort.aborted) throw new Error("aborted");
+      callbacks.onError(`${limitError}: ${error instanceof Error ? error.message : String(error)}`);
+      return;
+    }
+    if (abort.aborted) throw new Error("aborted");
+
+    // Keep only the text: a provider that ignored tool_choice mustn't leave calls nobody answers.
+    const blocks = Array.isArray(response.content)
+      ? (response.content as ContentBlock[]).filter((b) => b.type === "text" && b.text)
+      : typeof response.content === "string" && response.content
+        ? [{ type: "text" as const, text: response.content }]
+        : [];
+    if (!blocks.length) {
+      callbacks.onError(limitError);
+      return;
+    }
+    const answer: Message = { ...response, content: blocks };
+    messages.push(answer);
+    callbacks.onComplete(answer);
   }
 }

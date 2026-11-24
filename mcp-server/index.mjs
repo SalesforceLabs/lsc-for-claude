@@ -22136,14 +22136,14 @@ var init_shared = __esm({
 // src/perf/sync-volume.ts
 function memoizeQuerier(org) {
   const make = (run5, kind) => {
-    const cache3 = /* @__PURE__ */ new Map();
+    const cache4 = /* @__PURE__ */ new Map();
     return (q2, options2) => {
       const key5 = `${kind}|${options2?.maxRows ?? ""}|${q2}`;
-      let hit = cache3.get(key5);
+      let hit = cache4.get(key5);
       if (!hit) {
         hit = run5(q2, options2);
-        cache3.set(key5, hit);
-        const forget = () => cache3.delete(key5);
+        cache4.set(key5, hit);
+        const forget = () => cache4.delete(key5);
         hit.then((r) => r.success || forget(), forget);
       }
       return hit;
@@ -22339,13 +22339,13 @@ async function fetchIdsUncached(org, sobject2, idField, where3) {
   }
   return { ids: [...ids], rows: records.length, truncated: result2.data?.truncated === true };
 }
-function memo(cache3, key5, fn) {
-  if (!cache3) return fn();
-  let hit = cache3.get(key5);
+function memo(cache4, key5, fn) {
+  if (!cache4) return fn();
+  let hit = cache4.get(key5);
   if (!hit) {
     hit = fn();
-    cache3.set(key5, hit);
-    hit.catch(() => cache3.delete(key5));
+    cache4.set(key5, hit);
+    hit.catch(() => cache4.delete(key5));
   }
   return hit;
 }
@@ -22416,7 +22416,7 @@ async function profileTerritory(org, user, territory, tables, options2 = DEFAULT
     developerName: t.entry.developerName,
     matchedBy: t.matchedBy
   });
-  const cache3 = options2.idCache ?? /* @__PURE__ */ new Map();
+  const cache4 = options2.idCache ?? /* @__PURE__ */ new Map();
   let ot2aIds = [];
   let ot2aFailed = false;
   let ot2aLower = false;
@@ -22427,7 +22427,7 @@ async function profileTerritory(org, user, territory, tables, options2 = DEFAULT
     const where3 = resolved(ot2aTable);
     try {
       const fetched = await memo(
-        cache3,
+        cache4,
         ot2aKey,
         () => fetchIdsUncached(org, ot2aTable.entry.sobject, "ObjectId", where3)
       );
@@ -22481,7 +22481,7 @@ async function profileTerritory(org, user, territory, tables, options2 = DEFAULT
         });
       } else if (cond && containsTag(cond, TAG_OT2A_IDS)) {
         const fetched = await memo(
-          cache3,
+          cache4,
           `Account|${cond}|${ot2aKey}`,
           () => fetchIdsWithIdTag(org, "Account", "Id", cond, TAG_OT2A_IDS, ot2aIds, options2)
         );
@@ -22505,7 +22505,7 @@ async function profileTerritory(org, user, territory, tables, options2 = DEFAULT
         });
       } else {
         const fetched = await memo(
-          cache3,
+          cache4,
           `Account|${cond}`,
           () => fetchIdsUncached(org, "Account", "Id", cond)
         );
@@ -24407,14 +24407,14 @@ async function addThumbnails(cards, linked, org) {
   const versionOf = new Map(
     versions.filter((v) => Number(v.ContentSize) <= THUMBNAIL_MAX_BYTES).map((v) => [s(v.ContentDocumentId), s(v.Id)])
   );
-  const cache3 = privateTmp("lsc-studio-content-thumbs");
+  const cache4 = privateTmp("lsc-studio-content-thumbs");
   await Promise.all(
     cards.map(async (c) => {
       const f = first2.get(c.id);
       const version3 = f && versionOf.get(f.doc);
       if (!f || !version3 || !/^068[a-zA-Z0-9]{12,15}$/.test(version3)) return;
       const file = join9(
-        cache3,
+        cache4,
         `${createHash2("sha1").update(`${version3}:${c.type}:${f.page}`).digest("hex")}.jpg`
       );
       try {
@@ -24459,7 +24459,7 @@ async function addPageThumbnails(cards, linked, org) {
   const versionOf = new Map(
     versions.filter((v) => Number(v.ContentSize) <= THUMBNAIL_MAX_BYTES).map((v) => [s(v.ContentDocumentId), s(v.Id)])
   );
-  const cache3 = privateTmp("lsc-studio-content-thumbs");
+  const cache4 = privateTmp("lsc-studio-content-thumbs");
   await Promise.all(
     cards.map(async (c) => {
       const pages = want.get(c.id);
@@ -24472,7 +24472,7 @@ async function addPageThumbnails(cards, linked, org) {
           continue;
         }
         const file = join9(
-          cache3,
+          cache4,
           `${createHash2("sha1").update(`${version3}:${c.type}:${w.page}`).digest("hex")}.jpg`
         );
         try {
@@ -28026,9 +28026,9 @@ function formatValue(value4, spec, describeField, format, short = false) {
   return listCell(value4, type, format);
 }
 function describeOf(ctx, object3) {
-  let cache3 = describeCache.get(ctx);
-  if (!cache3) describeCache.set(ctx, cache3 = /* @__PURE__ */ new Map());
-  const hit = cache3.get(object3);
+  let cache4 = describeCache.get(ctx);
+  if (!cache4) describeCache.set(ctx, cache4 = /* @__PURE__ */ new Map());
+  const hit = cache4.get(object3);
   if (hit) return hit;
   const p = (async () => {
     const r = await apiRequest(
@@ -28052,7 +28052,7 @@ function describeOf(ctx, object3) {
       createable: d.createable !== false
     };
   })();
-  cache3.set(object3, p);
+  cache4.set(object3, p);
   return p;
 }
 function specsFor(ctx, object3) {
@@ -30843,7 +30843,7 @@ async function loadPublishedCore(profile, org, userId) {
 async function loadWithProgress(profile, org, userId, track, mobileLogins = [], languageOverride) {
   const loaded = await loadCore(profile, org, userId, track, true, languageOverride);
   if ("missing" in loaded) return loaded;
-  const { core, cache: cache3, user, viewer, userInfo: userInfo2, userNotes, sharing } = loaded;
+  const { core, cache: cache4, user, viewer, userInfo: userInfo2, userNotes, sharing } = loaded;
   const withNotes = (c) => userNotes.length ? { ...c, notes: [...c.notes, ...userNotes] } : c;
   const shared = applyListViewSharing(core, await sharing);
   const [dashboards, screens] = await Promise.all([
@@ -30855,19 +30855,19 @@ async function loadWithProgress(profile, org, userId, track, mobileLogins = [], 
     ...screens,
     dashboards,
     profile,
-    cache: cache3,
+    cache: cache4,
     viewer,
     ...userInfo2,
     ...user ? { userLanguage: user.language } : {}
   };
 }
 async function loadCore(profile, org, userId, track, withSharing, languageOverride) {
-  const [cache3, listed] = await track.run(
+  const [cache4, listed] = await track.run(
     "cache",
     () => Promise.all([latestCache(profile, org), profileUsers(profile, org)])
   );
-  if (!cache3) return { profile, missing: true };
-  if (!ID_PATTERN.test(cache3.contentVersionId))
+  if (!cache4) return { profile, missing: true };
+  if (!ID_PATTERN.test(cache4.contentVersionId))
     throw new Error("The metadata cache record has no downloadable file.");
   const { users, total: usersTotal, truncated: usersTruncated } = listed;
   const picked = userId ? users.find((u) => u.id === userId) ?? await profileUserById(profile, userId, org) : void 0;
@@ -30884,7 +30884,7 @@ async function loadCore(profile, org, userId, track, withSharing, languageOverri
   const language = languageOverride && LANGUAGE.test(languageOverride) ? languageOverride : user?.language ?? DEFAULT_LANGUAGE;
   const sharing = user && withSharing ? track.run("sharing", () => viewerSharing(user.id, org)) : Promise.resolve(null);
   sharing.catch(() => void 0);
-  const dir = path6.join(cacheRoot(), cache3.contentVersionId);
+  const dir = path6.join(cacheRoot(), cache4.contentVersionId);
   const snapshotPath = (sets, lang) => path6.join(dir, `snapshot-v${SNAPSHOT_VERSION2}-${lang}-${comboKey(sets)}.json`);
   const readSaved = () => {
     const file = snapshotPath(permissionSets, language);
@@ -30895,7 +30895,7 @@ async function loadCore(profile, org, userId, track, withSharing, languageOverri
   };
   const finish = (core) => ({
     core,
-    cache: cache3,
+    cache: cache4,
     user,
     viewer,
     userInfo: userInfo2,
@@ -30904,7 +30904,7 @@ async function loadCore(profile, org, userId, track, withSharing, languageOverri
   });
   let saved = readSaved();
   if (!saved) {
-    const building = builds.get(cache3.contentVersionId);
+    const building = builds.get(cache4.contentVersionId);
     if (building) {
       await building.catch(() => void 0);
       saved = readSaved();
@@ -30914,7 +30914,7 @@ async function loadCore(profile, org, userId, track, withSharing, languageOverri
   const build2 = buildSnapshots({
     profile,
     org,
-    cache: cache3,
+    cache: cache4,
     users,
     user,
     permissionSets,
@@ -30927,15 +30927,15 @@ async function loadCore(profile, org, userId, track, withSharing, languageOverri
     () => void 0,
     () => void 0
   );
-  builds.set(cache3.contentVersionId, marker);
+  builds.set(cache4.contentVersionId, marker);
   try {
     return await finish(await build2);
   } finally {
-    if (builds.get(cache3.contentVersionId) === marker) builds.delete(cache3.contentVersionId);
+    if (builds.get(cache4.contentVersionId) === marker) builds.delete(cache4.contentVersionId);
   }
 }
 async function buildSnapshots(input) {
-  const { profile, org, cache: cache3, users, permissionSets, language, dir, snapshotPath, track } = input;
+  const { profile, org, cache: cache4, users, permissionSets, language, dir, snapshotPath, track } = input;
   fs7.mkdirSync(dir, { recursive: true });
   try {
     pruneCache(cacheRoot(), { keep: CACHE_KEEP, maxBytes: CACHE_MAX_BYTES, protect: [dir] });
@@ -30945,7 +30945,7 @@ async function buildSnapshots(input) {
   let languages = [];
   track.plan(["download", "unpack", "access", "build"]);
   try {
-    await track.run("download", () => download(cache3.contentVersionId, zip, org, cache3.sizeBytes));
+    await track.run("download", () => download(cache4.contentVersionId, zip, org, cache4.sizeBytes));
     const combos = /* @__PURE__ */ new Map([
       [`${language} ${comboKey(permissionSets)}`, { sets: permissionSets, language }]
     ]);
@@ -30978,7 +30978,7 @@ async function buildSnapshots(input) {
           { ...files, translations, english: tabTranslations.get(DEFAULT_LANGUAGE) },
           {
             profile,
-            cache: cache3,
+            cache: cache4,
             permissionSets: c.sets,
             availableTables: available?.(c.sets),
             language: c.language
@@ -67427,8 +67427,8 @@ var require_arrayMap = __commonJS({
 // node_modules/lodash/_cacheHas.js
 var require_cacheHas = __commonJS({
   "node_modules/lodash/_cacheHas.js"(exports2, module) {
-    function cacheHas(cache3, key5) {
-      return cache3.has(key5);
+    function cacheHas(cache4, key5) {
+      return cache4.has(key5);
     }
     module.exports = cacheHas;
   }
@@ -94889,6 +94889,106 @@ async function validateOrgConnection() {
   };
 }
 
+// src/tools/soql-hints.ts
+init_cli();
+function objectForFieldError(error2, query2) {
+  const column = /No such column '[^']+' on entity '(\w+)'/.exec(error2);
+  const relationship = /Didn't understand relationship '[^']+'|INVALID_FIELD/.test(error2);
+  if (column) return column[1];
+  if (!relationship) return null;
+  return fromObject(query2);
+}
+function fromObject(query2) {
+  const flat = query2.replace(/\(\s*SELECT[\s\S]*?\)/gi, "()");
+  return /\bFROM\s+(\w+)/i.exec(flat)?.[1] ?? null;
+}
+function fieldListText(describe) {
+  const fields = describe.fields.filter((f) => !f.deprecatedAndHidden);
+  const plain = fields.filter((f) => f.type !== "reference").map((f) => f.name);
+  const lookups = fields.filter((f) => f.type === "reference").map((f) => {
+    const to = f.referenceTo?.length ? ` \u2192 ${f.referenceTo.join("/")}` : "";
+    const rel5 = f.relationshipName ? ` (as ${f.relationshipName}.\u2026)` : "";
+    return `${f.name}${to}${rel5}`;
+  });
+  const lines2 = [`**Fields on ${describe.name}** (from the org's describe):`, plain.join(", ")];
+  if (lookups.length) lines2.push(`**Lookups:** ${lookups.join(", ")}`);
+  const poly = fields.filter((f) => f.type === "reference" && (f.referenceTo?.length ?? 0) > 1);
+  if (poly.length)
+    lines2.push(
+      `${poly.map((f) => f.relationshipName ?? f.name).join(", ")} can point to several objects, so only Id and Name are queryable through ${poly.length > 1 ? "them" : "it"}; query the target object for other fields.`
+    );
+  return lines2.join("\n\n");
+}
+function polymorphicHint(error2) {
+  const m = /No such column '(\w+)' on entity 'Name'/.exec(error2);
+  if (!m) return null;
+  return `'${m[1]}' was read through a lookup that can point to several objects (such as Owner), which only exposes Id and Name. Query the target object (for example User) by that Id instead.`;
+}
+var TTL_MS = 10 * 6e4;
+var cache = /* @__PURE__ */ new Map();
+async function fieldHintForError(error2, query2, org, describe = describeSObject) {
+  const poly = polymorphicHint(error2);
+  if (poly) return poly;
+  const object3 = objectForFieldError(error2, query2);
+  if (!object3 || !/^\w+$/.test(object3)) return "";
+  const key5 = `${org.toLowerCase()}|${object3.toLowerCase()}`;
+  let hit = cache.get(key5);
+  if (!hit || Date.now() - hit.at > TTL_MS) {
+    const result2 = await describe(object3, org).catch(() => null);
+    if (!result2?.success || !result2.data) return "";
+    hit = { at: Date.now(), describe: result2.data };
+    cache.set(key5, hit);
+  }
+  return `${fieldListText(hit.describe)}
+
+Fix the query from this list; don't guess another name.`;
+}
+function describeText(data2, only) {
+  const wanted = only?.length ? new Set(only.map((f) => f.toLowerCase())) : null;
+  const all = data2.fields.filter((f) => !f.deprecatedAndHidden || wanted);
+  const shown2 = wanted ? all.filter((f) => wanted.has(f.name.toLowerCase())) : all.slice(0, 100);
+  let message = `# ${data2.label} (${data2.name})
+
+`;
+  message += wanted ? `## Fields (${shown2.length} of ${data2.fields.length})
+
+` : `## Fields (${data2.fields.length})
+
+`;
+  message += `| Field | Label | Type | Required | Updateable | Values / points to |
+`;
+  message += `| --- | --- | --- | --- | --- | --- |
+`;
+  for (const f of shown2) {
+    message += `| ${f.name} | ${f.label} | ${f.type} | ${f.required ? "Yes" : "No"} | ${f.updateable ? "Yes" : "No"} | ${extraFor(f)} |
+`;
+  }
+  if (wanted) {
+    const found = new Set(shown2.map((f) => f.name.toLowerCase()));
+    const missing = (only ?? []).filter((f) => !found.has(f.toLowerCase()));
+    if (missing.length)
+      message += `
+**Not on ${data2.name}:** ${missing.join(", ")}. Every field: call again without \`fields\`.
+`;
+  } else if (data2.fields.length > 100) {
+    const rest = data2.fields.slice(100).map((f) => f.name);
+    message += `
+**Other fields (${rest.length}):** ${rest.join(", ")}
+
+Pass \`fields\` to see their types and values.
+`;
+  }
+  return message;
+}
+function extraFor(f) {
+  if (f.type === "reference" && f.referenceTo?.length)
+    return `${f.referenceTo.join(", ")}${f.relationshipName ? ` (as ${f.relationshipName})` : ""}`;
+  const values = (f.picklistValues ?? []).filter((v) => v.active !== false).map((v) => v.value);
+  if (!values.length) return "";
+  const cut = values.length > 25 ? `${values.slice(0, 25).join(", ")}, \u2026 (${values.length})` : values.join(", ");
+  return cut.replace(/\|/g, "\\|");
+}
+
 // src/tools/salesforce-org.ts
 function register2(server2) {
   server2.tool(
@@ -95212,6 +95312,7 @@ ${instructions.command}
       }
       const result2 = await runSoqlQuery(query2, effectiveOrg);
       if (!result2.success) {
+        const hint = await fieldHintForError(result2.error ?? "", query2, effectiveOrg);
         return {
           content: [
             {
@@ -95223,7 +95324,9 @@ ${instructions.command}
 **Query:**
 \`\`\`sql
 ${query2}
-\`\`\``
+\`\`\`${hint ? `
+
+${hint}` : ""}`
             }
           ]
         };
@@ -95268,12 +95371,15 @@ ${query2}
   );
   server2.tool(
     "describe_sobject",
-    "Get metadata about a Salesforce object (fields, types, etc.). LSC objects are standard objects without __c (Visit, ProviderVisit, HealthcareProvider). Not for Admin Console or DB Schema records.",
+    "Get metadata about a Salesforce object (fields, types, picklist values, lookup targets). LSC objects are standard objects without __c (Visit, ProviderVisit, HealthcareProvider). Not for Admin Console or DB Schema records.",
     {
       objectName: external_exports.string().describe("The API name of the object (e.g., Account, Contact, Visit__c)"),
+      fields: external_exports.array(external_exports.string()).optional().describe(
+        "Optional: only these fields, with their picklist values or lookup targets. Use it to check field names before a query or a field past the first 100."
+      ),
       targetOrg: external_exports.string().optional().describe("Optional: specific org to query")
     },
-    async ({ objectName, targetOrg }) => {
+    async ({ objectName, fields, targetOrg }) => {
       const validation = await validateOrgConnection();
       const effectiveOrg = targetOrg || validation.targetOrg;
       if (!effectiveOrg) {
@@ -95299,25 +95405,7 @@ ${result2.error}`
           ]
         };
       }
-      const data2 = result2.data;
-      let message = `# ${data2.label} (${data2.name})
-
-`;
-      message += `## Fields (${data2.fields.length})
-
-`;
-      message += `| Field | Label | Type | Required | Updateable |
-`;
-      message += `| --- | --- | --- | --- | --- |
-`;
-      for (const field3 of data2.fields.slice(0, 100)) {
-        message += `| ${field3.name} | ${field3.label} | ${field3.type} | ${field3.required ? "Yes" : "No"} | ${field3.updateable ? "Yes" : "No"} |
-`;
-      }
-      if (data2.fields.length > 100) {
-        message += `
-*... and ${data2.fields.length - 100} more fields*`;
-      }
+      const message = describeText(result2.data, fields);
       return {
         content: [{ type: "text", text: message }]
       };
@@ -100837,7 +100925,12 @@ function recordNames(outcome) {
     const name = r.DeveloperName ?? r.Name ?? r.QualifiedApiName ?? r.ValidationName ?? r.EndpointUrl ?? r.LifeSciConfigRecordId ?? r.Id;
     const extra = r.InternalSharingModel ?? r.Context;
     const entity = r.EntityDefinition?.QualifiedApiName;
-    return [entity ? `${entity}.${name}` : String(name), extra ? `(${extra})` : ""].join(" ").trim();
+    const id2 = typeof r.Id === "string" && r.Id !== name && r.DeveloperName == null ? r.Id : "";
+    return [
+      entity ? `${entity}.${name}` : String(name),
+      extra ? `(${extra})` : "",
+      id2 ? `(${id2})` : ""
+    ].filter(Boolean).join(" ");
   });
 }
 function oneLine(text12) {
@@ -103391,14 +103484,14 @@ async function loadAppsViaTooling(org) {
       true
     );
     const rows4 = list2.filter((r) => r.ManageableState !== "installed");
-    const cache3 = appCache.get(org) ?? /* @__PURE__ */ new Map();
-    appCache.set(org, cache3);
+    const cache4 = appCache.get(org) ?? /* @__PURE__ */ new Map();
+    appCache.set(org, cache4);
     const live = new Set(rows4.map((r) => String(r.Id)));
-    for (const id2 of [...cache3.keys()]) if (!live.has(id2)) cache3.delete(id2);
+    for (const id2 of [...cache4.keys()]) if (!live.has(id2)) cache4.delete(id2);
     const apps = new Array(rows4.length).fill(null);
     const stale = [];
     rows4.forEach((r, i) => {
-      const hit = cache3.get(String(r.Id));
+      const hit = cache4.get(String(r.Id));
       const modified = String(r.LastModifiedDate ?? "");
       if (hit && modified && hit.modified === modified && hit.readAt > Date.parse(modified) + APP_SETTLE_MS)
         apps[i] = hit.app;
@@ -103436,7 +103529,7 @@ async function loadAppsViaTooling(org) {
           }))
         };
         apps[i] = app;
-        cache3.set(id2, { modified: String(rows4[i].LastModifiedDate ?? ""), readAt, app });
+        cache4.set(id2, { modified: String(rows4[i].LastModifiedDate ?? ""), readAt, app });
       }
     };
     await Promise.all(Array.from({ length: Math.min(APP_READS_IN_FLIGHT, stale.length) }, worker));
@@ -103813,7 +103906,7 @@ var collectMobileSync = async (org) => {
   const uiSchema = settle(fetchCategories(org, ["UISchema"]));
   const settings = settle(fetchCategories(org, SETTINGS_CATEGORIES));
   const sync = settle(fetchCategories(org, SYNC_CATEGORIES));
-  const cache3 = settle(fetchCache(org));
+  const cache4 = settle(fetchCache(org));
   const surfaces = await Promise.all([
     buildSurface(
       {
@@ -103866,7 +103959,7 @@ var collectMobileSync = async (org) => {
           unwrap(dbSchema),
           unwrap(uiSchema),
           unwrap(settings),
-          unwrap(cache3)
+          unwrap(cache4)
         ]);
         const profileSettings = byCategory(appSettings, "ProfileBasedAppSettings");
         const orgCache = caches.find((c) => c.profile === null && isLiveCache(c));
@@ -103946,7 +104039,7 @@ var collectMobileSync = async (org) => {
         description: "LifeSciMobileMetadataRecord \u2014 the generated schema package the iPad downloads, per profile."
       },
       async () => ({
-        items: (await unwrap(cache3)).map(
+        items: (await unwrap(cache4)).map(
           ({ row, profile }) => item(String(row.Id), profile ?? "Org level", {
             sublabel: `${row.Name} \xB7 ${row.Status}`,
             active: isLiveCache({ row, profile }),
@@ -104597,7 +104690,7 @@ var collectBriefings = async (org) => {
     )
   );
   const dbSchema = settle(fetchCategories(org, ["DbSchema"]));
-  const cache3 = settle(fetchCache(org));
+  const cache4 = settle(fetchCache(org));
   const assignedProfiles = async () => [
     ...new Set(
       (await unwrap(assignments) ?? []).filter((a) => a.IsActive).map((a) => String(rel2(a, "AssignedTo.Name")))
@@ -104881,7 +104974,7 @@ var collectBriefings = async (org) => {
           unwrap(assignments),
           unwrap(briefingUsers),
           unwrap(content),
-          unwrap(cache3),
+          unwrap(cache4),
           unwrap(dbSchema)
         ]);
         if (rows4 === null) return { items: [], findings: [NOT_ENABLED] };
@@ -105166,7 +105259,7 @@ var collectBriefings = async (org) => {
       },
       async () => {
         const [caches, profiles] = await Promise.all([
-          unwrap(cache3),
+          unwrap(cache4),
           assignedProfiles().catch(() => [])
         ]);
         const latest = /* @__PURE__ */ new Map();
@@ -125743,8 +125836,8 @@ ${tmInfo}`);
       const cacheResult = await runSoqlQuery(MOBILE_CACHE_QUERY, effectiveOrg);
       let cacheInfo = "No mobile metadata cache found.";
       if (cacheResult.success && cacheResult.data?.records?.length) {
-        const cache3 = cacheResult.data.records[0];
-        const createdDate = cache3.LastModifiedDate;
+        const cache4 = cacheResult.data.records[0];
+        const createdDate = cache4.LastModifiedDate;
         const daysAgo = Math.floor(
           (Date.now() - new Date(createdDate).getTime()) / (1e3 * 60 * 60 * 24)
         );
@@ -128685,17 +128778,17 @@ async function collectEppvChecks(org, profileName3) {
       fix: hit.length && assigned ? void 0 : `create_quick_action with action type ${EPPV_QUICK_ACTION}, location Visit, assigned to the rep profile.`
     });
   }
-  const cache3 = await soql3(
+  const cache4 = await soql3(
     `SELECT Id, Status, LastModifiedDate FROM LifeSciMobileMetadataRecord WHERE Status = 'Active' ORDER BY LastModifiedDate DESC LIMIT 5`,
     org
   );
   add(
-    cache3.error && cache3.rows.length === 0 ? couldNot("cache", "Mobile metadata cache", cache3.error) : {
+    cache4.error && cache4.rows.length === 0 ? couldNot("cache", "Mobile metadata cache", cache4.error) : {
       id: "cache",
       title: "Mobile metadata cache",
-      status: cache3.rows.length ? "pass" : "fail",
-      detail: cache3.rows.length ? `Newest active cache ${String(cache3.rows[0].LastModifiedDate).slice(0, 10)}. Regenerate it after any DB Schema, tab or action change.` : "No active metadata cache.",
-      fix: cache3.rows.length ? void 0 : "generate_mobile_metadata_cache for one profile at a time (many at once hit REQUEST_LIMIT_EXCEEDED)."
+      status: cache4.rows.length ? "pass" : "fail",
+      detail: cache4.rows.length ? `Newest active cache ${String(cache4.rows[0].LastModifiedDate).slice(0, 10)}. Regenerate it after any DB Schema, tab or action change.` : "No active metadata cache.",
+      fix: cache4.rows.length ? void 0 : "generate_mobile_metadata_cache for one profile at a time (many at once hit REQUEST_LIMIT_EXCEEDED)."
     }
   );
   return checks;
@@ -129201,14 +129294,14 @@ function cachesByProfile(rows4) {
 }
 function unpublishedChanges(caches, edits) {
   const out = [];
-  for (const cache3 of caches.values()) {
-    if (cache3.activeAt === void 0) continue;
+  for (const cache4 of caches.values()) {
+    if (cache4.activeAt === void 0) continue;
     const items = configItems(
       edits,
-      cache3.profileId,
-      cache3.activeStartedAt ?? cache3.activeAt
+      cache4.profileId,
+      cache4.activeStartedAt ?? cache4.activeAt
     ).filter((i) => i.reach?.ipad === "publish");
-    if (items.length) out.push({ profileId: cache3.profileId, items });
+    if (items.length) out.push({ profileId: cache4.profileId, items });
   }
   return out;
 }
@@ -129460,7 +129553,7 @@ function applyAppOps(root2, fullName, ops2) {
 // src/studio/metadata/live-app.ts
 init_xml2();
 var soqlString5 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
-var TTL_MS = 6e4;
+var TTL_MS2 = 6e4;
 var appListCache = /* @__PURE__ */ new Map();
 var tabListCache = /* @__PURE__ */ new Map();
 var matchCache = /* @__PURE__ */ new Map();
@@ -129484,7 +129577,7 @@ function cached3(map, key5, ttl, load) {
   return value4;
 }
 function allApps(org) {
-  return cached3(appListCache, org, TTL_MS, async () => {
+  return cached3(appListCache, org, TTL_MS2, async () => {
     const rows4 = await query(
       "SELECT ApplicationId, Name, NamespacePrefix, Label FROM AppMenuItem WHERE Type = 'TabSet'",
       org
@@ -129570,7 +129663,7 @@ function matchApp(apps, names5) {
 }
 function findProfileApp(profile, names5, org) {
   const key5 = `${org}\0${profile}\0${[...names5].sort().join("|")}`;
-  return cached3(matchCache, key5, TTL_MS, async () => {
+  return cached3(matchCache, key5, TTL_MS2, async () => {
     const apps = await profileApps(profile, org);
     if (!apps.length)
       return { app: null, reason: `${profile} can't open any Lightning app.` };
@@ -129584,7 +129677,7 @@ function findProfileApp(profile, names5, org) {
   });
 }
 function allTabs(org) {
-  return cached3(tabListCache, org, 5 * TTL_MS, async () => {
+  return cached3(tabListCache, org, 5 * TTL_MS2, async () => {
     const r = await apiRequest(await dataPath2(org, "/tabs"), "GET", void 0, org);
     if (!r.success || !Array.isArray(r.data)) return [];
     return r.data.filter((t) => t.name && t.label).map((t) => ({
@@ -129771,13 +129864,13 @@ async function flexiPageRows(since, org) {
   });
 }
 async function collectUnpublished(profile, org, known) {
-  const { profileId, cache: cache3 } = await liveCache(profile, org);
+  const { profileId, cache: cache4 } = await liveCache(profile, org);
   const checkedAt = (/* @__PURE__ */ new Date()).toISOString();
   const base2 = { profile, checkedAt, scoped: !!known };
-  if (!cache3) {
+  if (!cache4) {
     return { ...base2, cacheAt: null, cacheStartedAt: null, noCache: true, items: [], errors: [] };
   }
-  const boundary = cache3.startedAt;
+  const boundary = cache4.startedAt;
   const since = `LastModifiedDate > ${soqlTime2(boundary)}`;
   const recent2 = (rows4) => rows4.filter((r) => isAfter(r.LastModifiedDate, boundary));
   const scopes = {
@@ -129897,8 +129990,8 @@ async function collectUnpublished(profile, org, known) {
   }
   return {
     ...base2,
-    cacheAt: new Date(cache3.generatedAt).toISOString(),
-    cacheStartedAt: new Date(cache3.startedAt).toISOString(),
+    cacheAt: new Date(cache4.generatedAt).toISOString(),
+    cacheStartedAt: new Date(cache4.startedAt).toISOString(),
     noCache: false,
     items: sortItems(items),
     errors
@@ -131108,7 +131201,7 @@ async function lookup(ref3, org) {
       return SF_ID.test(ref3.id) ? ref3.id : null;
   }
 }
-var TTL_MS2 = 10 * 6e4;
+var TTL_MS3 = 10 * 6e4;
 var isCustomEntity = (object3) => /__[a-z]+$/i.test(object3);
 async function objectKey(object3, org) {
   if (!isCustomEntity(object3) || !OBJECT.test(object3)) return object3;
@@ -131122,7 +131215,7 @@ async function objectKey(object3, org) {
       ),
       "DurableId"
     ),
-    TTL_MS2
+    TTL_MS3
   );
   return id2 && SF_ID.test(id2) ? id2 : object3;
 }
@@ -131133,7 +131226,7 @@ async function resolveSetupLink(ref3, org) {
       org,
       `setup-link:${JSON.stringify(ref3)}`,
       () => lookup(ref3, org),
-      TTL_MS2
+      TTL_MS3
     );
     if (!id2) return fallback;
     const key5 = "object" in ref3 && ref3.type !== "listView" ? await objectKey(ref3.object, org) : null;
@@ -140940,7 +141033,7 @@ function salesforceFallback(id2) {
 init_private_tmp();
 var BUILD_VERSION = 5;
 var MAX_CACHED = 30;
-var cache = /* @__PURE__ */ new Map();
+var cache2 = /* @__PURE__ */ new Map();
 function str27(v) {
   return typeof v === "string" ? v : "";
 }
@@ -141142,10 +141235,10 @@ async function compileInlineLwc(org, name) {
     throw new Error(`The org has no Lightning web component named ${name}.`);
   const labels2 = await loadLabels(org, read2);
   const key5 = createHash4("sha256").update(JSON.stringify([org, name, read2, labels2])).digest("hex");
-  let job = cache.get(key5);
+  let job = cache2.get(key5);
   if (job) {
-    cache.delete(key5);
-    cache.set(key5, job);
+    cache2.delete(key5);
+    cache2.set(key5, job);
   } else {
     job = buildInlineLwc(name, read2, labels2).then(({ script, placeholders }) => ({
       name,
@@ -141154,9 +141247,9 @@ async function compileInlineLwc(org, name) {
       placeholders,
       check: check2
     }));
-    cache.set(key5, job);
-    while (cache.size > MAX_CACHED) cache.delete(cache.keys().next().value);
-    job.catch(() => cache.delete(key5));
+    cache2.set(key5, job);
+    while (cache2.size > MAX_CACHED) cache2.delete(cache2.keys().next().value);
+    job.catch(() => cache2.delete(key5));
   }
   return job;
 }
@@ -142276,9 +142369,9 @@ async function downloadProfileFiles(session, ref3) {
   }
 }
 function createCompiledSchemaSource(deps) {
-  const cache3 = /* @__PURE__ */ new Map();
+  const cache4 = /* @__PURE__ */ new Map();
   const loadFiles = (profileId) => {
-    let pending = cache3.get(profileId);
+    let pending = cache4.get(profileId);
     if (!pending) {
       pending = (async () => {
         const ref3 = await findProfileArchive(deps.org, profileId);
@@ -142289,7 +142382,7 @@ function createCompiledSchemaSource(deps) {
           return { reason: `archive ${ref3.recordId} has no db.json tables` };
         return { files, bytes, recordId: ref3.recordId };
       })().catch((e) => ({ reason: errorMessage3(e) }));
-      cache3.set(profileId, pending);
+      cache4.set(profileId, pending);
     }
     return pending;
   };
@@ -143368,10 +143461,10 @@ function createUserSchemaSource(deps) {
   const sessionFor = deps.sessionFor ?? ((login) => createTokenSession(login));
   const getInfo = deps.fetchUserInfo ?? ((s11) => fetchUserInfo(s11));
   const download3 = deps.downloadMetadata ?? ((s11, id2) => downloadMetadata(s11, id2));
-  const cache3 = /* @__PURE__ */ new Map();
+  const cache4 = /* @__PURE__ */ new Map();
   const load = (login) => {
     const key5 = login.username.toLowerCase();
-    let pending = cache3.get(key5);
+    let pending = cache4.get(key5);
     if (!pending) {
       pending = (async () => {
         const session = sessionFor(login);
@@ -143396,7 +143489,7 @@ function createUserSchemaSource(deps) {
           }
         };
       })().catch((e) => ({ reason: errorMessage4(e) }));
-      cache3.set(key5, pending);
+      cache4.set(key5, pending);
     }
     return pending;
   };
@@ -148667,16 +148760,16 @@ function objectsRead(files, objectApiName) {
 // src/studio/apps/sync.ts
 init_cli();
 init_sync_volume();
-var TTL_MS3 = 3e4;
-var cache2 = /* @__PURE__ */ new Map();
+var TTL_MS4 = 3e4;
+var cache3 = /* @__PURE__ */ new Map();
 function syncedObjectsOf(org) {
-  const hit = cache2.get(org);
-  if (hit && Date.now() - hit.at < TTL_MS3) return hit.value;
+  const hit = cache3.get(org);
+  if (hit && Date.now() - hit.at < TTL_MS4) return hit.value;
   const value4 = syncedObjects2(org).then(
     (s11) => s11,
     () => null
   );
-  cache2.set(org, { at: Date.now(), value: value4 });
+  cache3.set(org, { at: Date.now(), value: value4 });
   return value4;
 }
 var soql4 = (v) => v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
@@ -150542,7 +150635,7 @@ async function runScript(input) {
   );
   for (const n2 of input.notes ?? []) addNote(n2);
   const queries = [];
-  const cache3 = /* @__PURE__ */ new Map();
+  const cache4 = /* @__PURE__ */ new Map();
   const inflight2 = /* @__PURE__ */ new Map();
   const drain = new vm.Script("0", { filename: "drain.js" });
   const rtCache = /* @__PURE__ */ new Map();
@@ -150615,7 +150708,7 @@ async function runScript(input) {
   const fetchMiss = async (key5, miss) => {
     const entity = miss.args.entity;
     if (typeof entity !== "string" || !/^[A-Za-z0-9_]+$/.test(entity)) {
-      cache3.set(
+      cache4.set(
         key5,
         JSON.stringify({ ok: false, error: `Invalid object name: ${String(entity)}` })
       );
@@ -150623,7 +150716,7 @@ async function runScript(input) {
     }
     const info = await describe(entity);
     if (miss.kind === "describe") {
-      cache3.set(
+      cache4.set(
         key5,
         JSON.stringify({ ok: true, fields: info ? info.fields.map((f) => f.name) : null })
       );
@@ -150680,7 +150773,7 @@ async function runScript(input) {
         return item2;
       });
       queries.push({ object: entity, soql: soql6, rows: used2.length, ms: Date.now() - t0 });
-      cache3.set(key5, JSON.stringify({ ok: true, rows: items }));
+      cache4.set(key5, JSON.stringify({ ok: true, rows: items }));
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       queries.push({
@@ -150690,7 +150783,7 @@ async function runScript(input) {
         ms: Date.now() - t0,
         error: msg
       });
-      cache3.set(key5, JSON.stringify({ ok: false, error: msg }));
+      cache4.set(key5, JSON.stringify({ ok: false, error: msg }));
     }
   };
   let logs = [];
@@ -150730,7 +150823,7 @@ async function runScript(input) {
         const key5 = `${kind}|${argsJson}`;
         outstanding++;
         let work = inflight2.get(key5);
-        if (!work && !cache3.has(key5)) {
+        if (!work && !cache4.has(key5)) {
           work = fetchMiss(key5, {
             kind,
             args: parseJson(argsJson) ?? {}
@@ -150742,7 +150835,7 @@ async function runScript(input) {
           if (timedOut || settled) return;
           const t0 = Date.now();
           try {
-            cb(cache3.get(key5) ?? '{"ok":false,"error":"No result."}');
+            cb(cache4.get(key5) ?? '{"ok":false,"error":"No result."}');
             drain.runInContext(ctx, { timeout: Math.max(50, RUN_LIMITS.cpuMs - cpuUsed) });
           } catch (e) {
             if (ownString(e, "code") === "ERR_SCRIPT_EXECUTION_TIMEOUT") {
@@ -150755,7 +150848,7 @@ async function runScript(input) {
       },
       query: (kind, argsJson) => {
         const key5 = `${kind}|${argsJson}`;
-        const hit = cache3.get(key5);
+        const hit = cache4.get(key5);
         if (hit !== void 0) return hit;
         misses.set(key5, {
           kind,

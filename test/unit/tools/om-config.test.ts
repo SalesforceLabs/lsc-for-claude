@@ -94,7 +94,7 @@ describe("undated price adjustment schedules", () => {
       message: "1 record",
       details: { records: [{ Id: "0", Name: "Tier Discount Schedule" }] },
     });
-    expect(c).toMatchObject({ status: "fail", detail: "Found: Tier Discount Schedule" });
+    expect(c).toMatchObject({ status: "fail", detail: "Found: Tier Discount Schedule (0)" });
   });
 });
 

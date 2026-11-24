@@ -1,6 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
-import { ConversationEngine, STOPPED_TEXT } from "../../../src-electron/engine/conversation.js";
+import {
+  ConversationEngine,
+  MAX_TOOL_ROUNDS,
+  STOPPED_TEXT,
+  TOOL_BUDGET_SPENT_TEXT,
+} from "../../../src-electron/engine/conversation.js";
 import type { ContentBlock, Message } from "../../../src-electron/llm/provider.js";
+import { ORG_QUERY_LIMIT } from "../../../src-electron/engine/tool-budget.js";
 
 type Reply = Message | ((messages: Message[]) => Message);
 
@@ -59,7 +65,9 @@ function expectValidHistory(messages: Message[]) {
     if (!ids.length) return;
     const next = messages[i + 1];
     expect(next?.role).toBe("user");
-    const answered = (next.content as ContentBlock[]).filter((b) => b.type === "tool_result").map((b) => b.tool_use_id);
+    const answered = (next.content as ContentBlock[])
+      .filter((b) => b.type === "tool_result")
+      .map((b) => b.tool_use_id);
     expect(answered.sort()).toEqual([...ids].sort());
   });
 }
@@ -75,8 +83,13 @@ describe("ConversationEngine stopping mid-tool", () => {
           signal.addEventListener("abort", () => resolve(null));
         })
     );
-    const mcp = { getTools: () => offer("run_apex"), callTool: vi.fn(async () => ({ content: [{ type: "text", text: "ran" }] })) };
-    const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder, null, { gateTool: gateTool as never });
+    const mcp = {
+      getTools: () => offer("run_apex"),
+      callTool: vi.fn(async () => ({ content: [{ type: "text", text: "ran" }] })),
+    };
+    const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder, null, {
+      gateTool: gateTool as never,
+    });
     engine.initialize();
 
     const first = engine.sendMessage("run two things", callbacks());
@@ -89,7 +102,9 @@ describe("ConversationEngine stopping mid-tool", () => {
     const sent = seen[1];
     expectValidHistory(sent);
     const stopped = sent[2].content as ContentBlock[];
-    expect(stopped.every((b) => b.type === "tool_result" && b.is_error && b.content === STOPPED_TEXT)).toBe(true);
+    expect(
+      stopped.every((b) => b.type === "tool_result" && b.is_error && b.content === STOPPED_TEXT)
+    ).toBe(true);
     expect(sent.at(-1)).toEqual({ role: "user", content: "never mind" });
     expectValidHistory(engine.getMessages());
     expect(engine.getMessages().at(-1)).toEqual(text("ok"));
@@ -100,7 +115,12 @@ describe("ConversationEngine stopping mid-tool", () => {
     let release!: () => void;
     const mcp = {
       getTools: () => offer("run_apex"),
-      callTool: vi.fn(() => new Promise<{ content: Array<{ type: string; text: string }> }>((r) => (release = () => r({ content: [{ type: "text", text: "late" }] })))),
+      callTool: vi.fn(
+        () =>
+          new Promise<{ content: Array<{ type: string; text: string }> }>(
+            (r) => (release = () => r({ content: [{ type: "text", text: "late" }] }))
+          )
+      ),
     };
     const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder);
     engine.initialize();
@@ -115,14 +135,23 @@ describe("ConversationEngine stopping mid-tool", () => {
 
     await engine.sendMessage("again", callbacks());
     expectValidHistory(seen[1]);
-    expect((seen[1][2].content as ContentBlock[])[0]).toMatchObject({ tool_use_id: "a", content: STOPPED_TEXT });
+    expect((seen[1][2].content as ContentBlock[])[0]).toMatchObject({
+      tool_use_id: "a",
+      content: STOPPED_TEXT,
+    });
   });
 });
 
 describe("ConversationEngine preflight", () => {
   it("shows a failed preflight but doesn't give it to the model", async () => {
     const { llm, seen } = fakeLlm([text("ok")]);
-    const mcp = { getTools: () => [], callTool: vi.fn(async () => ({ content: [{ type: "text", text: "timed out" }], isError: true })) };
+    const mcp = {
+      getTools: () => [],
+      callTool: vi.fn(async () => ({
+        content: [{ type: "text", text: "timed out" }],
+        isError: true,
+      })),
+    };
     const cb = callbacks();
     const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder, null, {
       preflight: async () => [{ name: "diagnose_lsc_issue", input: { symptom: "x" } }],
@@ -130,15 +159,26 @@ describe("ConversationEngine preflight", () => {
     engine.initialize();
     await engine.sendMessage("sync failed", cb);
 
-    expect(mcp.callTool).toHaveBeenCalledWith("diagnose_lsc_issue", { symptom: "x" }, { timeoutMs: 15_000 });
-    expect(cb.onToolResult).toHaveBeenCalledWith(expect.stringMatching(/^preflight_/), "timed out", true);
+    expect(mcp.callTool).toHaveBeenCalledWith(
+      "diagnose_lsc_issue",
+      { symptom: "x" },
+      { timeoutMs: 15_000 }
+    );
+    expect(cb.onToolResult).toHaveBeenCalledWith(
+      expect.stringMatching(/^preflight_/),
+      "timed out",
+      true
+    );
     expect(cb.onToolEnd).toHaveBeenCalledTimes(1);
     expect(seen[0]).toEqual([{ role: "user", content: "sync failed" }]);
   });
 
   it("gives a successful preflight to the model as a tool turn", async () => {
     const { llm, seen } = fakeLlm([text("ok")]);
-    const mcp = { getTools: () => [], callTool: vi.fn(async () => ({ content: [{ type: "text", text: "{\"items\":[]}" }] })) };
+    const mcp = {
+      getTools: () => [],
+      callTool: vi.fn(async () => ({ content: [{ type: "text", text: '{"items":[]}' }] })),
+    };
     const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder, null, {
       preflight: async () => [{ name: "diagnose_lsc_issue", input: { symptom: "x" } }],
     });
@@ -152,29 +192,82 @@ describe("ConversationEngine preflight", () => {
 describe("ConversationEngine per-message tool limits", () => {
   const checks = (...ids: string[]): Message => ({
     role: "assistant",
-    content: ids.map((id) => ({ type: "tool_use", id, name: "check_user_access", input: { user: id } }) as ContentBlock),
+    content: ids.map(
+      (id) =>
+        ({ type: "tool_use", id, name: "check_user_access", input: { user: id } }) as ContentBlock
+    ),
   });
 
   it("refuses a third rep check in one message and allows checks again on the next", async () => {
     const { llm, seen } = fakeLlm([checks("a", "b", "c"), text("done"), checks("d"), text("done")]);
-    const mcp = { getTools: () => offer("check_user_access"), callTool: vi.fn(async () => ({ content: [{ type: "text", text: "{}" }] })) };
+    const mcp = {
+      getTools: () => offer("check_user_access"),
+      callTool: vi.fn(async () => ({ content: [{ type: "text", text: "{}" }] })),
+    };
     const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder);
     engine.initialize();
 
     await engine.sendMessage("reps can't see the Samples tab", callbacks());
     expect(mcp.callTool).toHaveBeenCalledTimes(2);
     const results = seen[1].at(-1)!.content as ContentBlock[];
-    expect(results.find((b) => b.tool_use_id === "c")).toMatchObject({ is_error: true, content: expect.stringMatching(/Already checked 2 reps/) });
+    expect(results.find((b) => b.tool_use_id === "c")).toMatchObject({
+      is_error: true,
+      content: expect.stringMatching(/Already checked 2 reps/),
+    });
     expectValidHistory(seen[1]);
 
     await engine.sendMessage("check Carmen", callbacks());
     expect(mcp.callTool).toHaveBeenCalledTimes(3);
   });
 
+  it("refuses org queries past the per-message limit before the gate, then answers", async () => {
+    const soql = (n: number): Message => ({
+      role: "assistant",
+      content: Array.from(
+        { length: n },
+        (_, i) =>
+          ({
+            type: "tool_use",
+            id: `q${i}`,
+            name: "run_soql",
+            input: { query: `SELECT Id FROM Quote LIMIT ${i + 1}` },
+          }) as ContentBlock
+      ),
+    });
+    const { llm, seen } = fakeLlm([soql(ORG_QUERY_LIMIT + 1), text("Likeliest cause is ...")]);
+    const gateTool = vi.fn(async () => null);
+    const mcp = {
+      getTools: () => offer("run_soql"),
+      callTool: vi.fn(async () => ({ content: [{ type: "text", text: "ran" }] })),
+    };
+    const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder, null, {
+      gateTool: gateTool as never,
+    });
+    engine.initialize();
+
+    await engine.sendMessage("quotes don't lock", callbacks());
+    expect(mcp.callTool).toHaveBeenCalledTimes(ORG_QUERY_LIMIT);
+    expect(gateTool).toHaveBeenCalledTimes(ORG_QUERY_LIMIT);
+    const results = seen[1].at(-1)!.content as ContentBlock[];
+    expect(results.find((b) => b.tool_use_id === `q${ORG_QUERY_LIMIT}`)).toMatchObject({
+      is_error: true,
+      content: expect.stringMatching(/Answer the user now/),
+    });
+    expect(llm.chat).toHaveBeenCalledTimes(2);
+    expectValidHistory(seen[1]);
+  });
+
   it("refuses a tool the model wasn't offered without asking the gate", async () => {
     const invented: Message = {
       role: "assistant",
-      content: [{ type: "tool_use", id: "r", name: "read", input: { file_path: "/tmp/x.xml" } } as ContentBlock],
+      content: [
+        {
+          type: "tool_use",
+          id: "r",
+          name: "read",
+          input: { file_path: "/tmp/x.xml" },
+        } as ContentBlock,
+      ],
     };
     const { llm, seen } = fakeLlm([invented, text("ok")]);
     const gateTool = vi.fn(async () => null);
@@ -182,14 +275,19 @@ describe("ConversationEngine per-message tool limits", () => {
       getTools: () => [{ name: "run_soql", description: "", input_schema: {} }],
       callTool: vi.fn(async () => ({ content: [{ type: "text", text: "ran" }] })),
     };
-    const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder, null, { gateTool: gateTool as never });
+    const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder, null, {
+      gateTool: gateTool as never,
+    });
     engine.initialize();
 
     await engine.sendMessage("read the flow", callbacks());
     expect(gateTool).not.toHaveBeenCalled();
     expect(mcp.callTool).not.toHaveBeenCalled();
     const results = seen[1].at(-1)!.content as ContentBlock[];
-    expect(results[0]).toMatchObject({ is_error: true, content: expect.stringMatching(/no tool named read/) });
+    expect(results[0]).toMatchObject({
+      is_error: true,
+      content: expect.stringMatching(/no tool named read/),
+    });
     expectValidHistory(seen[1]);
   });
 });
@@ -204,14 +302,20 @@ describe("ConversationEngine read_skill", () => {
     const { llm, seen } = fakeLlm([skillCall("lsc-visit-management"), text("ok")]);
     const gateTool = vi.fn(async () => null);
     const mcp = { getTools: () => [], callTool: vi.fn() };
-    const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder, null, { gateTool: gateTool as never });
+    const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder, null, {
+      gateTool: gateTool as never,
+    });
     engine.initialize();
     await engine.sendMessage("visits?", callbacks());
 
     expect((llm.chat.mock.calls[0] as unknown[])[2]).toContainEqual(readSkillTool);
     expect(mcp.callTool).not.toHaveBeenCalled();
     expect(gateTool).not.toHaveBeenCalled();
-    expect((seen[1][2].content as ContentBlock[])[0]).toMatchObject({ tool_use_id: "s", content: "VISIT GUIDE", is_error: false });
+    expect((seen[1][2].content as ContentBlock[])[0]).toMatchObject({
+      tool_use_id: "s",
+      content: "VISIT GUIDE",
+      is_error: false,
+    });
   });
 
   it("answers an unknown name with an error the model can recover from", async () => {
@@ -231,15 +335,22 @@ describe("ConversationEngine ask_user", () => {
   });
 
   it("offers the tool, answers it without the server or the gate, and ends the turn", async () => {
-    const { llm, seen } = fakeLlm([ask({ question: "Which one?", options: [{ label: "A" }, { label: "B" }] }), text("ok")]);
+    const { llm, seen } = fakeLlm([
+      ask({ question: "Which one?", options: [{ label: "A" }, { label: "B" }] }),
+      text("ok"),
+    ]);
     const gateTool = vi.fn(async () => null);
     const mcp = { getTools: () => [], callTool: vi.fn() };
-    const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder, null, { gateTool: gateTool as never });
+    const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder, null, {
+      gateTool: gateTool as never,
+    });
     engine.initialize();
     const cb = callbacks();
     await engine.sendMessage("distribute a deck", cb);
 
-    expect((llm.chat.mock.calls[0] as unknown[])[2]).toContainEqual(expect.objectContaining({ name: "ask_user" }));
+    expect((llm.chat.mock.calls[0] as unknown[])[2]).toContainEqual(
+      expect.objectContaining({ name: "ask_user" })
+    );
     expect(llm.chat).toHaveBeenCalledTimes(1); // no second round: the turn waits for the user
     expect(mcp.callTool).not.toHaveBeenCalled();
     expect(gateTool).not.toHaveBeenCalled();
@@ -260,5 +371,72 @@ describe("ConversationEngine ask_user", () => {
     await engine.sendMessage("hi", callbacks());
     expect(llm.chat).toHaveBeenCalledTimes(2);
     expect((seen[1][2].content as ContentBlock[])[0]).toMatchObject({ is_error: true });
+  });
+});
+
+describe("ConversationEngine tool round limit", () => {
+  const mcp = () => ({
+    getTools: () => offer("run_apex"),
+    callTool: vi.fn(async () => ({ content: [{ type: "text", text: "ran" }] })),
+  });
+  const rounds = () => Array.from({ length: MAX_TOOL_ROUNDS }, (_, i) => toolUse(`t${i}`));
+
+  it("answers without tools once every round is used", async () => {
+    const { llm, seen } = fakeLlm([...rounds(), text("Here is what I found.")]);
+    const engine = new ConversationEngine(llm as never, mcp() as never, promptBuilder, null);
+    engine.initialize();
+    const cb = callbacks();
+    await engine.sendMessage("why is my order stuck?", cb);
+
+    expect(llm.chat).toHaveBeenCalledTimes(MAX_TOOL_ROUNDS + 1);
+    expect(llm.chat.mock.calls.at(-1)?.[3]).toMatchObject({ toolChoice: "none" });
+    expect(llm.chat.mock.calls[0][3]).not.toHaveProperty("toolChoice");
+    const last = seen.at(-1)!.at(-1)!;
+    expect(last.role).toBe("user");
+    expect((last.content as ContentBlock[]).at(-1)).toEqual({
+      type: "text",
+      text: TOOL_BUDGET_SPENT_TEXT,
+    });
+    expect(cb.onError).not.toHaveBeenCalled();
+    expect(cb.onComplete).toHaveBeenCalledWith(text("Here is what I found."));
+    expectValidHistory(engine.getMessages());
+    expect(engine.getMessages().at(-1)).toEqual(text("Here is what I found."));
+  });
+
+  it("drops tool calls the final round makes anyway and keeps its text", async () => {
+    const stray: Message = {
+      role: "assistant",
+      content: [
+        { type: "text", text: "Answer." },
+        { type: "tool_use", id: "x", name: "run_apex", input: {} } as ContentBlock,
+      ],
+    };
+    const { llm } = fakeLlm([...rounds(), stray]);
+    const engine = new ConversationEngine(llm as never, mcp() as never, promptBuilder, null);
+    engine.initialize();
+    const cb = callbacks();
+    await engine.sendMessage("go", cb);
+    expect(cb.onComplete).toHaveBeenCalledWith(text("Answer."));
+    expectValidHistory(engine.getMessages());
+  });
+
+  it("falls back to the limit error when the final round has no text or fails", async () => {
+    for (const final of [
+      toolUse("x"),
+      () => {
+        throw new Error("boom");
+      },
+    ]) {
+      const { llm } = fakeLlm([...rounds(), final as never]);
+      const engine = new ConversationEngine(llm as never, mcp() as never, promptBuilder, null);
+      engine.initialize();
+      const cb = callbacks();
+      await engine.sendMessage("go", cb);
+      expect(cb.onComplete).not.toHaveBeenCalled();
+      expect(cb.onError).toHaveBeenCalledWith(
+        expect.stringContaining(`Reached maximum tool call rounds (${MAX_TOOL_ROUNDS})`)
+      );
+      expectValidHistory(engine.getMessages());
+    }
   });
 });

@@ -7,7 +7,7 @@ import {
   ContentBlock,
 } from "./provider.js";
 import { isAuthError } from "./errors.js";
-import { apiFetch, HttpOptions, sseData } from "./http.js";
+import { FIRST_RESPONSE_TIMEOUT_MS, apiFetch, HttpOptions, sseData } from "./http.js";
 
 const DEFAULT_MODEL = "claude-sonnet-5-5";
 const DEFAULT_MAX_TOKENS = 8192;
@@ -44,9 +44,13 @@ export class AnthropicProvider implements LLMProvider {
   /** Model ids the endpoint serves, or null if it doesn't list them; throws when the credentials are rejected. */
   async listModels(): Promise<string[] | null> {
     try {
-      const res = await apiFetch(this.options, "anthropic", "/v1/models", { headers: VERSION_HEADER });
+      const res = await apiFetch(this.options, "anthropic", "/v1/models", {
+        headers: VERSION_HEADER,
+      });
       const data = (await res.json()) as { data?: Array<{ id?: unknown }> };
-      return (data.data ?? []).map((m) => m.id).filter((id): id is string => typeof id === "string");
+      return (data.data ?? [])
+        .map((m) => m.id)
+        .filter((id): id is string => typeof id === "string");
     } catch (error) {
       // Rejected credentials fail the connection; anything else just means no list.
       if (isAuthError(error)) throw error;
@@ -81,6 +85,7 @@ export class AnthropicProvider implements LLMProvider {
         description: t.description,
         input_schema: t.input_schema,
       }));
+      if (config?.toolChoice === "none") body.tool_choice = { type: "none" };
     }
 
     if (config?.temperature !== undefined) {
@@ -92,8 +97,24 @@ export class AnthropicProvider implements LLMProvider {
     return processAnthropicStream(await this.post(body, model, config?.signal), onChunk);
   }
 
-  private post(body: Record<string, unknown>, model: string, signal?: AbortSignal): Promise<Response> {
-    return apiFetch(this.options, "anthropic", "/v1/messages", { method: "POST", body, headers: VERSION_HEADER, signal }, model);
+  private post(
+    body: Record<string, unknown>,
+    model: string,
+    signal?: AbortSignal
+  ): Promise<Response> {
+    return apiFetch(
+      this.options,
+      "anthropic",
+      "/v1/messages",
+      {
+        method: "POST",
+        body,
+        headers: VERSION_HEADER,
+        signal,
+        firstResponseMs: FIRST_RESPONSE_TIMEOUT_MS,
+      },
+      model
+    );
   }
 }
 
@@ -108,11 +129,15 @@ export function addCacheBreakpoints(body: Record<string, unknown>): void {
     body.system = [{ type: "text", text: body.system, cache_control: EPHEMERAL }];
   }
   const tools = body.tools as Array<Record<string, unknown>> | undefined;
-  if (tools?.length) tools[tools.length - 1] = { ...tools[tools.length - 1], cache_control: EPHEMERAL };
+  if (tools?.length)
+    tools[tools.length - 1] = { ...tools[tools.length - 1], cache_control: EPHEMERAL };
   const messages = body.messages as Array<{ role: string; content: unknown }>;
   const last = messages[messages.length - 1];
   if (!last) return;
-  const blocks = typeof last.content === "string" ? [{ type: "text", text: last.content }] : [...(last.content as Array<Record<string, unknown>>)];
+  const blocks =
+    typeof last.content === "string"
+      ? [{ type: "text", text: last.content }]
+      : [...(last.content as Array<Record<string, unknown>>)];
   if (!blocks.length) return;
   blocks[blocks.length - 1] = { ...blocks[blocks.length - 1], cache_control: EPHEMERAL };
   messages[messages.length - 1] = { ...last, content: blocks };
@@ -122,7 +147,11 @@ const VERSION_HEADER = { "anthropic-version": "2023-06-01" };
 
 /** Strip trailing slashes, `/bedrock`, and `/v1` — requests add `/v1/messages` themselves. */
 export function normalizeAnthropicUrl(url: string): string {
-  return url.trim().replace(/\/+$/, "").replace(/\/bedrock$/, "").replace(/\/v1$/, "");
+  return url
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/\/bedrock$/, "")
+    .replace(/\/v1$/, "");
 }
 
 async function processAnthropicStream(
@@ -147,8 +176,12 @@ async function processAnthropicStream(
 
     const eventType = event.type as string;
 
-    if (process.env.LSC_LLM_DEBUG && (eventType === "message_start" || eventType === "message_delta")) {
-      const usage = ((event.message as Record<string, unknown> | undefined)?.usage ?? event.usage) as Record<string, number> | undefined;
+    if (
+      process.env.LSC_LLM_DEBUG &&
+      (eventType === "message_start" || eventType === "message_delta")
+    ) {
+      const usage = ((event.message as Record<string, unknown> | undefined)?.usage ??
+        event.usage) as Record<string, number> | undefined;
       console.log(`[anthropic] ${eventType} usage`, JSON.stringify(usage));
     }
 
@@ -202,8 +235,7 @@ async function processAnthropicStream(
     } else if (eventType === "message_stop") {
       onChunk?.({ type: "message_stop" });
     } else if (eventType === "error") {
-      const errMsg =
-        (event.error as Record<string, string>)?.message || "Unknown error";
+      const errMsg = (event.error as Record<string, string>)?.message || "Unknown error";
       onChunk?.({ type: "error", error: errMsg });
       throw new Error(errMsg);
     }

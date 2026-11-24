@@ -108,6 +108,10 @@ export interface SObjectDescribeResult {
     filterable?: boolean;
     /** The object's record-name field. */
     nameField?: boolean;
+    /** Lookup targets and the relationship name for reference fields. */
+    referenceTo?: string[];
+    relationshipName?: string | null;
+    picklistValues?: Array<{ value: string; label?: string; active?: boolean }>;
   }>;
   childRelationships?: Array<{
     childSObject: string;
