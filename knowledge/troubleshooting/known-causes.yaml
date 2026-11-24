@@ -46,6 +46,8 @@ causes:
       - "INVALID_FIELD No such column 'LastModifiedDate'"
       - "Users can't log in, HTTP 400 during sync"
       - "whole sync dies with a 400 after we added file or topic tables"
+      - "sync error says a date column doesn't exist on one of the synced objects"
+      - "iPad sync fails because the last modified date field isn't on that object"
     keywords: [DeltaDateField, SystemModstamp, Enhanced Mobile Sync, delta sync]
     cause: |
       ContentDocumentLink, Topic, TopicAssignment and GroupMember have no
@@ -74,6 +76,8 @@ causes:
       - "iPad changes never reach the web"
       - "Records created on the iPad don't upload"
       - "visits and notes made on the iPad never show up on the web"
+      - "sync transaction table is set up as configuration instead of data"
+      - "device sync transaction record is set to configuration, not data"
     keywords: [DeviceSyncTransactionRecord, DSTR, upload, Type, DATA]
     cause: |
       Uploads from the iPad go through DeviceSyncTransactionRecord. Its DB
@@ -113,6 +117,8 @@ causes:
       - "Accounts tab empty after sync"
       - "rep opens the app after sync and sees no doctors or hospitals"
       - "my accounts list on the iPad is completely empty"
+      - "accounts and contacts are set as configuration in object sync so they never sync as data"
+      - "account records never download to the iPad even though account is in object sync"
     keywords: [Account, Contact, Type, CONFIGURATION, DATA]
     cause: |
       Configuration tables are downloaded once with the metadata, not synced
@@ -140,6 +146,8 @@ causes:
       - "iPad edits don't show on the web"
       - "survey answers filled in on the iPad never reach the web"
       - "records a rep creates offline stay on the device only"
+      - "one-way sync is on for an object reps edit on the iPad"
+      - "changes reps make on the iPad get overwritten by the web after syncing"
     keywords:
       [
         OneWaySync,
@@ -177,6 +185,8 @@ causes:
       - "Email template preview blank on iPad"
       - "email template opens blank on the iPad when reps write an email"
       - "reps pick an email template and the body is empty"
+      - "email templates can't be opened offline on the iPad"
+      - "email template body isn't cached so it won't open without a connection"
     keywords: [LifeSciEmailTmplSnapshot, AttachmentsSupport, Attachment Download Method, Cache]
     cause: |
       The email template body is an attachment on its snapshot record. The
@@ -207,6 +217,8 @@ causes:
       - "Accounts outside my territory show on the iPad"
       - "every account in the company lands on the iPad"
       - "first sync on the iPad takes forever and the Align button is gone"
+      - "the account sync has no filter so every account in the org downloads"
+      - "reps get every customer in the org on their iPad, not just their territory"
     keywords: [WhereSoql, Account, filter, out of territory]
     cause: |
       With no WhereSoql on Account every account in the org downloads, so
@@ -226,6 +238,8 @@ causes:
       - "Affiliations blank on the iPad"
       - "Records missing on the iPad but visible on the web"
       - "approved plan changes disappear from the iPad after the next sync"
+      - "sync filter using the territory tag returns no records though reps have territories"
+      - "filter compares the territory id with the territory name and matches nothing"
     keywords: ["{USER.TERRITORY}", TerritoryList, Territory2Id, WhereSoql, tag]
     cause: |
       {USER.TERRITORY} is replaced with territory names. A filter that
@@ -247,6 +261,8 @@ causes:
       - "Wrong territory info on the iPad"
       - "next visit date on account list flips between values from sync to sync"
       - "account list shows an address from some other territory"
+      - "territory info rows from other reps' territories sync to the iPad"
+      - "the territory info sync filter doesn't limit to the rep's own territory"
     keywords: [ProviderAcctTerritoryInfo, PATI, Territory2.Name, WhereSoql]
     cause: |
       Without Territory2.Name = '{USER.TERRITORY}' the iPad downloads PATI
@@ -264,6 +280,8 @@ causes:
       - "Sample allocation missing on the iPad"
       - "rep gets a quantity allocation not found error when finishing a call with samples"
       - "sample allocation for the current period isn't on the iPad"
+      - "the time period an allocation or plan uses is missing on the iPad"
+      - "time period sync filter leaves out the period a plan belongs to"
     keywords: [TimePeriod, TerritoryProdtQtyAllocation, TPQA, WhereSoql]
     cause: |
       A TimePeriod filter that only fetches periods linked to Activity Plans
@@ -284,6 +302,8 @@ causes:
       - "Cache generation fails: parent Inactive, unable to read an object over REST"
       - "after we took away object access the iPad app keeps looping on open"
       - "config records stuck on Checking after we copied settings from another org"
+      - "object sync record points at an object the profile can't read"
+      - "an active sync record names an object that doesn't exist in this org"
     keywords: [DB Schema Status, Checking, custom object, object permission]
     cause: |
       A config deploy can activate records for custom objects that don't
@@ -307,6 +327,8 @@ causes:
       - "Sync is slow after attachments were enabled on all DB schema records"
       - "sync fails saying too many distinct ids or request limit exceeded"
       - "iPad sync runs over ten minutes because huge tables and attachments come down"
+      - "the iPad database is huge and first sync takes ages"
+      - "big tables sync with no filter and the device database keeps growing"
     keywords: [sync volume, attachments, WhereSoql, API limits, slow sync]
     cause: |
       DB Schema records with no filter on big objects, attachments turned on
@@ -328,6 +350,8 @@ causes:
       - "Can't create a visit on the iPad"
       - "As admin on web, Log a Visit says metadata is out of date"
       - "admin gets 'metadata out of date' when logging a call on the web"
+      - "creating a visit on the iPad fails for every rep"
+      - "provider visit isn't in object sync so new calls can't be created"
     keywords: [ProviderVisit, recordTypes, Master.json]
     cause: |
       Creating a visit reads ProviderVisit's record types from the metadata
@@ -356,6 +380,8 @@ causes:
       - "no such table"
       - "iPad error says no such table recordtype after opening a screen"
       - "app crashes on a screen with a database error about a missing table"
+      - "record type picker is empty when creating a record on the iPad"
+      - "record types don't sync to the iPad"
     keywords: [RecordType, HealthcareProviderSpecialty, SQLite, table]
     cause: |
       The iPad reads a table it never downloaded. RecordType is always
@@ -382,6 +408,8 @@ causes:
       - "Sample limits not enforced on the iPad"
       - "sample limit popup says there are no limitations for this product"
       - "reps can give out samples past the cap on the iPad"
+      - "sample limits don't show on the iPad for a doctor"
+      - "reps can't see the sample allowance for an HCP on the iPad"
     keywords: [ProviderSampleLimit, ProviderSampleLimitTemplate, ProviderSmplLmtTmplAssignment]
     cause: |
       The sample limit popover reads ProviderSampleLimit,
@@ -409,6 +437,8 @@ causes:
       - "Can't save a Managed Event on the iPad"
       - "can't save an event on the iPad, says unable to validate"
       - "event save fails on the iPad because working hours can't be checked"
+      - "business hours aren't synced to the iPad so event validation fails"
+      - "event errors about business hours not available offline"
     keywords: [MngEventBusinessHoursHandler, BusinessHours, Managed Event]
     cause: |
       MngEventBusinessHoursHandler checks events against business hours. If
@@ -482,6 +512,8 @@ causes:
       - "Can't create a medical inquiry"
       - "after we copied the rep permission set, my team and affiliations boxes are empty"
       - "consent section shows nothing for reps using our custom copy of the permission set"
+      - "a feature stopped working after we cloned the standard rep permission set"
+      - "our copy of the LSC permission set is missing a system permission"
     keywords:
       [
         cloned permission set,
@@ -510,6 +542,8 @@ causes:
       - "Next Visit Objective not shown"
       - "error says secure query included inaccessible field"
       - "app complains a field column doesn't exist though it's on the object"
+      - "rep has access to the object but not read access to one field"
+      - "sync fails on a field the rep has no field-level security for"
     keywords:
       [
         FLS,
@@ -540,6 +574,8 @@ causes:
       - "SQLiteDBConnectorError"
       - "new rep profile can't log into the iPad at all"
       - "first sync never finishes for reps on a new profile"
+      - "rep profile without API access cannot sign in to the iPad app"
+      - "rep profile is missing API enabled or view setup so the app login fails"
     keywords:
       [
         API Enabled,
@@ -567,6 +603,8 @@ causes:
       - "Signed in to the iPad with an admin profile and data or screens are wrong"
       - "admin signs into the iPad and gets bounced to the browser"
       - "I can log in as admin on the iPad but can't edit anything"
+      - "testing the iPad with a system administrator login behaves differently from reps"
+      - "admin profile isn't supported on the iPad app"
     keywords: [System Administrator, admin profile, test user]
     cause: |
       The iPad app supports rep profiles that have a metadata cache. System
@@ -605,6 +643,8 @@ causes:
       - "Agentforce 'Something went wrong' on iPad"
       - "Quote PDF fails to download"
       - "Agentforce on the iPad says something went wrong when reps move networks"
+      - "iPad calls fail after locking sessions to the IP address"
+      - "session security change broke quote PDF download on the iPad"
     keywords: [Lock sessions to the IP address, session settings, Agentforce]
     cause: |
       "Lock sessions to the IP address from which they originated" rejects
@@ -671,6 +711,7 @@ causes:
       - "Wrong field set shown on the iPad"
       - "after copying settings between orgs the field set edit won't save"
       - "iPad shows the wrong field list, two copies of the same setting exist"
+      - "Admin Console shows the setting twice after a config migration"
     keywords: [duplicate, FieldSetMapping, LifeSciStageObject, migration, assignment]
     cause: |
       Config copied between orgs twice leaves two records (or two
@@ -695,6 +736,8 @@ causes:
       - "Product Discussion settings error when selecting a brand"
       - "planner tab missing for a profile, an empty setting record was created"
       - "error about null object when picking a brand in discussions"
+      - "an Admin Console setting record has no values filled in"
+      - "a settings record was created empty and the feature does nothing"
     keywords: [PlannerAdministration, CallDiscussionRecordType, field values, incomplete]
     cause: |
       A record created without its field values (for example
@@ -711,6 +754,8 @@ causes:
       - "The app says the org is under maintenance"
       - "iPad says the org is down for maintenance but it's not"
       - "all reps on one profile see a maintenance screen"
+      - "the app tells reps the org is in maintenance when it isn't"
+      - "org in maintenance switch is on in the profile app settings"
     keywords: [IsOrgInMaintenance, ProfileBasedAppSettings, maintenance]
     cause: "IsOrgInMaintenance is on in a Profile Based App Settings record."
     fix:
@@ -733,6 +778,8 @@ causes:
       - "Coming Soon on Home"
       - "metadata cache won't generate, says no default mobile app name"
       - "iPad home screen says coming soon for a new profile"
+      - "metadata cache for a profile doesn't know which mobile app it's for"
+      - "profile app settings have no mobile app name"
     keywords: [MobileAppName, ProfileBasedAppSettings, app assignment]
     cause: |
       The cache is built for the app named in the profile's Profile Based App
@@ -762,6 +809,8 @@ causes:
       - "Standardtab.candidatedetails"
       - "extra tabs on the iPad just say coming soon"
       - "a new tab I added to the app opens a placeholder page"
+      - "a tab added in UI settings does nothing when tapped on the iPad"
+      - "UI settings tab has no mobile handler so the iPad can't open it"
     keywords: [UISchema, TAB, mobileHandler, navigation tab, Insight, Tableau, CmsContent]
     cause: |
       A UI Settings (UISchema) tab with no valid mobile handler, or a
@@ -780,6 +829,8 @@ causes:
       - "Old emails disappeared"
       - "old emails we loaded from the legacy system vanished after a month"
       - "imported field emails got deleted about 30 days later"
+      - "email retention duration is blank before loading historical emails"
+      - "how long to keep emails was left empty before an email migration"
     keywords: [Email Retention Duration, LifeScienceEmail, retention, migration]
     cause: "A blank Email Retention Duration means 30 days, so older emails are hard-deleted."
     fix:
@@ -792,6 +843,8 @@ causes:
       - "invalid ID field: false"
       - "opening the accounts list errors with invalid id field false"
       - "default account filter setting throws an invalid ID error"
+      - "the account list doesn't open on the default filter I set"
+      - "customer filter by default holds something other than a filter id"
     keywords: [Customer Filter By Default, account search]
     cause: "The setting expects a filter Id. A value like false ends up in an Id comparison."
     fix:
@@ -841,6 +894,8 @@ causes:
       - "'Search Online' button missing"
       - "search online button isn't on the account search screen"
       - "no option to look up a doctor in the outside data service"
+      - "searching the external doctor database returns nothing"
+      - "OneKey or external search config record is inactive"
     keywords: [OneKey, external system, Search Before Create, Search Online]
     cause: "The external system config record (for example OneKey) is inactive or was never loaded."
     fix:
@@ -862,6 +917,8 @@ causes:
       - "Rep sees the wrong accounts after a territory change"
       - "iPad account list and filters are empty for a territory"
       - "the alignment job runs and says zero accounts updated"
+      - "a doctor exists in the org but the rep can't find them on the iPad"
+      - "account is in Salesforce but doesn't reach the rep's iPad"
     keywords:
       [
         IsActive,
@@ -896,6 +953,8 @@ causes:
       - "Geo Group job updates few accounts"
       - "zip code alignment job finishes but touches no doctors"
       - "postal code rule creates no territory links for our addresses"
+      - "zip alignment skips addresses with a nine digit ZIP+4 code"
+      - "postal code on the address doesn't exactly match the geo rule's code"
     keywords: [TerrGeoAssignmentRule, GeoCode, PostalCode, GeoGroup1Code, ZipToTerritory]
     cause: |
       ContactPointAddress.PostalCode (or GeoGroup1Code) must equal the rule's
@@ -914,6 +973,7 @@ causes:
       - "Search Before Create fails"
       - "new rep can't create a record, says required field user or group missing"
       - "rep who was never given a territory can't use search before create"
+      - "a new rep with no territory sees no accounts"
     keywords: [UserTerritory2Association, territory]
     cause: "The rep has no UserTerritory2Association in the active Territory2Model."
     fix:
@@ -984,6 +1044,8 @@ causes:
       - "present content actions are missing on the store check screen"
       - "no Create Quoted Order action on Visit Engagement"
       - "button is on the web record page but not on the iPad"
+      - "an action I created on the web doesn't appear on the iPad"
+      - "the iPad doesn't support this standard action"
     keywords:
       [
         quick action,
@@ -1014,6 +1076,8 @@ causes:
       - "LWC shows on web but not iPad"
       - "our custom component shows on the web record page but not on the iPad"
       - "iPad error about recursive module loading when opening a custom component"
+      - "custom LWC doesn't open from the record on the iPad"
+      - "inline component has no matching quick action with the same name"
     keywords:
       [
         lscMobileInline_,
@@ -1166,6 +1230,8 @@ causes:
       - "Tab shows for some reps but not others"
       - "tab shows for some reps but not others on the iPad"
       - "tab is set to hidden for the profile so reps can't see it"
+      - "tab shows on the iPad for one profile but not another"
+      - "tab is default off on one profile so its reps don't see it on the iPad"
     keywords:
       [tab visibility, Default On, Default Off, Hidden, Lightning app, App Manager, permission set]
     cause: |
@@ -1188,6 +1254,8 @@ causes:
       - "Related list blank or shows fewer columns"
       - "related list on the record page is blank after adding a filter"
       - "related list shows fewer columns than we set up"
+      - "Life Sciences related list component shows invalid or blank configuration"
+      - "related list component has the wrong field set name"
     keywords: [Related List - Life Sciences, field set, WHERE clause, curly quotes, cross-object]
     cause: |
       Wrong field set API name; curly quotes copied into the WHERE clause
@@ -1244,6 +1312,8 @@ causes:
       - "Unexpected required field on product discussion"
       - "typing call notes opens a lookup search for no reason"
       - "product discussion screen demands a field the rep shouldn't fill"
+      - "visit child layout makes the parent field required"
+      - "reps can't save a product discussion because the parent visit field is required on the layout"
     keywords: [ProviderVisitProdDetailing, ProviderVisitProductDtlId, master-detail, layout]
     cause: "The master-detail parent field is required on the layout, so reps must pick it. The app sets it on save."
     fix:
@@ -1287,6 +1357,8 @@ causes:
       - "Cache stuck in Processing then Inactive"
       - "publish to iPad sits in processing and then goes inactive"
       - "cache job never finishes after someone added a post action to the layout"
+      - "publishing to the iPad never finishes"
+      - "metadata cache generation stalls because of a Chatter post action on a layout"
     keywords: [FeedItem.RypplePost, publisher layout, Chatter]
     cause: "FeedItem.RypplePost on a layout or the global publisher layout stops generation."
     fix:
@@ -1300,6 +1372,8 @@ causes:
       - "Cache fails when Data Cloud is enabled"
       - "publishing the cache fails since we switched on Data Cloud"
       - "iPad cache generation errors out only in orgs with Data Cloud"
+      - "metadata cache fails after Data Cloud was turned on"
+      - "cache generation broke when we enabled Data Cloud"
     keywords: [Data Cloud, OrgHasObjectAccessLevel, CDPAdmin]
     cause: "With Data Cloud on, generation reads the CDPAdmin permission set, which needs OrgHasObjectAccessLevel."
     fix:
@@ -1321,6 +1395,8 @@ causes:
       - "Rep synced but still sees the old price or layout"
       - "I fixed the layout but reps still see the old screen"
       - "new field shows on the web, the iPad doesn't have it yet"
+      - "a field I added to the layout doesn't appear on the iPad yet"
+      - "layout change not on the iPad because the cache wasn't regenerated"
     keywords: [regenerate, publish, stale, translation, log out]
     cause: |
       Layouts, pages, record types, field access and Admin Console mobile
@@ -1347,6 +1423,8 @@ causes:
       - "Inquiries not routed to MSL queue"
       - "saving a medical inquiry fails with list index out of bounds"
       - "can't save the signature on an inquiry, the queue is missing"
+      - "medical inquiry can't be routed because the inquiry queue doesn't exist"
+      - "submitting a medical inquiry fails, no Inquiry Queue in the org"
     keywords: [Inquiry Queue, CaseMSLQueueHandler, queue, Case]
     cause: "The inquiry handlers expect a queue named Inquiry Queue (Case as a supported object)."
     fix:
