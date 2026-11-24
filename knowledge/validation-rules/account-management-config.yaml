@@ -251,7 +251,7 @@ rules:
         ORDER BY Account.Name
         LIMIT 10
     symptoms:
-      - "Territory info missing on account"
+      - "No account has territory info, visit counts are blank everywhere"
       - "Visit counts not showing"
       - "Preferred address not set"
       - "Activity plan calculations incorrect"

@@ -49,7 +49,7 @@ rules:
     symptoms:
       - "Send Email button not available"
       - "No email templates to select"
-      - "Email template list is empty"
+      - "No email templates exist in the org"
       - "Cannot send emails from account page"
     resolution:
       steps:
@@ -91,7 +91,7 @@ rules:
         LIMIT 10
     symptoms:
       - "Email template not visible to reps"
-      - "Template list empty or missing templates"
+      - "Template list empty because templates are inactive or expired"
       - "Reps cannot select expected template"
       - "Language filter excludes template"
     resolution:
