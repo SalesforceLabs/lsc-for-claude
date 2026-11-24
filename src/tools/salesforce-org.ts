@@ -26,6 +26,7 @@ import {
   setTargetOrg,
   getTargetOrg,
 } from "../salesforce/auth.js";
+import { describeText, fieldHintForError } from "./soql-hints.js";
 
 export function register(server: McpServer) {
   server.tool(
@@ -321,11 +322,12 @@ export function register(server: McpServer) {
       const result = await runSoqlQuery(query, effectiveOrg);
 
       if (!result.success) {
+        const hint = await fieldHintForError(result.error ?? "", query, effectiveOrg);
         return {
           content: [
             {
               type: "text",
-              text: `# Query Failed\n\n**Error:** ${result.error}\n\n**Query:**\n\`\`\`sql\n${query}\n\`\`\``,
+              text: `# Query Failed\n\n**Error:** ${result.error}\n\n**Query:**\n\`\`\`sql\n${query}\n\`\`\`${hint ? `\n\n${hint}` : ""}`,
             },
           ],
         };
@@ -372,14 +374,20 @@ export function register(server: McpServer) {
   // Tool: Describe SObject
   server.tool(
     "describe_sobject",
-    "Get metadata about a Salesforce object (fields, types, etc.). LSC objects are standard objects without __c (Visit, ProviderVisit, HealthcareProvider). Not for Admin Console or DB Schema records.",
+    "Get metadata about a Salesforce object (fields, types, picklist values, lookup targets). LSC objects are standard objects without __c (Visit, ProviderVisit, HealthcareProvider). Not for Admin Console or DB Schema records.",
     {
       objectName: z
         .string()
         .describe("The API name of the object (e.g., Account, Contact, Visit__c)"),
+      fields: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "Optional: only these fields, with their picklist values or lookup targets. Use it to check field names before a query or a field past the first 100."
+        ),
       targetOrg: z.string().optional().describe("Optional: specific org to query"),
     },
-    async ({ objectName, targetOrg }) => {
+    async ({ objectName, fields, targetOrg }) => {
       const validation = await validateOrgConnection();
       const effectiveOrg = targetOrg || validation.targetOrg;
 
@@ -407,20 +415,7 @@ export function register(server: McpServer) {
         };
       }
 
-      const data = result.data!;
-      let message = `# ${data.label} (${data.name})\n\n`;
-      message += `## Fields (${data.fields.length})\n\n`;
-      message += `| Field | Label | Type | Required | Updateable |\n`;
-      message += `| --- | --- | --- | --- | --- |\n`;
-
-      for (const field of data.fields.slice(0, 100)) {
-        // Limit to 100 fields for readability
-        message += `| ${field.name} | ${field.label} | ${field.type} | ${field.required ? "Yes" : "No"} | ${field.updateable ? "Yes" : "No"} |\n`;
-      }
-
-      if (data.fields.length > 100) {
-        message += `\n*... and ${data.fields.length - 100} more fields*`;
-      }
+      const message = describeText(result.data!, fields);
 
       return {
         content: [{ type: "text", text: message }],

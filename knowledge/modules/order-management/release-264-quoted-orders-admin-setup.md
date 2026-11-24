@@ -44,7 +44,9 @@ Controls what a rep can do to a Quoted Order at each stage; admins define allowe
 
 ## 6. Quote document template
 - In Document Builder create a Quote document template mapped to the quote and line items; lay out header, pricing table, and terms with merge fields.
-- Drag in the **Life Sciences Digital Signature** component and position the signature block.
+- First add **Default** as a value of the Digital Signature object's **Signature Type** picklist (Object Manager > Digital Signature > Type). The template's signature component is set to that type, so without the value the signature can't be configured (Help step 1; also shown in the admin setup video).
+- Template: Object = Quote, **Default Quote Template**; delete the existing signature component and drag in **Life Sciences Flexi Signature** (before the footer, or in the footer to repeat it on every page); set its Signature Type to Default; save and activate (Help).
+- Then add a quick action on the Quote page that generates the PDF with this template (Help).
 - Disclaimers: insert records in **Compliance Statement Definition**; review-screen disclaimer text can be filtered by market/territory on account/territory fields (same pattern as Consent and Visit Management).
 - Reps generate the PDF from the iPad after the manager's signature is captured.
 
@@ -53,6 +55,7 @@ Admin Console -> Life Sciences Customer Engagement Setup -> Mobile tab.
 1. **Object Metadata Cache Configuration** (Type = Data, per profile that needs offline order capture, e.g. Pharmacy Sales Rep): Quote, Quote Line Item, and Quote Document are already configured by the order-capture setup. Add Pricebook Entry, Pricebook2, Price Adjustment Schedule, Price Adjustment Tier, and activate.
 2. If the pricing procedure uses a custom decision table via Price Adjustment Matrix, also add its custom source entity as a Data entry (optional SOQL WHERE filter; Delta Sync tracks Last Modified Date) or the offline discount lookup has no data.
 3. **Metadata Cache** tab -> Create New Cache, then sync devices.
+4. There is no separate pricing-metadata step: the cache generation itself packages the pricing files (`contextDefinition.json`, `decisionTable.json`, `expressionSet.json`; seen in the steel thread's cache ZIP). Help and the pricing-metadata video both say only: add the DB Schema records, then regenerate the cache. An internal demo script mentions a "Generate Pricing Metadata" button; no Help page or video shows one, so don't tell admins to look for it.
 
 ## 8. Admin Console: Orders and Pricing Settings
 Admin Console -> Order Management tile -> Orders and Pricing Settings. "Apply Settings To" = Org Default or Profile.
@@ -65,6 +68,14 @@ Admin Console -> Order Management tile -> Orders and Pricing Settings. "Apply Se
 
 ## 9. Visit record type routing
 Quoted Orders are launched from the Visit (Visit tabs include Store Check and Quoted Order). Enable Record Type Routing in Life Sciences Customer Engagement Setup, then configure under Admin Console; create separate page layouts per Visit Type (record type) and assign them to profiles. Orgs with existing LogAVisit overrides must remove them first.
+- Help (Configure Visit Record Type Routing): each Admin Console Record Type-Based Routing Configuration record is an object + record type + **action** (New or Edit) + component (Life Sciences Standard). "New routes the record-creation flow. Edit routes the record-editing flow." So a Store Check visit record type needs **both** a New and an Edit record; with New only, editing a saved store visit doesn't open the store check experience.
+- Help: create both New and Edit mappings for every Provider Visit record type that should keep the existing HCP visit experience once routing is on.
+
+## 10. Store Check settings (admin video)
+- **Allow upload from gallery**: off by default; when off, reps can only take a photo with the camera.
+- **Segmentation job flow**: segments group accounts; an assortment applied to a segment reaches its accounts only when the selected flow runs on its schedule. Clone and activate the shipped flow (Help names it), then pick it in the drop-down. Segmentation works the same way as in other features such as sample limits.
+- Read-only view options (search, filters, collapse/expand) and the maximum distance in meters between the rep's location at Begin Visit and the store.
+- Help (Set Up Store Visit Workflow): reps can create, edit or delete a visit while it is Planned or In Progress; once the visit is **Completed** the record locks and can't be edited. An internal demo script words this as Submit locking the store checks, photos and quoted orders with "Submitted Visits cannot be modified"; Help's wording is the Completed stage.
 
 ## Limitations / Gotchas
 - The waterfall is data-intensive; not all of it downloads. It is available on demand (tap Net Unit Price; if not cached the app guides the rep to download online).
@@ -83,9 +94,15 @@ Quoted Orders are launched from the Visit (Visit tabs include Store Check and Qu
 - **Locking/unlocking:** workflow stages Draft, Submitted, Request for Unlock; a record-triggered approval flow routes to the owner's manager (approve -> Draft/unlocked; reject -> Rejected/locked); optional notification flow and Approval tracking components on the Quote page. Help marks the sample flow "for reference only". Unlock requests can be submitted offline.
 - **Mobile cache objects (Data type):** Quote, QuoteLineItem, QuoteDocument, Quote Document Recipient, DigitalSignature, DocumentRecipient, Pricebook2, PricebookEntry, PriceAdjustmentSchedule, PriceAdjustmentTier, Product2, ProductSellingModel, ProductCategoryProduct, LifeSciMarketableProduct, ProductTerritoryAvailability and ProductTerrDtlAvailability (where: `Territory.Name = '{USER.TERRITORY}' AND AlignmentType = 'Territory Exclusion'`), LifeSciProductAcctRstrc, UnitOfmeasure. Regenerate the cache after changing price books or pricing procedures (iPad prices from cached data). Custom Price Adjustment Matrix objects need their own cache record.
 - Quote PDFs can be generated, viewed, and edited only from web (per Help); the deck shows iPad PDF generation, which Help does not confirm.
-- Not verified: "Cost books not supported", TPT for LS4CE Mobile, Max Quote Line Items, Visit record type routing steps.
+- Visit record type routing steps: verified against Help (section 9).
+- Not verified: "Cost books not supported", TPT for LS4CE Mobile, Max Quote Line Items.
 
 ## Sources
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_store_check_configure_visit_record_type_routing.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_create_quote_document_template.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_mobile_app_configuration.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_store_check_setup_generic_workflow.htm&release=264.0.0&type=5
+- Order Management and Store Check admin setup enablement videos (internal recordings, no URL)
 - https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_setup_basics.htm&release=264.0.0&type=5
 - https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_setup_om_basics.htm&release=264.0.0&type=5
 - https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_get_org_ready_users.htm&release=264.0.0&type=5

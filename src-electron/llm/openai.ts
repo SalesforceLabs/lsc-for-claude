@@ -7,7 +7,7 @@ import {
   ContentBlock,
 } from "./provider.js";
 import { isAuthError } from "./errors.js";
-import { apiFetch, HttpOptions, sseData } from "./http.js";
+import { FIRST_RESPONSE_TIMEOUT_MS, apiFetch, HttpOptions, sseData } from "./http.js";
 
 type OpenAIContentPart =
   | { type: "text"; text: string }
@@ -56,7 +56,11 @@ export function toOpenAIMessages(systemPrompt: string, messages: Message[]): Ope
           type: "function",
           function: { name: b.name!, arguments: JSON.stringify(b.input ?? {}) },
         }));
-      out.push({ role: "assistant", content: text || null, ...(calls.length ? { tool_calls: calls } : {}) });
+      out.push({
+        role: "assistant",
+        content: text || null,
+        ...(calls.length ? { tool_calls: calls } : {}),
+      });
       continue;
     }
 
@@ -70,7 +74,10 @@ export function toOpenAIMessages(systemPrompt: string, messages: Message[]): Ope
     for (const b of blocks) {
       if (b.type === "text" && b.text) parts.push({ type: "text", text: b.text });
       if (b.type === "image" && b.source) {
-        parts.push({ type: "image_url", image_url: { url: `data:${b.source.media_type};base64,${b.source.data}` } });
+        parts.push({
+          type: "image_url",
+          image_url: { url: `data:${b.source.media_type};base64,${b.source.data}` },
+        });
       }
     }
     if (parts.length) out.push({ role: "user", content: parts });
@@ -82,7 +89,10 @@ export function toOpenAITools(tools: ToolDefinition[]) {
   return tools.map((t) => {
     // JSON Schema's `$schema` keyword isn't part of a function's parameters.
     const { $schema: _schema, ...parameters } = t.input_schema;
-    return { type: "function" as const, function: { name: t.name, description: t.description, parameters } };
+    return {
+      type: "function" as const,
+      function: { name: t.name, description: t.description, parameters },
+    };
   });
 }
 
@@ -90,7 +100,11 @@ interface StreamEvent {
   choices?: Array<{
     delta?: {
       content?: string | null;
-      tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }>;
+      tool_calls?: Array<{
+        index?: number;
+        id?: string;
+        function?: { name?: string; arguments?: string };
+      }>;
     };
   }>;
   error?: { message?: string } | string;
@@ -105,7 +119,8 @@ export class OpenAIStreamAssembler {
 
   push(event: StreamEvent): void {
     if (event.error) {
-      const message = typeof event.error === "string" ? event.error : event.error.message || "Unknown error";
+      const message =
+        typeof event.error === "string" ? event.error : event.error.message || "Unknown error";
       this.onChunk?.({ type: "error", error: message });
       throw new Error(message);
     }
@@ -187,7 +202,10 @@ export class OpenAIProvider implements LLMProvider {
       this.options,
       "openai",
       "/chat/completions",
-      { method: "POST", body: { model, messages: [{ role: "user", content: "Reply with the word OK." }] } },
+      {
+        method: "POST",
+        body: { model, messages: [{ role: "user", content: "Reply with the word OK." }] },
+      },
       model
     );
   }
@@ -196,7 +214,9 @@ export class OpenAIProvider implements LLMProvider {
     try {
       const res = await apiFetch(this.options, "openai", "/models");
       const data = (await res.json()) as { data?: Array<{ id?: unknown }> };
-      return (data.data ?? []).map((m) => m.id).filter((id): id is string => typeof id === "string");
+      return (data.data ?? [])
+        .map((m) => m.id)
+        .filter((id): id is string => typeof id === "string");
     } catch (error) {
       // Rejected credentials fail the connection; anything else just means no list.
       if (isAuthError(error)) throw error;
@@ -220,10 +240,19 @@ export class OpenAIProvider implements LLMProvider {
       messages: toOpenAIMessages(systemPrompt, messages),
       stream: true,
     };
-    if (tools.length > 0) body.tools = toOpenAITools(tools);
+    if (tools.length > 0) {
+      body.tools = toOpenAITools(tools);
+      if (config?.toolChoice === "none") body.tool_choice = "none";
+    }
     if (config?.temperature !== undefined) body.temperature = config.temperature;
 
-    const res = await apiFetch(this.options, "openai", "/chat/completions", { method: "POST", body, signal: config?.signal }, model);
+    const res = await apiFetch(
+      this.options,
+      "openai",
+      "/chat/completions",
+      { method: "POST", body, signal: config?.signal, firstResponseMs: FIRST_RESPONSE_TIMEOUT_MS },
+      model
+    );
     const assembler = new OpenAIStreamAssembler(onChunk);
     for await (const data of sseData(res)) {
       if (!data || data === "[DONE]") continue;

@@ -112,6 +112,7 @@ This is a **Claude Code Plugin** providing an all-in-one LSC solution:
 | `lsc-next-best` | Guides NBC/NBA/NBM configuration — data model, widgets, Einstein Studio integration |
 | `lsc-consent-management` | Guides consent capture, communication subscriptions, channels, and compliance snapshots |
 | `lsc-agentforce` | Guides Agentforce for LSC (Winter '26) — Field Sales Agent, topics, actions, and Einstein Studio |
+| `lsc-order-management` | Guides Order Management (quoted orders) and Store Check — pricing procedure chain, offline pricing limits, Quote product availability, quotable-product checklist, quote locking and unlock approval, quote PDFs |
 | `lsc-provider-engagement-compliance` | Guides Provider Engagement Compliance (Japan EPPV/MID) — Care Programs, compliance action plans and cycles, Account Compliance tab, Report Compliance Activity, cycle reporting |
 | `lsc-events-management` | Guides Events Management configuration — Managed Events, speaker events, participants, resources, budgets, stage paths |
 | `lsc-custom-scripts` | Guides custom script configuration for validation, checklists, and Visit Action Validation (IIFE patterns, CodeText, Locker Service gotchas) |

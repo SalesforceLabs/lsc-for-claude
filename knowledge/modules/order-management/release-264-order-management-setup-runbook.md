@@ -3,7 +3,7 @@
 Practitioner-verified field notes from setting up Order Management in a 264 (package v264.x) org, API 67.0. Org-specific IDs, usernames, and record Ids are intentionally omitted. See [admin setup](./release-264-quoted-orders-admin-setup.md) and [pricing](./release-264-pricing.md) for the feature detail.
 
 ## Repeat Runbook (new org)
-1. **Confirm licensing**: Life Sciences Cloud for Customer Engagement plus Revenue Cloud Advanced PSLs (check with list_permission_sets); retrieve Settings:Quote, Settings:Order, Settings:RevenueManagement. Signal that Revenue Cloud Advanced is not enabled: `enableCoreCPQ=false` on Settings:RevenueManagement.
+1. **Confirm licensing**: Life Sciences Cloud for Customer Engagement plus the Revenue Lifecycle Management add-on's PSLs (check with list_permission_sets); retrieve Settings:Quote, Settings:Order, Settings:RevenueManagement. Signal that the add-on is not enabled: `enableCoreCPQ=false` on Settings:RevenueManagement.
 2. **Run the Salesforce Go "Customer Engagement - Order Management" checklist (UI only)**. It should create the "Price and Tax Calculation for Quoting" permission set and the pricing procedure/recipe. Checklist items: Revenue Cloud, Context Service, Salesforce Pricing, Price Waterfall, Transaction Pricing, Quote Capture, Standard Price Book, Quote record page activation, Sales Transaction Type.
 3. **Admin permission sets**: Context Service Admin + Runtime, Life Sciences Commercial Admin, Life Sciences Core, Product Catalog Management Designer + Viewer, Salesforce Pricing Admin.
 4. **Rep permission sets**: Price and Tax Calculation for Quoting, Product Catalog Management Viewer, Document Builder User, Salesforce Pricing Run Time User, Life Sciences Field Sales Representative.

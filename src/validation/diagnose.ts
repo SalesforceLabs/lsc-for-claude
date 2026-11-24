@@ -148,9 +148,15 @@ export function recordNames(outcome: CheckOutcome | undefined): string[] {
       r.Id;
     const extra = r.InternalSharingModel ?? r.Context;
     const entity = (r.EntityDefinition as Record<string, unknown> | undefined)?.QualifiedApiName;
-    return [entity ? `${entity}.${name}` : String(name), extra ? `(${extra})` : ""]
-      .join(" ")
-      .trim();
+    // Auto-number names (PTA-0000000068) look like Ids but aren't; give the Id beside them.
+    const id = typeof r.Id === "string" && r.Id !== name && r.DeveloperName == null ? r.Id : "";
+    return [
+      entity ? `${entity}.${name}` : String(name),
+      extra ? `(${extra})` : "",
+      id ? `(${id})` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
   });
 }
 

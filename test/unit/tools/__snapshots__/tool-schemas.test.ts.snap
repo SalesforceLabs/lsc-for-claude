@@ -296,6 +296,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
   {
     "name": "describe_sobject",
     "params": {
+      "fields": {
+        "optional": true,
+        "type": "ZodArray",
+      },
       "objectName": {
         "optional": false,
         "type": "ZodString",

@@ -38,6 +38,8 @@ export interface LLMProviderConfig {
   cache?: boolean;
   /** Aborts the request and its stream. */
   signal?: AbortSignal;
+  /** "none": the model must answer in text — tools stay defined (the history has tool calls) but can't be called. */
+  toolChoice?: "none";
 }
 
 export interface LLMProvider {
