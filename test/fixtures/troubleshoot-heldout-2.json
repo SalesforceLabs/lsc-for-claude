@@ -1,0 +1,645 @@
+{
+  "_about": "Second held-out set, written from cause titles only, never from symptoms or keywords, then checked by hand. Never copy these into known-causes.yaml: they measure how the matcher handles wording it has not seen. 'expect' lists every cause or validation rule that fits equally well; empty means none covers it.",
+  "cases": [
+    {
+      "says": "Sync on the iPad errors out saying a date column isn't there for one of the objects.",
+      "expect": ["dbschema-delta-field-no-column"]
+    },
+    {
+      "says": "The table that tracks sync transactions is listed in the admin console but it acts like it's just settings.",
+      "expect": ["dbschema-dstr-wrong-type"]
+    },
+    {
+      "says": "Accounts and contacts never come down to the iPad even though they're listed on the object sync page.",
+      "expect": ["dbschema-account-contact-configuration"]
+    },
+    {
+      "says": "Stuff the reps type on the iPad disappears after the next sync and the web version overwrites it.",
+      "expect": ["dbschema-one-way-on-rep-written"]
+    },
+    {
+      "says": "Reps can't open their email templates while the iPad is offline.",
+      "expect": ["dbschema-email-snapshot-attachments"]
+    },
+    {
+      "says": "Every rep's iPad is pulling down practically every customer in the company.",
+      "expect": ["dbschema-account-no-filter"]
+    },
+    {
+      "says": "My sync filter returns zero rows for reps even though they clearly have territories.",
+      "expect": ["dbschema-territory-tag-mismatch"]
+    },
+    {
+      "says": "Territory info rows are showing up on iPads for accounts that belong to other reps' areas.",
+      "expect": ["dbschema-pati-filter-no-territory"]
+    },
+    {
+      "says": "A plan shows up on the iPad with no quarter attached, the period it belongs to just isn't there.",
+      "expect": ["dbschema-timeperiod-filter"]
+    },
+    {
+      "says": "Object sync has a row flagged because the object it names can't be read by the profile.",
+      "expect": ["dbschema-missing-object"]
+    },
+    {
+      "says": "First sync takes forever and the iPad database ballooned to a huge size.",
+      "expect": ["dbschema-unbounded-volume"]
+    },
+    {
+      "says": "Creating a new call on the iPad fails straight away for every rep.",
+      "expect": ["dbschema-no-providervisit"]
+    },
+    {
+      "says": "The record type dropdown is empty when a rep creates a new record on the iPad.",
+      "expect": ["dbschema-no-recordtype"]
+    },
+    {
+      "says": "A rep can't see how many samples they're allowed to give a doctor on the iPad.",
+      "expect": ["dbschema-no-sample-limits"]
+    },
+    {
+      "says": "Our event setup throws errors about working hours not being available offline.",
+      "expect": ["dbschema-no-businesshours"]
+    },
+    {
+      "says": "A section on the iPad record page is blank and one lookup shows nothing, but it's fine on the web.",
+      "expect": ["dbschema-related-object-missing", "admin-related-record-retrieve-off"]
+    },
+    {
+      "says": "I cloned the standard rep permission set and now a feature quit working for them.",
+      "expect": ["perm-cloned-rep-set"]
+    },
+    {
+      "says": "iPad sync fails with insufficient access on one field even though the rep can open the object.",
+      "expect": ["perm-fls-missing"]
+    },
+    {
+      "says": "A brand new rep gets denied right when logging into the iPad app.",
+      "expect": ["perm-api-viewsetup"]
+    },
+    {
+      "says": "I tried the iPad with my sysadmin login and it behaves oddly compared to what reps get.",
+      "expect": ["perm-admin-on-ipad"]
+    },
+    {
+      "says": "The iPad says there's no metadata file to download, though the cache shows as generated.",
+      "expect": ["perm-query-non-vetoed-files"]
+    },
+    {
+      "says": "After we tightened network security on sessions, calls from the iPad started failing, like downloading a quote PDF.",
+      "expect": ["perm-lock-session-ip"]
+    },
+    {
+      "says": "Reps get asked to set a brand new passcode in the app every single time they log in.",
+      "expect": ["perm-password-alphanumeric"]
+    },
+    {
+      "says": "I changed the setting for the whole org but one group of reps still gets the old behavior.",
+      "expect": ["admin-override-profile-level", "cache-stale"]
+    },
+    {
+      "says": "After moving config to the new sandbox, the same setting appears twice in the console.",
+      "expect": ["admin-duplicate-records"]
+    },
+    {
+      "says": "There's a setting in the console with nothing filled in and it just does nothing.",
+      "expect": ["admin-empty-record"]
+    },
+    {
+      "says": "The app tells reps the system is down for upkeep but it isn't.",
+      "expect": ["admin-org-in-maintenance"]
+    },
+    {
+      "says": "The cache build for this profile can't figure out which app it's meant for.",
+      "expect": ["admin-no-mobile-app-name"]
+    },
+    {
+      "says": "I added a bottom bar item in UI settings and tapping it does nothing on the iPad.",
+      "expect": ["admin-uischema-tab-no-handler"]
+    },
+    {
+      "says": "Before bringing in old emails I noticed a keep-for-how-long field was left empty.",
+      "expect": ["admin-email-retention-blank"]
+    },
+    {
+      "says": "The customer search opens on some strange value instead of the list I chose as the default.",
+      "expect": ["admin-customer-filter-default"]
+    },
+    {
+      "says": "Lookup fields on the iPad show blanks instead of the names of the records they point to.",
+      "expect": ["admin-related-record-retrieve-off"]
+    },
+    {
+      "says": "Custom columns I set for the account list only appear in one kind of list.",
+      "expect": ["admin-account-filter-static-type"]
+    },
+    {
+      "says": "Searching the external doctor database from the app returns nothing at all.",
+      "expect": ["admin-onekey-inactive"]
+    },
+    {
+      "says": "This doctor is in the org but a rep swears they can't find them on the iPad.",
+      "expect": ["account-reach-chain"]
+    },
+    {
+      "says": "Zip-based alignment skipped an account whose address has the extended nine digit zip.",
+      "expect": ["account-geo-code-mismatch"]
+    },
+    {
+      "says": "A new rep logs in and sees a totally empty customer list.",
+      "expect": ["user-no-territory"]
+    },
+    {
+      "says": "The hospital's doctors got aligned but the doctors' hospitals didn't go the other way.",
+      "expect": ["affiliation-rule-direction"]
+    },
+    {
+      "says": "The regional manager doesn't see the accounts of the reps who report up to them.",
+      "expect": ["parent-territory-rollup"]
+    },
+    {
+      "says": "The button I built on web doesn't show up on the iPad.",
+      "expect": ["actions-ipad-supported"]
+    },
+    {
+      "says": "My custom component doesn't open when a rep taps for it from the record on iPad.",
+      "expect": ["inline-lwc-quick-action"]
+    },
+    {
+      "says": "Our record page looks squashed into one column on the iPad.",
+      "expect": ["ipad-page-template"]
+    },
+    {
+      "says": "A tab shows on web but one profile's iPad bar is missing it while others have it.",
+      "expect": ["ipad-tab-hidden-on-profile"]
+    },
+    {
+      "says": "The tab opens on the iPad but the list inside is empty because that object never downloads.",
+      "expect": ["ipad-tab-object-not-synced"]
+    },
+    {
+      "says": "The related list block on the iPad page says invalid or blank configuration.",
+      "expect": ["related-list-lsc-component"]
+    },
+    {
+      "says": "A field I added doesn't appear in account search results or the team view.",
+      "expect": ["field-set-not-mapped"]
+    },
+    {
+      "says": "Custom child records added to a call vanish when the call is saved.",
+      "expect": ["visit-child-lookup-name"]
+    },
+    {
+      "says": "Reps can't save child records on a call because a mandatory parent field is sitting on the screen.",
+      "expect": ["visit-required-parent-on-layout"]
+    },
+    {
+      "says": "The cache build fails on a page that mentions a component someone deleted.",
+      "expect": ["cache-flexipage-missing-reference"]
+    },
+    {
+      "says": "A related list I put on the rep layout doesn't make it to the iPad, though it's on the admin's.",
+      "expect": ["cache-related-list-admin-layout"]
+    },
+    {
+      "says": "Publish to iPad spins forever and never finishes.",
+      "expect": ["cache-chatter-action"]
+    },
+    {
+      "says": "The iPad package build started failing right after we turned on the customer data platform.",
+      "expect": ["cache-data-cloud-access"]
+    },
+    {
+      "says": "I added a field to the layout yesterday and the iPad still doesn't show it.",
+      "expect": ["cache-stale"]
+    },
+    {
+      "says": "Submitting a medical question from the app fails because there's nowhere to route it.",
+      "expect": ["inquiry-queue-missing"]
+    },
+    {
+      "says": "The template list is empty for reps trying to send field email.",
+      "expect": ["email-template-territory"]
+    },
+    {
+      "says": "This feature does nothing on save, no error, and someone said a background switch is off.",
+      "expect": ["handler-inactive"]
+    },
+    {
+      "says": "Goal numbers haven't refreshed for days and the status says it's still running.",
+      "expect": ["activity-plan-batch-in-progress"]
+    },
+    {
+      "says": "Goal progress is counting the wrong thing for the plan.",
+      "expect": ["activity-plan-measure-type"]
+    },
+    {
+      "says": "A plan assigned to a rep in a sub-territory isn't visible or gets counted twice.",
+      "expect": ["activity-plan-territory-list"]
+    },
+    {
+      "says": "Sample drops aren't taken off the territory's allocation, so reps can hand out more than they were given.",
+      "expect": ["samples-allocation-type"]
+    },
+    {
+      "says": "A product doesn't appear under any brand in the sample picker.",
+      "expect": ["samples-no-parent-brand"]
+    },
+    {
+      "says": "Moving stock between reps errors out on items that have serial numbers.",
+      "expect": ["samples-serialized-product-item"]
+    },
+    {
+      "says": "One rep can't see their own stock while another sees everybody's.",
+      "expect": ["samples-sharing"]
+    },
+    {
+      "says": "Two limit rules conflict and the wrong cap got applied.",
+      "expect": ["sample-limit-template-priority"]
+    },
+    {
+      "says": "The steps in our workflow are invisible to everyone except the person who owns them.",
+      "expect": ["workflow-stage-sharing"]
+    },
+    {
+      "says": "A mass account upload bounced because each row needed sign-off first.",
+      "expect": ["dcr-requires-approval"]
+    },
+    {
+      "says": "The country picker is blank or the values don't match what search expects.",
+      "expect": ["available-countries-format"]
+    },
+    {
+      "says": "Time off rules double up and the calendar blocks the same days twice.",
+      "expect": ["tot-duplicate-rules"]
+    },
+    {
+      "says": "The video call window is blocked by browser security on some page types.",
+      "expect": ["remote-engagement-csp"]
+    },
+    {
+      "says": "Call controls show up when editing a visit but not when starting a new one.",
+      "expect": ["twilio-controls-on-edit"]
+    },
+    {
+      "says": "A contact's page in the app has no visit-related buttons.",
+      "expect": ["attendee-last-visit-layout"]
+    },
+    {
+      "says": "Someone entered minus five giveaway items on the web and it saved.",
+      "expect": ["marketing-item-negative-quantity"]
+    },
+    {
+      "says": "A brand can be picked in detailing even though its area isn't on my territory.",
+      "expect": ["unaligned-parent-therapeutic-area"]
+    },
+    {
+      "says": "I can't tag content with categories when uploading decks.",
+      "expect": ["topics-not-enabled"]
+    },
+    {
+      "says": "My uploaded deck won't open in the viewer; maybe the zip structure is off.",
+      "expect": ["presentation-package"]
+    },
+    {
+      "says": "The survey doesn't show up when the rep has no signal.",
+      "expect": ["surveys-offline-type"]
+    },
+    {
+      "says": "Our own validation rule blocks the Life Sciences screens from saving records.",
+      "expect": ["customer-automation"]
+    },
+    {
+      "says": "The script works fine on the web but errors on the iPad.",
+      "expect": ["custom-script-ipad"]
+    },
+    {
+      "says": "I changed a record on the web and the iPad doesn't show it yet.",
+      "expect": ["sync-direction-timing"]
+    },
+    {
+      "says": "The record type picker on a visit has names that don't match the ones on its child.",
+      "expect": ["record-type-parity"]
+    },
+    {
+      "says": "French labels show up in English on the iPad.",
+      "expect": ["translations-not-applied"]
+    },
+    {
+      "says": "There's no button to kick off the compliance plan and I can't move it to in progress.",
+      "expect": ["eppv-start-button-missing"]
+    },
+    {
+      "says": "Can't save a care program, it complains about the announcement date.",
+      "expect": ["eppv-care-program-dates"]
+    },
+    {
+      "says": "The hospital list on the tablet says Unknown and there are twin entries.",
+      "expect": ["eppv-unknown-account-ipad"]
+    },
+    {
+      "says": "I finished the call yet the compliance round still shows open.",
+      "expect": ["eppv-cycle-not-completing"]
+    },
+    {
+      "says": "Progress on the tablet reads 7 but there are actually 8 rounds.",
+      "expect": ["eppv-ipad-cycle-count-off-by-one"]
+    },
+    {
+      "says": "The report lists fewer rounds than my own query returns.",
+      "expect": ["eppv-cycle-report-missing-cycles"]
+    },
+    {
+      "says": "The invitation email screen on the tablet says zero templates.",
+      "expect": ["event-email-templates-zero"]
+    },
+    {
+      "says": "A template in the event email picker says it can't be downloaded.",
+      "expect": ["event-email-template-cannot-download", "dbschema-email-snapshot-attachments"]
+    },
+    {
+      "says": "Tapping plus actuals on an event shows nothing to choose from.",
+      "expect": ["event-expense-actuals-picker-empty"]
+    },
+    {
+      "says": "Adding speakers to an event shows a blank list.",
+      "expect": ["event-new-experts-empty-list"]
+    },
+    {
+      "says": "Inviting a speaker says I don't have access to the accounts linked to them.",
+      "expect": ["event-invite-expert-no-account-access"]
+    },
+    {
+      "says": "I tap submit on the event and nothing happens.",
+      "expect": ["event-stage-action-no-effect"]
+    },
+    {
+      "says": "Allocating speaker fees errors with a bad JSON message.",
+      "expect": ["event-cap-handler-malformed-json"]
+    },
+    {
+      "says": "A speaker went over their budget limit and nothing warned anyone.",
+      "expect": ["event-cap-not-enforced"]
+    },
+    {
+      "says": "I changed how events are set up on the server but the tablet behaves like before.",
+      "expect": ["event-device-stale-after-change"]
+    },
+    {
+      "says": "The rep has no submit option and fresh quotes come out with no state at all.",
+      "expect": ["om-quote-status-fls-not-edit"]
+    },
+    {
+      "says": "Rep can't find any price lists on a quote and the currency looks different.",
+      "expect": ["om-quote-currency-from-rep"]
+    },
+    {
+      "says": "Pricing files on the tablet are empty even though pricing works on the web.",
+      "expect": ["om-pricing-selectors-disagree"]
+    },
+    {
+      "says": "Order lines don't download for the rep, only the header does.",
+      "expect": ["om-dbschema-pair-half-scoped"]
+    },
+    {
+      "says": "Pricing on the tablet fails at a rounding step.",
+      "expect": ["om-pricing-rounding-step-mobile"]
+    },
+    {
+      "says": "Volume discount tiers are ignored on the tablet but fine on the web.",
+      "expect": ["om-tier-effective-dates-empty"]
+    },
+    {
+      "says": "There's no overall discount field in the tablet cart.",
+      "expect": ["om-header-adjustments-off"]
+    },
+    {
+      "says": "Pricing says it has no mapping for the lookup table.",
+      "expect": ["om-recipe-mapping-missing"]
+    },
+    {
+      "says": "Adding a product to a special price list says a base price must exist first.",
+      "expect": ["om-standard-price-first"]
+    },
+    {
+      "says": "Quotes can jump between stages freely with no enforcement.",
+      "expect": ["om-stage-path-handler-inactive"]
+    },
+    {
+      "says": "A submitted quote can still be edited by the rep.",
+      "expect": ["om-submitted-stage-not-locked", "om-stage-path-handler-inactive"]
+    },
+    {
+      "says": "The status dropdown has no Submitted option.",
+      "expect": ["om-quote-status-values-missing"]
+    },
+    {
+      "says": "The price list section is missing from the rep's quote screen.",
+      "expect": ["om-pricebook-layout-assignment"]
+    },
+    {
+      "says": "The rep can't find an active product when building a quote.",
+      "expect": ["om-product-not-available-for-quote"]
+    },
+    {
+      "says": "Rep got an error after tapping submit twice but the quote did get submitted.",
+      "expect": ["om-submit-tapped-twice"]
+    },
+    {
+      "says": "An unlock request goes nowhere, nobody gets it.",
+      "expect": ["om-unlock-no-manager"]
+    },
+    {
+      "says": "Approving a quote throws an error about notifications.",
+      "expect": ["om-approve-automated-process-user"]
+    },
+    {
+      "says": "The last order product option isn't available anywhere in the org.",
+      "expect": ["om-last-order-org-permission"]
+    },
+    {
+      "says": "Reprice everything fails sometimes and then works on a retry.",
+      "expect": ["om-reprice-context-not-established"]
+    },
+    {
+      "says": "The setting section I need doesn't exist in the console until someone saves it once.",
+      "expect": ["om-admin-console-category-missing"]
+    },
+    {
+      "says": "Package install stops saying some preference needs to be turned on first.",
+      "expect": ["om-install-missing-org-preferences"]
+    },
+    {
+      "says": "Create quote from last order is missing even though we have old quotes.",
+      "expect": ["om-last-order-status-setting"]
+    },
+    {
+      "says": "Begin Store Check is greyed out on the visit.",
+      "expect": ["sc-begin-store-check-disabled"]
+    },
+    {
+      "says": "Photos taken during the store check don't save or show on the tablet.",
+      "expect": ["sc-photo-dbschemas-missing"]
+    },
+    {
+      "says": "The iPad app crashes on launch right after the update.",
+      "expect": []
+    },
+    {
+      "says": "Push notifications aren't arriving on the reps' iPads.",
+      "expect": []
+    },
+    {
+      "says": "The map view on the iPad is blank for all accounts.",
+      "expect": ["lists-004"]
+    },
+    {
+      "says": "Signature pad on the call screen is just a white box.",
+      "expect": []
+    },
+    {
+      "says": "The Field Sales Agent keeps answering with nonsense about our products.",
+      "expect": []
+    },
+    {
+      "says": "The CRM Analytics dashboard loads but every tile is empty.",
+      "expect": []
+    },
+    {
+      "says": "The territory realignment batch job fails with a timeout.",
+      "expect": []
+    },
+    {
+      "says": "Our Outlook calendar events aren't syncing into the app.",
+      "expect": []
+    },
+    {
+      "says": "A big presentation upload keeps failing partway through.",
+      "expect": []
+    },
+    {
+      "says": "Consent capture on the iPad won't let the doctor sign.",
+      "expect": []
+    },
+    {
+      "says": "KAM stakeholders I added to the plan aren't saved.",
+      "expect": []
+    },
+    {
+      "says": "Face ID won't unlock the app after the phone update.",
+      "expect": []
+    },
+    {
+      "says": "Duplicate accounts keep appearing after our nightly import.",
+      "expect": []
+    },
+    {
+      "says": "The next best action cards show no score at all.",
+      "expect": []
+    },
+    {
+      "says": "Deploying our custom LWC fails with a compile error.",
+      "expect": []
+    },
+    {
+      "says": "The briefing podcast won't play on the iPad.",
+      "expect": []
+    },
+    {
+      "says": "How do I create a new permission set for reps?",
+      "expect": []
+    },
+    {
+      "says": "What's new in the Winter release for Life Sciences?",
+      "expect": []
+    },
+    {
+      "says": "Give me a list of all active reps and their profiles.",
+      "expect": []
+    },
+    {
+      "says": "Export all trigger handlers to a CSV for me.",
+      "expect": []
+    },
+    {
+      "says": "Pull last week's sync telemetry for the field team.",
+      "expect": []
+    },
+    {
+      "says": "What does ARC stand for?",
+      "expect": []
+    },
+    {
+      "says": "Thanks, that worked.",
+      "expect": []
+    },
+    {
+      "says": "Can you explain how territory alignment works in general?",
+      "expect": []
+    },
+    {
+      "says": "How many users do we have licensed for the package?",
+      "expect": []
+    },
+    {
+      "says": "Show me a diagram of the account data model.",
+      "expect": []
+    },
+    {
+      "says": "Write me a SOQL query for visits created this month.",
+      "expect": []
+    },
+    {
+      "says": "Which Salesforce release are we on right now?",
+      "expect": []
+    },
+    {
+      "says": "Reps say the app is slow when scrolling the account list.",
+      "expect": []
+    },
+    {
+      "says": "Our Veeva migration mapping needs a template for HCP records.",
+      "expect": []
+    },
+    {
+      "says": "The surveys' results report shows the wrong response count.",
+      "expect": []
+    },
+    {
+      "says": "The rep's call report prints cut off at the bottom.",
+      "expect": []
+    },
+    {
+      "says": "Login with SSO loops back to the sign-in screen.",
+      "expect": []
+    },
+    {
+      "says": "Can't find where to turn on Agentforce in setup.",
+      "expect": []
+    },
+    {
+      "says": "The headcount report doesn't match HR's numbers.",
+      "expect": []
+    },
+    {
+      "says": "Emails sent from the iPad land in the doctor's spam folder.",
+      "expect": []
+    },
+    {
+      "says": "What's the difference between a quick action and a custom action?",
+      "expect": []
+    },
+    {
+      "says": "The calendar shows visits one hour off after daylight saving.",
+      "expect": []
+    },
+    {
+      "says": "Bulk update of account ratings through Data Loader errors with row limit.",
+      "expect": []
+    },
+    {
+      "says": "Please summarize the open known causes from last quarter.",
+      "expect": []
+    }
+  ]
+}

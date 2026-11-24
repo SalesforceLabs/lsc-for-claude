@@ -39,6 +39,17 @@ const WEAK: RegExp[] = [
 /** A message that starts by asking for something to be built or changed is a task, not a symptom. */
 const BUILD_REQUEST = /^\s*(?:please\s+|can you\s+|could you\s+|i (?:want|need) (?:to|you to)\s+)?(?:create|build|write|generate|make|add|set up|setup|configure|enable|disable|activate|deactivate|turn (?:on|off)|switch (?:on|off)|update|change|edit|rename|move|assign|unassign|give|grant|revoke|remove|delete|deploy|retrieve|publish|regenerate|run|query|install|list|describe|export|import|draft|design|plan|summari[sz]e|compare|show me how)\b/i;
 
+/**
+ * A request to pull or audit data ("Audit visit data…", "Count the accounts…", "For every quote,
+ * list…"): its "no territory" or "doesn't match" names what to look for, not a symptom.
+ * Nouns ("Count of visits is wrong", "Audit trail shows…") and "For every visit I save, the iPad
+ * shows an error" don't match.
+ */
+const DATA_REQUEST = [
+  /^\s*(?:please\s+|can you\s+|could you\s+)?(?:audit|count|tally|reconcile)\s+(?!(?:of|trail|log|history|is|was|shows?|says?)\b)/i,
+  /^\s*for (?:every|each|all)\b[^.?!]*?(?:,\s*|\bin (?:this|the) org\b[^.?!]*?)(?:list|show|count|find|give|flag|tell|return|report)\b/i,
+];
+
 /** A how-to or definition question with no sign of something being wrong. */
 const HOW_TO = /^\s*(?:how (?:do|can|should|would|to)\b|what(?:'s| is| are)\b|explain\b|tell me about\b|where (?:do|can|is)\b|which\b)/i;
 
@@ -53,6 +64,7 @@ export function readsLikeProblem(text: string): boolean {
   if (t.startsWith("/")) return false; // slash commands (/lsc:...) are instructions
   if (STRONG.some((re) => re.test(t))) return true;
   if (BUILD_REQUEST.test(t)) return false;
+  if (DATA_REQUEST.some((r) => r.test(t))) return false;
   const weak = WEAK.some((re) => re.test(t));
   if (!weak) return false;
   if (HOW_TO.test(t) && !/\b(?:fix|why|error|fail|failed|fails|broken|not working)\b/i.test(t)) return false;
