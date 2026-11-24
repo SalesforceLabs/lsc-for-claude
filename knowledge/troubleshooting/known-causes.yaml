@@ -1450,6 +1450,8 @@ causes:
       - "Emails stuck"
       - "reps get no email templates to choose from"
       - "cancellation email isn't sent and no communication subscriptions are offered"
+      - "email template list is empty because templates aren't assigned to the rep's territory"
+      - "field email templates aren't shared to the territory or linked to a subscription"
     keywords:
       [
         LifeSciEmailTemplate,
@@ -1478,6 +1480,8 @@ causes:
       - "Product Batch Items not shared to the rep"
       - "Feature doesn't work until a handler is turned on"
       - "activity plan box is empty and nothing is shared with reps, switch is off"
+      - "its trigger handler is turned off so the feature never runs"
+      - "an LSC trigger handler is inactive so nothing happens, no error"
     keywords:
       [
         LifeScienceTriggerHandler,
@@ -1514,6 +1518,8 @@ causes:
       - "Activity plan status not updating"
       - "can't start the activity plan calculation, says one is already running"
       - "plan status never updates after a failed calculation job"
+      - "goal attainment hasn't recalculated for days, the job still says in progress"
+      - "activity plan calculation status is stuck at in progress"
     keywords: [ActivityPlanJob_OrgLevel, JobStatus, batch]
     cause: "A failed calculation leaves the job's status at In Progress, so no new run can start."
     fix:
@@ -1529,6 +1535,8 @@ causes:
       - "Completed visits not counted in Provider Activity Goal"
       - "completed calls are not counted toward the account goal"
       - "product level attainment is empty on the plan"
+      - "activity plan goal counts the wrong activity"
+      - "the measure type on the goal doesn't fit what it should count"
     keywords:
       [
         ProviderActivityMeasureType,
@@ -1552,6 +1560,8 @@ causes:
       - "Review grid shows No Records"
       - "Employee is Manager on this territory"
       - "plan review grid says no records for reps"
+      - "rep in a child territory doesn't see the activity plan"
+      - "activity plan territory list holds territory names instead of ids"
     keywords: [TerritoryList, ActivityPlanTerritory, parent territory]
     cause: |
       ActivityPlan.TerritoryList must hold territory Ids. A user who is an
@@ -1570,6 +1580,8 @@ causes:
       - "Sample limit not enforced"
       - "remaining sample quantity never goes down after giving samples"
       - "sample limit isn't enforced for territories using drop allocations"
+      - "sample drops aren't debited from the territory allocation"
+      - "territory allocation is type drop so remaining quantity never goes down"
     keywords:
       [TerritoryProdtQtyAllocation, AllocationType, Drop, Ship, CalculateTPQADebitedQuantityHandler]
     cause: "The debit and validation handlers read allocations of type Ship only."
@@ -1628,6 +1640,8 @@ causes:
       - "Attempt to de-reference a null object in InventoryCountController"
       - "rep sees other reps' stock lots"
       - "initial stock count fails for a rep with insufficient access"
+      - "rep can't see their own sample inventory while another sees everyone's"
+      - "sample inventory sharing rule gives all users access to product batch items"
     keywords: [ProductBatchItem, sharing rule, manual share, All Operations, Health Cloud Starter]
     cause: |
       A sharing rule giving all users access to ProductBatchItem, "All
@@ -1647,6 +1661,8 @@ causes:
       - "Sample limits not initialized for new accounts"
       - "wrong sample cap shows up for the doctor"
       - "new doctors never get any sample limit set"
+      - "two sample limit templates conflict and the wrong limit applies"
+      - "sample limit templates for the same product have the same priority"
     keywords: [ProviderSampleLimitTemplate, PriorityNumber, NewAccountSampleLimitInitHandler]
     cause: |
       Templates for the same product with equal PriorityNumber pick one
@@ -1664,6 +1680,8 @@ causes:
       - "sObject type 'LifeSciStageObject' is not supported"
       - "error loading the workflow path for this record"
       - "rep can't create a record at this workflow step, no permission"
+      - "workflow stages are visible only to the record owner"
+      - "workflow stage objects are private so only the owner can load the workflow"
     keywords:
       [
         LifeSciStageObject,
@@ -1703,6 +1721,8 @@ causes:
       - "FIELD_CUSTOM_VALIDATION_EXCEPTION"
       - "data load of accounts fails saying create through the change request flow"
       - "can't insert doctors by integration, record type needs approval"
+      - "bulk account load rejected because the record type requires approval"
+      - "account import fails because new accounts need data change approval"
     keywords: [Data Change Request, DCR, Requires Approval for Creation, validation type]
     cause: |
       With Requires Approval for Creation on for a record type, accounts of
@@ -1721,6 +1741,8 @@ causes:
       - 'SyntaxError: Unexpected token ''U''. "US" is not valid JSON'
       - "country dropdown is empty when creating a doctor"
       - "country list breaks with a JSON syntax error, we typed full country names"
+      - "country picker is blank or its values don't match the search"
+      - "available countries hold full country names instead of two-letter codes"
     keywords: [UserAdditionalInfo, AvailableCountries, RestrictToUserAvailableCountry, ISO]
     cause: |
       With "Restrict search to countries available to the user" on,
@@ -1737,6 +1759,8 @@ causes:
       - "Visit schedulable over a restricted TOT"
       - "time off saved on a holiday then fails later"
       - "calls can still be booked on days that should be blocked off"
+      - "time off territory rules are duplicated and block days twice"
+      - "two active time off rules for the same rule set disagree"
     keywords: [TimeOffTerritoryRule, holiday, DownTimeCategory]
     cause: "Several active TOT rules for the same rule set and type disagree. Old TOTs have no DownTimeCategory."
     fix:
@@ -1751,6 +1775,8 @@ causes:
       - "Attendees see a black screen"
       - "start remote session fails and attendees see a black screen"
       - "video call buttons do nothing for the doctor joining"
+      - "remote video call blocked by browser security on some pages"
+      - "Twilio trusted sites aren't allowed on every page type"
     keywords: [CspTrustedSite, Twilio, Context, Digital Experience]
     cause: |
       The Twilio trusted URLs need context All (or separate entries for
@@ -1793,6 +1819,8 @@ causes:
       - "Send Email and Last Visit are missing from the attendee actions"
       - "last call option missing from the attendee menu"
       - "send email and last call options not in the doctor attendee actions"
+      - "contact page has no visit actions like last visit"
+      - "person account layout is missing the Life Sciences actions"
     keywords:
       [Person Account, page layout, attendee menu, Last Visit, Salesforce Mobile and Lightning Experience Actions]
     cause: |
@@ -1813,6 +1841,8 @@ causes:
       - "Web lets me enter a minus on marketing item quantity and iOS blocks it"
       - "web lets me type a minus quantity on a marketing item"
       - "iPad blocks zero or negative item quantity but the web accepts a minus"
+      - "a negative marketing item quantity saved on the web"
+      - "web accepts minus giveaway item quantities on a visit"
     keywords: [ProviderVisitMarketingItem, Quantity, marketing item, validation rule]
     cause: |
       On web, the Provider Visit Marketing Item quantity field rejects 0 and
@@ -1830,6 +1860,8 @@ causes:
       - "Error selecting a product whose therapeutic area is not assigned to the territory"
       - "Brand parent therapeutic area is not on the territory and web and mobile disagree"
       - "error selecting a brand whose disease area isn't assigned to the territory"
+      - "a brand can be detailed though its therapeutic area isn't on the territory"
+      - "brand selectable in detailing with its parent therapy area not aligned"
     keywords: [ParentTherapeuticArea, therapeutic area, LifeSciMarketableProduct]
     cause: |
       A Brand whose parent Therapeutic Area is not assigned to the territory
@@ -1850,6 +1882,8 @@ causes:
       - "Topic filter doesn't save"
       - "can't tag a presentation with a topic, no permission message"
       - "topic filter on presentations won't save"
+      - "can't add topics to presentations when uploading content"
+      - "topics aren't enabled for the presentation object"
     keywords: [Topics for Objects, Presentation, topic]
     cause: "Topics for Objects must be turned on for Presentation (and email templates for template topics)."
     fix:
@@ -1867,6 +1901,8 @@ causes:
       - "Pages fail to appear"
       - "uploaded presentation is blank in the player"
       - "slides won't load, says content could not load"
+      - "uploaded presentation won't open, the zip folder structure is wrong"
+      - "presentation zip has a parent folder or page files not starting at 01"
     keywords: [zip, 01_, thumbnail, curly quotes, presentation upload]
     cause: |
       The zip has a parent or hidden folder; page files don't start at 01_;
@@ -1959,6 +1995,8 @@ causes:
       - "Web edits not on iPad"
       - "value calculated by a flow doesn't show on the iPad right away"
       - "web edits appear on the iPad only after the next sync"
+      - "a change made on the web isn't on the iPad until the rep syncs again"
+      - "server-side updates only reach the iPad on the next sync"
     keywords: [delta sync, trigger results, upload only, sync timing]
     cause: |
       Values computed on the server after an upload (triggers, flows,
@@ -1976,6 +2014,8 @@ causes:
       - "HCP created with wrong HealthcareProvider record type"
       - "rep is asked to choose a record type though they only have one"
       - "iPad still offers a record type we removed"
+      - "visit and its child show different record type names"
+      - "record type names don't match between paired objects like visit and provider visit"
     keywords: [RecordType, DeveloperName, Visit, ProviderVisit, HealthcareProvider, Case, Inquiry]
     cause: |
       Visit and ProviderVisit have separate record type visibility, from the
