@@ -25,6 +25,11 @@ export interface CauseTitle {
 export const PICK_TIMEOUT_MS = 8_000;
 export const MAX_PICKS = 3;
 const MAX_MESSAGE_CHARS = 2_000;
+/**
+ * Room for the reply. At 200 tokens the tool call was often cut off before it ended, and a
+ * call that doesn't end carries no ids.
+ */
+export const PICK_MAX_TOKENS = 1_024;
 
 // The app's main process is an ES module: there is no __dirname.
 const PROJECT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -122,7 +127,7 @@ export async function pickCauses(
       [PICK_TOOL_DEF],
       {
         model: options.model,
-        maxTokens: 200,
+        maxTokens: PICK_MAX_TOKENS,
         cache: true,
         signal: controller.signal,
       }

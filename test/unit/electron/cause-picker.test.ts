@@ -6,6 +6,7 @@ import {
   picksFrom,
   pickCauses,
   PICK_TOOL,
+  PICK_MAX_TOKENS,
   PICK_TOOL_DEF,
   pickerPrompt,
   type CauseTitle,
@@ -102,7 +103,9 @@ describe("pickCauses()", () => {
     expect(system).toContain("b-cause [permissions]: Second cause");
     expect(messages).toEqual([{ role: "user", content: "reps can't log in" }]);
     expect(tools).toEqual([PICK_TOOL_DEF]);
-    expect(config).toMatchObject({ model: "m", cache: true });
+    // A short limit cut the tool call off before it ended, leaving no ids.
+    expect(config).toMatchObject({ model: "m", cache: true, maxTokens: PICK_MAX_TOKENS });
+    expect(PICK_MAX_TOKENS).toBeGreaterThanOrEqual(1000);
     expect(config).not.toHaveProperty("toolChoice");
   });
 
