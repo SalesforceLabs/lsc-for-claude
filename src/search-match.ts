@@ -27,8 +27,11 @@ export function wordsNeeded(n: number): number {
   return n <= 2 ? n : Math.max(2, Math.ceil(n / 2));
 }
 
+/** How close, in characters, query words must be to count as one passage. */
+const NEAR_WIDTH = 800;
+
 export interface TextMatch {
-  /** Higher is better: the exact phrase beats any word match, then more distinct words, then density. */
+  /** Higher is better: the exact phrase beats any word match, then more distinct words close together, then density. */
   score: number;
   /** Where the excerpt should centre. */
   index: number;
@@ -82,8 +85,11 @@ export function matchText(content: string, query: string, title = ""): TextMatch
     if (hits > best.hits) best = { hits, index: offset };
     offset += line.length + 1;
   }
+  // Words that sit together answer the question better than the same words spread over a long
+  // file, so a passage holding most of them outweighs how many the whole file holds.
+  const near = mostWordsWithin(lower, found, NEAR_WIDTH);
   return {
-    score: found.length * 100 + titleHits * 50 + density,
+    score: near * 100 + found.length * 50 + titleHits * 50 + density,
     index: best.index,
     length: 0,
   };
@@ -117,4 +123,24 @@ export function sectionAround(content: string, index: number, limit: number): st
   to = Math.min(end, Math.max(to, matchLineEnd === -1 ? end : matchLineEnd));
   const body = content.slice(from, to).trim();
   return `${from > start ? "..." : ""}${body}${to < end ? "\n..." : ""}`;
+}
+
+/** The most distinct `terms` found together within any `width` characters of `lower`. */
+export function mostWordsWithin(lower: string, terms: string[], width: number): number {
+  const hits: { at: number; term: number }[] = [];
+  terms.forEach((t, term) => {
+    for (let at = lower.indexOf(t); at !== -1; at = lower.indexOf(t, at + 1))
+      hits.push({ at, term });
+  });
+  hits.sort((a, b) => a.at - b.at);
+  const count = new Array(terms.length).fill(0);
+  let distinct = 0;
+  let best = 0;
+  let from = 0;
+  for (const h of hits) {
+    if (count[h.term]++ === 0) distinct++;
+    while (h.at - hits[from].at > width) if (--count[hits[from++].term] === 0) distinct--;
+    if (distinct > best) best = distinct;
+  }
+  return best;
 }

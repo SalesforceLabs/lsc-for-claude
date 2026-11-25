@@ -93663,6 +93663,7 @@ function queryTerms(query2) {
 function wordsNeeded(n2) {
   return n2 <= 2 ? n2 : Math.max(2, Math.ceil(n2 / 2));
 }
+var NEAR_WIDTH = 800;
 function matchText(content, query2, title = "") {
   const lower2 = content.toLowerCase();
   const phrase = query2.trim().toLowerCase();
@@ -93698,8 +93699,9 @@ function matchText(content, query2, title = "") {
     if (hits > best2.hits) best2 = { hits, index: offset2 };
     offset2 += line.length + 1;
   }
+  const near = mostWordsWithin(lower2, found, NEAR_WIDTH);
   return {
-    score: found.length * 100 + titleHits * 50 + density,
+    score: near * 100 + found.length * 50 + titleHits * 50 + density,
     index: best2.index,
     length: 0
   };
@@ -93725,6 +93727,24 @@ function sectionAround(content, index, limit) {
   to = Math.min(end, Math.max(to, matchLineEnd === -1 ? end : matchLineEnd));
   const body = content.slice(from, to).trim();
   return `${from > start ? "..." : ""}${body}${to < end ? "\n..." : ""}`;
+}
+function mostWordsWithin(lower2, terms, width) {
+  const hits = [];
+  terms.forEach((t, term) => {
+    for (let at2 = lower2.indexOf(t); at2 !== -1; at2 = lower2.indexOf(t, at2 + 1))
+      hits.push({ at: at2, term });
+  });
+  hits.sort((a, b) => a.at - b.at);
+  const count3 = new Array(terms.length).fill(0);
+  let distinct = 0;
+  let best2 = 0;
+  let from = 0;
+  for (const h of hits) {
+    if (count3[h.term]++ === 0) distinct++;
+    while (h.at - hits[from].at > width) if (--count3[hits[from++].term] === 0) distinct--;
+    if (distinct > best2) best2 = distinct;
+  }
+  return best2;
 }
 
 // src/guide-loader.ts
