@@ -1471,8 +1471,12 @@ export function register(server: McpServer) {
       firstDay: z.string().max(12).default("Monday"),
       timeZone: z.string().max(64).default("UTC"),
       locale: z.string().max(16).default("en-US"),
+      colors: z
+        .record(z.string().max(40), z.string().regex(/^#[0-9a-fA-F]{6}$/))
+        .optional()
+        .describe("Marker colour per activity type, from the snapshot's My Team screen"),
     },
-    async ({ kind, dashboardId, territoryId, date, firstDay, timeZone, locale }) => {
+    async ({ kind, dashboardId, territoryId, date, firstDay, timeZone, locale, colors }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
@@ -1489,6 +1493,7 @@ export function register(server: McpServer) {
             firstDay,
             timeZone,
             locale,
+            colors,
           }),
         });
       } catch (err) {

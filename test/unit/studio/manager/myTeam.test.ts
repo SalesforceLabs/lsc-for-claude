@@ -114,6 +114,18 @@ describe("collectMyTeam", () => {
       "/users/005000000000001AAA/managed-territories"
     );
   });
+  it("takes the activity colours from the planner settings", async () => {
+    vi.mocked(cli.apiRequest).mockResolvedValue({ success: true, data: { records: [] } });
+    const out = await my.collectMyTeam(
+      ctx({
+        config: async () => ({
+          PlannerAdministration: { ColorPlannedCall: "#112233", ColorGeneralEvent: "not a colour" },
+        }),
+      })
+    );
+    expect(out?.colors.Visit).toBe("#112233");
+    expect(out?.colors.Event).toBe(my.typeColors({}).Event);
+  });
   it("says so when the territories can't be read", async () => {
     vi.mocked(cli.apiRequest).mockResolvedValue({ success: false, error: "NOT_FOUND" });
     const out = await my.collectMyTeam(ctx());
@@ -136,6 +148,25 @@ describe("loadMyTeamWeek", () => {
     expect(vi.mocked(cli.apiRequest).mock.calls[0][0]).toContain(
       `/territory/0MIHn0000008qvnOAA/start-of-week/${Date.UTC(2026, 2, 2) / 1000}/weekly-territory-activities`
     );
+  });
+  it("draws the week in the colours it is given", async () => {
+    vi.mocked(cli.apiRequest).mockResolvedValue({
+      success: true,
+      data: {
+        records: [
+          { dayDate: Date.UTC(2026, 2, 2) / 1000, activities: [{ id: "a", type: "Visit" }] },
+        ],
+      },
+    });
+    const w = await my.loadMyTeamWeek("o", {
+      territoryId: "0MIHn0000008qvnOAA",
+      date: "2026-03-04",
+      firstDay: "Monday",
+      timeZone: "UTC",
+      locale: "en-US",
+      colors: { Visit: "#112233" },
+    });
+    expect(w.days[0].activities[0].color).toBe("#112233");
   });
   it("skips the call without a territory", async () => {
     const w = await my.loadMyTeamWeek("o", {
