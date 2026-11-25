@@ -16,7 +16,8 @@ import "./chat-cards.css";
 export default function ToolCards({ tool }: { tool: ToolCall }) {
   const { convId, approvals } = useChatCards();
   const approval = approvalFor(approvals, convId, tool.id);
-  const card = cardFor(tool);
+  const raw = cardFor(tool);
+  const card = raw?.kind === "quiet" ? null : raw;
   if (!approval && !card) return null;
   return (
     <div className="chat-cards">

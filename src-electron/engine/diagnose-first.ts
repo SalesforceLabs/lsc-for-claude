@@ -36,8 +36,33 @@ const WEAK: RegExp[] = [
   /\b(?:no|zero) (?:records|data|accounts|results)\b/i,
 ];
 
+/**
+ * Looser everyday phrasing. It lets through more real problems, and more messages that aren't
+ * one, so when nothing matches chat doesn't show an empty diagnosis for it (`quietWhenEmpty`).
+ */
+const LOOSE: RegExp[] = [
+  /\b(?:could|would|did|does|do|is|are|was|were|has|have|had|will) not\b|\b(?:didn|wasn|weren|hasn|haven)(?:'|’)?t\b/i,
+  /\b(?:vanish(?:es|ed)?|disappear(?:s|ing)?|greyed out|grayed out|expired|duplicated|refused|bounces|spins forever|takes? (?:hours|forever|ages))\b/i,
+  /\b(?:no|zero) (?:\w+ )?(?:rows?|customers?|choices|columns?|values?|options?|items?|products?|catalogs?|calendar|targets?|status|warning|approver|period|lines?|entries)\b/i,
+];
+
+/**
+ * Words that point at a symptom only when the message reports what the app or the reps do
+ * ("ipad shows no customers… even though the rep is aligned", "list opens empty"), not in a
+ * question, a wish or a request ("is it wrong to…", "we still need to…").
+ */
+const OBSERVED_SIGN = /\b(?:never|nothing|nobody|no one|empty|blank|wrong|twice|ignores|blocked|clash(?:es)?|forever|huge|odd|strange|raw|fewer|still|always|whenever|instead of|even though|though|although|went through|(?:is|are|went|goes) down|different \w+ than|but not (?:when|on|in|for))\b/i;
+const OBSERVED_VERB = /\b(?:shows?|showing|shown|displays?|appears?|lists?|opens?|stays?|keeps?|says?|said|gets?|got|returns?|pops? up|comes? up|loads?|finishes|downloads?|counted|calculat\w*|lets?|stored|reaches|behaves|logged|aligned|created|updated|synced|syncing|is|are|looks?|gives?|stops?|typed|built|generated|after (?:\w+ )?(?:sync|syncing|publish|refresh|importing|bringing))\b/i;
+const NOT_A_REPORT = /^\s*(?:is it|should|would|could|can|do|does|are there|i(?:'d| would) like|i want|we (?:still )?need|help me|nothing urgent|remind me)\b|\bshould (?:say|show|be|look|have)\b|\?\s*$/i;
+
 /** A message that starts by asking for something to be built or changed is a task, not a symptom. */
 const BUILD_REQUEST = /^\s*(?:please\s+|can you\s+|could you\s+|i (?:want|need) (?:to|you to)\s+)?(?:create|build|write|generate|make|add|set up|setup|configure|enable|disable|activate|deactivate|turn (?:on|off)|switch (?:on|off)|update|change|edit|rename|move|assign|unassign|give|grant|revoke|remove|delete|deploy|retrieve|publish|regenerate|run|query|install|list|describe|export|import|draft|design|plan|summari[sz]e|compare|show me how)\b/i;
+
+/**
+ * A first word that is the subject, not a request: "plan progress numbers frozen", "publish fails
+ * saying…", "list on the ipad is empty".
+ */
+const NOUN_START = /^\s*(?:publish|plan|list|run|query|update|change|import|export|design|draft|move)\b(?!\s+(?:the|this|that|these|those|a|an|my|our|all|it|them|me)\b)(?:\s+[\w'’]+){0,3}?\s+(?:fails?|failed|failing|is|are|was|were|shows?|showing|says?|numbers?|progress|stuck|frozen|spins?|takes?|returns?|doesn(?:'|’)?t|didn(?:'|’)?t|won(?:'|’)?t|never|keeps?)\b/i;
 
 /**
  * A request to pull or audit data ("Audit visit data…", "Count the accounts…", "For every quote,
@@ -57,18 +82,29 @@ export function normalizeSymptom(text: string): string {
   return text.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+/**
+ * How the message reads: `clear` (an error, or plain words for something not working), `loose`
+ * (only the looser wording), or null when it doesn't read like a problem.
+ */
+export function problemReading(text: string): "clear" | "loose" | null {
+  const t = text.trim();
+  if (t.length < 8) return null;
+  if (t.startsWith("/")) return null; // slash commands (/lsc:...) are instructions
+  if (STRONG.some((re) => re.test(t))) return "clear";
+  if (BUILD_REQUEST.test(t) && !NOUN_START.test(t)) return null;
+  if (DATA_REQUEST.some((r) => r.test(t))) return null;
+  const clear = WEAK.some((re) => re.test(t));
+  const loose =
+    !clear &&
+    (LOOSE.some((re) => re.test(t)) || (OBSERVED_SIGN.test(t) && OBSERVED_VERB.test(t) && !NOT_A_REPORT.test(t)));
+  if (!clear && !loose) return null;
+  if (HOW_TO.test(t) && !/\b(?:fix|why|error|fail|failed|fails|broken|not working)\b/i.test(t)) return null;
+  return clear ? "clear" : "loose";
+}
+
 /** True when the message reads like an error or a symptom worth matching against known causes. */
 export function readsLikeProblem(text: string): boolean {
-  const t = text.trim();
-  if (t.length < 8) return false;
-  if (t.startsWith("/")) return false; // slash commands (/lsc:...) are instructions
-  if (STRONG.some((re) => re.test(t))) return true;
-  if (BUILD_REQUEST.test(t)) return false;
-  if (DATA_REQUEST.some((r) => r.test(t))) return false;
-  const weak = WEAK.some((re) => re.test(t));
-  if (!weak) return false;
-  if (HOW_TO.test(t) && !/\b(?:fix|why|error|fail|failed|fails|broken|not working)\b/i.test(t)) return false;
-  return true;
+  return problemReading(text) !== null;
 }
 
 /**
@@ -76,11 +112,14 @@ export function readsLikeProblem(text: string): boolean {
  * already diagnosed in this conversation (updated here), so the same text is not run twice.
  */
 export function diagnosePreflight(text: string, seen?: Set<string>): PreflightCall[] {
-  if (!readsLikeProblem(text)) return [];
+  const reading = problemReading(text);
+  if (!reading) return [];
   const key = normalizeSymptom(text);
   if (seen?.has(key)) return [];
   seen?.add(key);
-  return [{ name: "diagnose_lsc_issue", input: { symptom: text.trim().slice(0, MAX_SYMPTOM_CHARS), format: "json" } }];
+  const input: Record<string, unknown> = { symptom: text.trim().slice(0, MAX_SYMPTOM_CHARS), format: "json" };
+  if (reading === "loose") input.quietWhenEmpty = true;
+  return [{ name: "diagnose_lsc_issue", input }];
 }
 
 /**

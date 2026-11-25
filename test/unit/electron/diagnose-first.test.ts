@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { diagnosePreflight, readsLikeProblem } from "../../../src-electron/engine/diagnose-first.js";
+import { diagnosePreflight, problemReading, readsLikeProblem } from "../../../src-electron/engine/diagnose-first.js";
 
 const positives = [
   "No such column 'LastModifiedDate' on entity 'ContentDocumentLink'",
@@ -29,6 +29,15 @@ const positives = [
   "For every visit I save, the iPad shows an error",
   "Count of visits on the iPad doesn't match web after sync",
   "Audit trail shows the quote was unlocked but reps can't edit it",
+  // Symptoms told as what the user sees, with no failure word.
+  "the reps' home page still shows last week's news after publishing",
+  "my product list on the tablet opens empty every morning",
+  "visit notes typed offline vanish after sync",
+  "the territory picker shows nothing even though the rep is aligned",
+  "promo banner keeps showing although we switched it off",
+  "publish fails saying the profile has no cache",
+  "plan progress numbers frozen since Monday",
+  "the batch job spins forever after the refresh",
 ];
 
 const negatives = [
@@ -62,6 +71,18 @@ const negatives = [
   "count the accounts that have no territory",
   "For each rep, show how many visits are missing a signature",
   "reconcile sample inventory that doesn't match the transfers",
+  // The same words in questions, wishes and requests.
+  "I've never configured territories before, where do I start?",
+  "we still need to plan the go-live for March",
+  "reps always ask for a simpler home page, any ideas?",
+  "is it wrong to use one profile for all reps?",
+  "should I run the batch job twice a day or once?",
+  "the deck looks good but can we add a slide on samples?",
+  "nothing urgent, just curious how sync works",
+  "I want the home page to show upcoming visits instead of the news feed",
+  "the empty state on the home page should say something friendlier",
+  "publish the cache for the field rep profile",
+  "plan the rollout for the new territories",
 ];
 
 describe("readsLikeProblem", () => {
@@ -86,6 +107,15 @@ describe("diagnosePreflight", () => {
     expect(diagnosePreflight("Sync is stuck", seen)).toHaveLength(1);
     expect(diagnosePreflight("sync  is STUCK", seen)).toEqual([]);
     expect(diagnosePreflight("Visits fail to save", seen)).toHaveLength(1);
+  });
+
+  it("marks a run quiet when only the looser wording let the message through", () => {
+    expect(problemReading("visit notes typed offline vanish after sync")).toBe("loose");
+    expect(diagnosePreflight("visit notes typed offline vanish after sync")[0].input.quietWhenEmpty).toBe(true);
+    expect(problemReading("visits don't save on the ipad")).toBe("clear");
+    expect(diagnosePreflight("visits don't save on the ipad")[0].input).not.toHaveProperty("quietWhenEmpty");
+    expect(problemReading("INVALID_FIELD on the visit page")).toBe("clear");
+    expect(problemReading("how do I configure samples?")).toBeNull();
   });
 
   it("caps very long pastes", () => {

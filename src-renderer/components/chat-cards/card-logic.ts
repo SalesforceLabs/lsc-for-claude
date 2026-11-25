@@ -26,6 +26,8 @@ export type ChatCard =
   | { kind: "queued"; labels: string[]; message?: string }
   | { kind: "choice"; question: string; options: ChoiceOption[] }
   | { kind: "loading"; title: string }
+  /** A diagnosis that found nothing, or failed, for a message only loosely worded like a problem: nothing is drawn. */
+  | { kind: "quiet" }
   | { kind: "failed"; title: string; message: string };
 
 export interface ChoiceOption {
@@ -152,10 +154,15 @@ export function cardFor(tool: CardTool): ChatCard | null {
   }
   if (name === DIAGNOSE || name === USER_CHECK) {
     const diagnose = name === DIAGNOSE;
+    // The engine ran this itself on a message only loosely worded like a problem
+    // (`diagnose-first.ts`): it shows only if it finds something.
+    const quiet = diagnose && tool.input?.quietWhenEmpty === true;
+    if (quiet && tool.status === "error") return { kind: "quiet" };
     if (RUNNING(tool.status)) return { kind: "loading", title: diagnose ? "Matching known causes…" : "Checking the user…" };
     if (tool.status === "error") return { kind: "failed", title: diagnose ? "Couldn't match known causes" : "Couldn't check the user", message: failureMessage(tool.result) };
     if (diagnose) {
       const result = parseDiagnosis(tool.result);
+      if (quiet && (!result || result.items.length === 0)) return { kind: "quiet" };
       return result ? { kind: "diagnosis", result } : null;
     }
     const data = parseObject(tool.result);
@@ -177,9 +184,9 @@ export function cardFor(tool: CardTool): ChatCard | null {
   return null;
 }
 
-/** Whether the step row above the card should go: only when it would contradict the card ("Matched…" over "No known cause matched"). */
+/** Whether the step row above the card should go: when it would contradict the card ("Matched…" over "No known cause matched"), or the card is quiet. */
 export function cardHidesStep(card: ChatCard | null): boolean {
-  return (card?.kind === "diagnosis" && card.result.items.length === 0) || card?.kind === "choice";
+  return (card?.kind === "diagnosis" && card.result.items.length === 0) || card?.kind === "choice" || card?.kind === "quiet";
 }
 
 /** The message that picks one of several matching users: sent as the user's next turn. */
