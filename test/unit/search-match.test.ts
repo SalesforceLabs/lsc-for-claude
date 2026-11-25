@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { matchText, queryTerms, sectionAround, wordsNeeded } from "../../src/search-match.js";
+import {
+  matchText,
+  mostWordsWithin,
+  queryTerms,
+  sectionAround,
+  wordsNeeded,
+} from "../../src/search-match.js";
 
 describe("queryTerms()", () => {
   it("drops stopwords and short words, and cuts plurals", () => {
@@ -85,5 +91,40 @@ describe("sectionAround()", () => {
     expect(out).toContain("7. Tiers");
     expect(out).not.toContain("## Next");
     expect(out.endsWith("...")).toBe(true);
+  });
+});
+
+describe("mostWordsWithin()", () => {
+  it("counts the most distinct words found close together", () => {
+    const text = "alpha beta " + "x".repeat(2000) + " gamma delta alpha";
+    expect(mostWordsWithin(text, ["alpha", "beta", "gamma", "delta"], 100)).toBe(3);
+    expect(mostWordsWithin(text, ["alpha", "beta", "gamma", "delta"], 5000)).toBe(4);
+    expect(mostWordsWithin(text, ["omega"], 100)).toBe(0);
+  });
+});
+
+describe("matchText() ranking", () => {
+  it("ranks a passage holding the words together above a long file that only mentions them apart", () => {
+    const filler = (n: number) => "Unrelated setup notes. ".repeat(n);
+    const spread = [
+      "# Garden handbook",
+      "Turnips need water.",
+      filler(80),
+      "Fences need paint.",
+      filler(80),
+      "Compost goes in spring.",
+      filler(80),
+      "Greenhouse vents open at noon.",
+      filler(80),
+      "Hoses hang in the shed.",
+    ].join("\n");
+    const together = [
+      "# Garden notes",
+      "## Watering",
+      "Water turnips beside the fence, add compost, and open the greenhouse vents.",
+    ].join("\n");
+    // The long file holds one more of the query's words, but never two of them near each other.
+    const q = "turnip fence compost greenhouse vents hose";
+    expect(matchText(together, q)!.score).toBeGreaterThan(matchText(spread, q)!.score);
   });
 });
