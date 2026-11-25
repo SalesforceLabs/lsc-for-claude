@@ -1,5 +1,5 @@
 /**
- * Help for the model when the org rejects a SOQL query for a field name, and the
+ * Help for the model when the org rejects a SOQL query for a field or object name, and the
  * text `describe_sobject` returns. Pure apart from `fieldHintForError`, which
  * reads (and caches) one describe.
  */
@@ -60,6 +60,31 @@ export function clearFieldHintCache(): void {
   cache.clear();
 }
 
+/** Tooling API records that have their own tools; standard SOQL can't see them. */
+const TOOLING_OBJECTS: Record<string, string> = {
+  lifesciconfigrecord:
+    "list_admin_settings (DB Schema records: list_db_schema; actions: list_lsc_actions)",
+  lifesciconfigfieldvalue:
+    "list_admin_settings or get_db_schema, which return each record's field values",
+  lifesciconfigcategory: "list_admin_settings",
+  lifesciconfigassignment:
+    "get_db_schema or list_admin_settings, which return each record's profile assignments",
+  lifesciencetriggerhandler: "list_trigger_handlers",
+};
+
+/** Text for "sObject type 'X' is not supported": why, and what to do instead of guessing. */
+export function unsupportedObjectHint(error: string): string | null {
+  const m = /sObject type '(\w+)' is not supported/i.exec(error);
+  if (!m) return null;
+  const object = m[1];
+  const tool = TOOLING_OBJECTS[object.toLowerCase()];
+  if (tool) return `${object} is a Tooling API record, so SOQL can't read it. Use ${tool} instead.`;
+  const why = /Settings$/i.test(object)
+    ? `${object} looks like a settings type. Settings are usually Metadata API configuration, not records SOQL can read.`
+    : `This org has no ${object} the connected user can query: the feature it belongs to may not be turned on, or the user lacks access to it.`;
+  return `${why} Don't retry with a guessed object name. Say the org doesn't expose it, or query an object you know exists (describe_sobject checks one).`;
+}
+
 /** A field list to append to a rejected query's error, or "" when it doesn't apply. */
 export async function fieldHintForError(
   error: string,
@@ -67,8 +92,8 @@ export async function fieldHintForError(
   org: string,
   describe: typeof describeSObject = describeSObject
 ): Promise<string> {
-  const poly = polymorphicHint(error);
-  if (poly) return poly;
+  const direct = polymorphicHint(error) ?? unsupportedObjectHint(error);
+  if (direct) return direct;
   const object = objectForFieldError(error, query);
   if (!object || !/^\w+$/.test(object)) return "";
   const key = `${org.toLowerCase()}|${object.toLowerCase()}`;
