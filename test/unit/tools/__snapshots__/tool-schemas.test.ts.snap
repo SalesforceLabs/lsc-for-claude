@@ -1754,6 +1754,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
   {
     "name": "studio_manager_data",
     "params": {
+      "colors": {
+        "optional": true,
+        "type": "ZodRecord",
+      },
       "dashboardId": {
         "optional": true,
         "type": "ZodString",

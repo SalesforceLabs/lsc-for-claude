@@ -26215,8 +26215,18 @@ async function connectGet(org, rest) {
     throw new Error(res.data.message || "The org refused the request.");
   return res.data.response ?? res.data;
 }
+function typeColors(p) {
+  const hex2 = (v) => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : void 0;
+  return {
+    ...TYPE_COLORS,
+    Visit: hex2(p.ColorPlannedCall) ?? TYPE_COLORS.Visit,
+    TerritoryUserDowntime: hex2(p.ColorTimeOffTerritory) ?? TYPE_COLORS.TerritoryUserDowntime,
+    Event: hex2(p.ColorGeneralEvent) ?? TYPE_COLORS.Event
+  };
+}
 async function collectMyTeam(ctx) {
   const planner = await ctx.config(["PlannerAdministration"]).catch(() => ({}));
+  const colors = typeColors(planner.PlannerAdministration ?? {});
   const fd = planner.PlannerAdministration?.FirstDayOfTheWeek;
   const firstDay = typeof fd === "string" && fd ? fd : "Monday";
   const week = myTeamWeek(todayIn2(ctx.format.timeZone), firstDay);
@@ -26234,6 +26244,7 @@ async function collectMyTeam(ctx) {
     firstDay,
     timeZone: ctx.format.timeZone,
     locale: ctx.format.locale,
+    colors,
     ...note ? { note } : {}
   };
 }
@@ -26246,7 +26257,7 @@ async function loadMyTeamWeek(org, opts) {
     org,
     `territory/${opts.territoryId}/start-of-week/${epoch}/weekly-territory-activities`
   );
-  return { ...info, days: mapWeek(res.records ?? [], opts.timeZone, opts.locale) };
+  return { ...info, days: mapWeek(res.records ?? [], opts.timeZone, opts.locale, opts.colors) };
 }
 var MONTHS2, MONTHS_FULL, DAYS_FULL, WEEKDAYS2, TYPE_NAMES, TYPE_COLORS, SUBMITTED, NO_VALUE2, pad, isoOf, typeLabel;
 var init_myTeam = __esm({
@@ -152485,9 +152496,10 @@ function register24(server2) {
       date: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/).default("1970-01-01"),
       firstDay: external_exports.string().max(12).default("Monday"),
       timeZone: external_exports.string().max(64).default("UTC"),
-      locale: external_exports.string().max(16).default("en-US")
+      locale: external_exports.string().max(16).default("en-US"),
+      colors: external_exports.record(external_exports.string().max(40), external_exports.string().regex(/^#[0-9a-fA-F]{6}$/)).optional().describe("Marker colour per activity type, from the snapshot's My Team screen")
     },
-    async ({ kind, dashboardId, territoryId, date: date3, firstDay, timeZone, locale }) => {
+    async ({ kind, dashboardId, territoryId, date: date3, firstDay, timeZone, locale, colors }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
@@ -152503,7 +152515,8 @@ function register24(server2) {
             date: date3,
             firstDay,
             timeZone,
-            locale
+            locale,
+            colors
           })
         });
       } catch (err) {

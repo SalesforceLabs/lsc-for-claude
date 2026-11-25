@@ -241,6 +241,7 @@ interface LscApi {
           firstDay: string;
           timeZone: string;
           locale: string;
+          colors?: Record<string, string>;
         }
       | { kind: "dashboardDetail"; dashboardId: string }
   ): Promise<StudioResponse>;

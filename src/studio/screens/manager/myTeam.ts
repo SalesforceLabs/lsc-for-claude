@@ -60,6 +60,8 @@ export interface PublishedMyTeam {
   firstDay: string;
   timeZone: string;
   locale: string;
+  /** Marker colour per activity type: the planner's colours where set, else the device's. */
+  colors: Record<string, string>;
   /** Short line on what the preview leaves out, when the territories couldn't be read. */
   note?: string;
 }
@@ -240,12 +242,7 @@ async function connectGet<T>(org: string, rest: string): Promise<T> {
 }
 
 /** Planner colours when set, else the device's fallbacks. */
-async function typeColors(ctx: ScreenContext): Promise<Record<string, string>> {
-  const planner = (await ctx.config(["PlannerAdministration"]).catch(() => ({}))) as Record<
-    string,
-    Record<string, unknown>
-  >;
-  const p = planner.PlannerAdministration ?? {};
+export function typeColors(p: Record<string, unknown>): Record<string, string> {
   const hex = (v: unknown) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : undefined);
   return {
     ...TYPE_COLORS,
@@ -260,6 +257,7 @@ export async function collectMyTeam(ctx: ScreenContext): Promise<PublishedMyTeam
     string,
     Record<string, unknown>
   >;
+  const colors = typeColors(planner.PlannerAdministration ?? {});
   const fd = planner.PlannerAdministration?.FirstDayOfTheWeek;
   const firstDay = typeof fd === "string" && fd ? fd : "Monday";
   const week = myTeamWeek(todayIn(ctx.format.timeZone), firstDay);
@@ -279,6 +277,7 @@ export async function collectMyTeam(ctx: ScreenContext): Promise<PublishedMyTeam
     firstDay,
     timeZone: ctx.format.timeZone,
     locale: ctx.format.locale,
+    colors,
     ...(note ? { note } : {}),
   };
 }
@@ -286,7 +285,15 @@ export async function collectMyTeam(ctx: ScreenContext): Promise<PublishedMyTeam
 /** `studio_manager_data` kind "myTeamWeek": one territory's activities for the week holding `date`. */
 export async function loadMyTeamWeek(
   org: string,
-  opts: { territoryId?: string; date: string; firstDay: string; timeZone: string; locale: string }
+  opts: {
+    territoryId?: string;
+    date: string;
+    firstDay: string;
+    timeZone: string;
+    locale: string;
+    /** `PublishedMyTeam.colors`, so the week is drawn in the viewer's planner colours. */
+    colors?: Record<string, string>;
+  }
 ): Promise<MyTeamWeek> {
   const info = myTeamWeek(opts.date, opts.firstDay);
   if (!opts.territoryId) return { ...info, days: [] };
@@ -296,5 +303,5 @@ export async function loadMyTeamWeek(
     org,
     `territory/${opts.territoryId}/start-of-week/${epoch}/weekly-territory-activities`
   );
-  return { ...info, days: mapWeek(res.records ?? [], opts.timeZone, opts.locale) };
+  return { ...info, days: mapWeek(res.records ?? [], opts.timeZone, opts.locale, opts.colors) };
 }

@@ -35,6 +35,7 @@ export default function MyTeamScreen({ snapshot }: ScreenProps): React.ReactElem
         firstDay: data?.firstDay ?? "Monday",
         timeZone: data?.timeZone ?? "UTC",
         locale: data?.locale ?? "en-US",
+        colors: data?.colors,
       }),
     pickWeek
   );

@@ -39,5 +39,7 @@ export interface PublishedMyTeam {
   firstDay: string;
   timeZone: string;
   locale: string;
+  /** Missing in previews saved before it was added. */
+  colors?: Record<string, string>;
   note?: string;
 }
