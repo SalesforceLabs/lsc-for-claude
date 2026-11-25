@@ -94926,9 +94926,25 @@ function polymorphicHint(error2) {
 }
 var TTL_MS = 10 * 6e4;
 var cache = /* @__PURE__ */ new Map();
+var TOOLING_OBJECTS = {
+  lifesciconfigrecord: "list_admin_settings (DB Schema records: list_db_schema; actions: list_lsc_actions)",
+  lifesciconfigfieldvalue: "list_admin_settings or get_db_schema, which return each record's field values",
+  lifesciconfigcategory: "list_admin_settings",
+  lifesciconfigassignment: "get_db_schema or list_admin_settings, which return each record's profile assignments",
+  lifesciencetriggerhandler: "list_trigger_handlers"
+};
+function unsupportedObjectHint(error2) {
+  const m = /sObject type '(\w+)' is not supported/i.exec(error2);
+  if (!m) return null;
+  const object3 = m[1];
+  const tool = TOOLING_OBJECTS[object3.toLowerCase()];
+  if (tool) return `${object3} is a Tooling API record, so SOQL can't read it. Use ${tool} instead.`;
+  const why = /Settings$/i.test(object3) ? `${object3} looks like a settings type. Settings are usually Metadata API configuration, not records SOQL can read.` : `This org has no ${object3} the connected user can query: the feature it belongs to may not be turned on, or the user lacks access to it.`;
+  return `${why} Don't retry with a guessed object name. Say the org doesn't expose it, or query an object you know exists (describe_sobject checks one).`;
+}
 async function fieldHintForError(error2, query2, org, describe = describeSObject) {
-  const poly = polymorphicHint(error2);
-  if (poly) return poly;
+  const direct = polymorphicHint(error2) ?? unsupportedObjectHint(error2);
+  if (direct) return direct;
   const object3 = objectForFieldError(error2, query2);
   if (!object3 || !/^\w+$/.test(object3)) return "";
   const key5 = `${org.toLowerCase()}|${object3.toLowerCase()}`;

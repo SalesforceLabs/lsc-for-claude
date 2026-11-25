@@ -111,6 +111,33 @@ describe("fieldHintForError", () => {
     expect(describe).not.toHaveBeenCalled();
   });
 
+  it("explains an object the org won't query, without a describe", async () => {
+    const describe = vi.fn();
+    const tooling = await fieldHintForError(
+      "INVALID_TYPE: sObject type 'LifeScienceTriggerHandler' is not supported.",
+      "SELECT Id FROM LifeScienceTriggerHandler",
+      "org",
+      describe
+    );
+    expect(tooling).toMatch(/Tooling API .*list_trigger_handlers/);
+    const settings = await fieldHintForError(
+      "sObject type 'WidgetSettings' is not supported.",
+      "SELECT Id FROM WidgetSettings",
+      "org",
+      describe
+    );
+    expect(settings).toMatch(/settings type.*Metadata API/);
+    const other = await fieldHintForError(
+      "sObject type 'Widget' is not supported.",
+      "SELECT Id FROM Widget",
+      "org",
+      describe
+    );
+    expect(other).toMatch(/no Widget .*turned on/);
+    expect(other).toMatch(/Don't retry with a guessed/);
+    expect(describe).not.toHaveBeenCalled();
+  });
+
   it("returns nothing when the describe fails or the error is unrelated", async () => {
     const failing = vi.fn(async () => ({ success: false, error: "nope" }));
     expect(await fieldHintForError("INVALID_FIELD: x", "SELECT x FROM Y", "org", failing)).toBe("");
