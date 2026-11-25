@@ -53,6 +53,16 @@ describe("errors", () => {
     expect(isAuthError(describeHttpError(500, "", ctx))).toBe(false);
   });
 
+  it("names the model only when a 400 says the model is unknown", () => {
+    const at = (body: string) => describeHttpError(400, JSON.stringify({ error: { message: body } }), ctx).message;
+    expect(at("Invalid model: gpt-9")).toMatch(/doesn't serve the model "gpt-9"/);
+    expect(at("The model gpt-9 does not exist or you do not have access to it")).toMatch(/doesn't serve the model/);
+    expect(at('tool_choice: type "tool" and "any" are not supported for this model')).not.toMatch(/doesn't serve/);
+    expect(at('tool_choice: type "tool" and "any" are not supported for this model')).toMatch(/^OpenAI returned HTTP 400\. Details: tool_choice/);
+    expect(at("max_tokens: 64000 > 32000, which is the maximum allowed for this model")).not.toMatch(/doesn't serve/);
+    expect(at("temperature is not supported with this model")).not.toMatch(/doesn't serve/);
+  });
+
   it("explains network failures", () => {
     const url = "https://gw.example.com/v1/messages";
     expect(describeNetworkError({ message: "fetch failed", cause: { code: "ENOTFOUND" } }, url).message).toMatch(/VPN/);
