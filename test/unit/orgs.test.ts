@@ -216,6 +216,10 @@ describe("renderer org helpers", () => {
     expect(sessionOrgView({ username: "gone@acme.com", label: "gone@acme.com" }, orgs, false).loginAlias).toBeUndefined();
     // Not "missing" while the list is still loading.
     expect(sessionOrgView({ username: "gone@acme.com", label: "gone" }, [], true).state).toBe("ok");
+    // A failed listing doesn't say the connection is gone.
+    expect(sessionOrgView({ username: "gone@acme.com", label: "gone" }, [], false, true).state).toBe("unchecked");
+    // A connection that is still listed is judged as usual.
+    expect(sessionOrgView({ username: "admin@acme.com", label: "acme" }, orgs, false, true).state).toBe("expired");
   });
 });
 

@@ -223,8 +223,8 @@ function AppShell() {
 
   const composerOrg = useMemo(() => {
     const ref = chatOrg ?? (orgs.current ? toOrgRef(orgs.current) : orgs.chosen ? { username: orgs.chosen, label: orgs.chosen } : null);
-    return ref ? sessionOrgView(ref, orgs.orgs, orgs.loading) : null;
-  }, [chatOrg, orgs.current, orgs.chosen, orgs.orgs, orgs.loading]);
+    return ref ? sessionOrgView(ref, orgs.orgs, orgs.loading, !!orgs.error) : null;
+  }, [chatOrg, orgs.current, orgs.chosen, orgs.orgs, orgs.loading, orgs.error]);
 
   const labelLibraryOrg = useCallback(
     (item: LibraryItem) => (item.org ? orgLabel(item.org, orgs.orgs) : "No org"),
@@ -371,6 +371,7 @@ function AppShell() {
           onPrefillConsumed={() => setPrefillInput(undefined)}
           org={composerOrg}
           waitingLogin={orgs.waitingLogin}
+          onOrgRecheck={() => void orgs.refresh()}
           onOrgLogin={
             composerOrg
               ? () => orgs.login({ alias: composerOrg.loginAlias, instanceUrl: composerOrg.ref.instanceUrl })
