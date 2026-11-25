@@ -83,23 +83,41 @@ export function normalizeSymptom(text: string): string {
 }
 
 /**
+ * Messages that are never a problem report, whatever the cause picker makes of them: too short,
+ * slash commands, requests to build or change something, data pulls, and how-to questions with
+ * no sign of something wrong.
+ */
+function notAReport(t: string): boolean {
+  if (t.length < 8) return true;
+  if (t.startsWith("/")) return true; // slash commands (/lsc:...) are instructions
+  if (BUILD_REQUEST.test(t) && !NOUN_START.test(t)) return true;
+  if (DATA_REQUEST.some((r) => r.test(t))) return true;
+  return HOW_TO.test(t) && !/\b(?:fix|why|error|fail|failed|fails|broken|not working)\b/i.test(t);
+}
+
+/**
  * How the message reads: `clear` (an error, or plain words for something not working), `loose`
  * (only the looser wording), or null when it doesn't read like a problem.
  */
 export function problemReading(text: string): "clear" | "loose" | null {
   const t = text.trim();
-  if (t.length < 8) return null;
-  if (t.startsWith("/")) return null; // slash commands (/lsc:...) are instructions
+  if (t.length < 8 || t.startsWith("/")) return null;
   if (STRONG.some((re) => re.test(t))) return "clear";
-  if (BUILD_REQUEST.test(t) && !NOUN_START.test(t)) return null;
-  if (DATA_REQUEST.some((r) => r.test(t))) return null;
-  const clear = WEAK.some((re) => re.test(t));
+  if (notAReport(t)) return null;
+  if (WEAK.some((re) => re.test(t))) return "clear";
   const loose =
-    !clear &&
-    (LOOSE.some((re) => re.test(t)) || (OBSERVED_SIGN.test(t) && OBSERVED_VERB.test(t) && !NOT_A_REPORT.test(t)));
-  if (!clear && !loose) return null;
-  if (HOW_TO.test(t) && !/\b(?:fix|why|error|fail|failed|fails|broken|not working)\b/i.test(t)) return null;
-  return clear ? "clear" : "loose";
+    LOOSE.some((re) => re.test(t)) ||
+    (OBSERVED_SIGN.test(t) && OBSERVED_VERB.test(t) && !NOT_A_REPORT.test(t));
+  return loose ? "loose" : null;
+}
+
+/**
+ * True when the word check doesn't take the message for a problem but it could still be one,
+ * so the cause picker is asked (`diagnosePreflightWithPicks`).
+ */
+export function pickerMayRead(text: string): boolean {
+  const t = text.trim();
+  return problemReading(t) === null && !notAReport(t);
 }
 
 /** True when the message reads like an error or a symptom worth matching against known causes. */
@@ -122,24 +140,55 @@ export function diagnosePreflight(text: string, seen?: Set<string>): PreflightCa
   return [{ name: "diagnose_lsc_issue", input }];
 }
 
+/** A cause the picker named (`cause-picker.ts`): `explains` when it would produce what the user describes. */
+export interface PickedCause {
+  id: string;
+  fit: "explains" | "related";
+}
+
 /**
  * `diagnosePreflight`, with the causes `pick` names (the chat model choosing from the cause
  * titles, `cause-picker.ts`) passed to diagnose as `suggested`. A pick that fails or finds
  * nothing leaves the call as word matching alone.
+ *
+ * Plain wording often shares no words with a problem ("the body is just white"), so a message
+ * the word check lets go is still given to the picker unless it is a request or a how-to
+ * question. Such a message is diagnosed only when the picker says a cause would produce what
+ * it describes (`explains`), with only those causes, and stays out of the chat when diagnose
+ * has nothing: a cause that is only nearby would be a wrong answer.
  */
 export async function diagnosePreflightWithPicks(
   text: string,
   seen: Set<string> | undefined,
-  pick: ((text: string) => Promise<string[]>) | undefined
+  pick: ((text: string) => Promise<PickedCause[]>) | undefined
 ): Promise<PreflightCall[]> {
   const calls = diagnosePreflight(text, seen);
-  if (!calls.length || !pick) return calls;
-  let picks: string[] = [];
+  if (!pick) return calls;
+  if (!calls.length && !pickerMayRead(text)) return calls;
+  const key = normalizeSymptom(text);
+  if (!calls.length && seen?.has(key)) return [];
+  let picks: PickedCause[] = [];
   try {
     picks = await pick(text);
   } catch {
     picks = [];
   }
-  if (!picks.length) return calls;
-  return calls.map((c) => ({ ...c, input: { ...c.input, suggested: picks } }));
- }
+  if (calls.length) {
+    if (!picks.length) return calls;
+    return calls.map((c) => ({ ...c, input: { ...c.input, suggested: picks.map((p) => p.id) } }));
+  }
+  seen?.add(key);
+  const explains = picks.filter((p) => p.fit === "explains").map((p) => p.id);
+  if (!explains.length) return [];
+  return [
+    {
+      name: "diagnose_lsc_issue",
+      input: {
+        symptom: text.trim().slice(0, MAX_SYMPTOM_CHARS),
+        format: "json",
+        suggested: explains,
+        quietWhenEmpty: true,
+      },
+    },
+  ];
+}

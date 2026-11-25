@@ -65,13 +65,25 @@ export function loadCauseTitles(projectDir = PROJECT_DIR): CauseTitle[] {
 export const PICK_TOOL = "report_causes";
 export const PICK_TOOL_DEF: ToolDefinition = {
   name: PICK_TOOL,
-  description: "Report the known cause ids that could explain the problem, best first.",
+  description:
+    "Report the known cause ids that could explain the problem, best first, each with how well it fits.",
   input_schema: {
     type: "object",
     properties: {
-      ids: { type: "array", items: { type: "string" }, maxItems: MAX_PICKS },
+      causes: {
+        type: "array",
+        maxItems: MAX_PICKS,
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            fit: { type: "string", enum: ["explains", "related"] },
+          },
+          required: ["id", "fit"],
+        },
+      },
     },
-    required: ["ids"],
+    required: ["causes"],
   },
 };
 
@@ -81,26 +93,50 @@ export function pickerPrompt(titles: CauseTitle[]): string {
 Known causes (id [module]: title):
 ${list}
 
-Call ${PICK_TOOL} with up to ${MAX_PICKS} cause ids, best first, that could explain the problem.
-Pick a cause only if it plausibly explains what the user describes. If the message is a how-to question, a request, or no listed cause fits, call it with an empty list.`;
+Call ${PICK_TOOL} with up to ${MAX_PICKS} causes, best first, that could explain the problem, each with a fit:
+- "explains": the setting this cause names would produce what the user describes, as they describe it.
+- "related": the cause is in the same area, or about the same object or screen, but doesn't by itself produce what they describe.
+The list covers only some problems, so many messages describe one it doesn't cover; then every cause you pick is "related". If the message is a question, a request or an opinion, or no cause is even related, call it with an empty list.`;
 }
 
-/** The known ids in a reply, best first, at most `MAX_PICKS`; none when it isn't the JSON asked for. */
-export function parsePicks(reply: string, known: Set<string>): string[] {
+/** A picked cause: `explains` when it would produce what the user describes, `related` when it's only nearby. */
+export interface CausePick {
+  id: string;
+  fit: "explains" | "related";
+}
+
+/**
+ * The known causes in a reply, best first, at most `MAX_PICKS`; none when it isn't the JSON asked
+ * for. A pick with no fit (an older shape, `{"ids":[…]}`) counts as `related`.
+ */
+export function parsePicks(reply: string, known: Set<string>): CausePick[] {
   const json = reply.match(/\{[\s\S]*\}/)?.[0];
   if (!json) return [];
+  let parsed: { causes?: unknown; ids?: unknown };
   try {
-    const ids = (JSON.parse(json) as { ids?: unknown }).ids;
-    if (!Array.isArray(ids)) return [];
-    const picks = ids.filter((i): i is string => typeof i === "string" && known.has(i));
-    return [...new Set(picks)].slice(0, MAX_PICKS);
+    parsed = JSON.parse(json) as { causes?: unknown; ids?: unknown };
   } catch {
     return [];
   }
+  const raw: unknown[] = Array.isArray(parsed.causes)
+    ? parsed.causes
+    : Array.isArray(parsed.ids)
+      ? parsed.ids
+      : [];
+  const picks: CausePick[] = [];
+  for (const entry of raw) {
+    const { id, fit } =
+      typeof entry === "string"
+        ? { id: entry, fit: undefined }
+        : ((entry ?? {}) as { id?: unknown; fit?: unknown });
+    if (typeof id !== "string" || !known.has(id) || picks.some((p) => p.id === id)) continue;
+    picks.push({ id, fit: fit === "explains" ? "explains" : "related" });
+  }
+  return picks.slice(0, MAX_PICKS);
 }
 
-/** The picks in a reply: the tool call's ids, else JSON in its text (a model that answered in text instead). */
-export function picksFrom(reply: Message, known: Set<string>): string[] {
+/** The picks in a reply: the tool call's, else JSON in its text (a model that answered in text instead). */
+export function picksFrom(reply: Message, known: Set<string>): CausePick[] {
   if (typeof reply.content === "string") return parsePicks(reply.content, known);
   const call = reply.content.find((b) => b.type === "tool_use" && b.name === PICK_TOOL);
   if (call) return parsePicks(JSON.stringify(call.input ?? {}), known);
@@ -110,12 +146,12 @@ export function picksFrom(reply: Message, known: Set<string>): string[] {
   );
 }
 
-/** Cause ids the model picks for `text`; [] on any failure. */
+/** The causes the model picks for `text`, with their fit; [] on any failure. */
 export async function pickCauses(
   llm: LLMProvider,
   text: string,
   options: { model?: string; titles?: CauseTitle[]; timeoutMs?: number } = {}
-): Promise<string[]> {
+): Promise<CausePick[]> {
   const titles = options.titles ?? loadCauseTitles();
   if (!titles.length || !text.trim()) return [];
   const controller = new AbortController();

@@ -23,8 +23,14 @@ const toolReply = (ids: unknown): Message => ({
   role: "assistant",
   content: [{ type: "tool_use", id: "t1", name: PICK_TOOL, input: { ids } }],
 });
+const toolCauses = (causes: unknown): Message => ({
+  role: "assistant",
+  content: [{ type: "tool_use", id: "t1", name: PICK_TOOL, input: { causes } }],
+});
 
-function fakeLlm(reply: string | Message | Error): LLMProvider & { chat: ReturnType<typeof vi.fn> } {
+function fakeLlm(
+  reply: string | Message | Error
+): LLMProvider & { chat: ReturnType<typeof vi.fn> } {
   return {
     id: "fake",
     name: "fake",
@@ -59,10 +65,28 @@ describe("parsePicks()", () => {
   it("keeps known ids in order, without repeats, at most three", () => {
     expect(
       parsePicks('{"ids":["b-cause","x","b-cause","a-cause","c-cause","d-cause"]}', known)
-    ).toEqual(["b-cause", "a-cause", "c-cause"]);
+    ).toEqual([
+      { id: "b-cause", fit: "related" },
+      { id: "a-cause", fit: "related" },
+      { id: "c-cause", fit: "related" },
+    ]);
+  });
+  it("reads each cause's fit, counting anything but explains as related", () => {
+    expect(
+      parsePicks(
+        '{"causes":[{"id":"a-cause","fit":"explains"},{"id":"b-cause","fit":"related"},{"id":"c-cause","fit":"maybe"},{"id":"x","fit":"explains"}]}',
+        known
+      )
+    ).toEqual([
+      { id: "a-cause", fit: "explains" },
+      { id: "b-cause", fit: "related" },
+      { id: "c-cause", fit: "related" },
+    ]);
   });
   it("reads JSON wrapped in prose or a code block", () => {
-    expect(parsePicks('Here:\n```json\n{"ids": ["a-cause"]}\n```', known)).toEqual(["a-cause"]);
+    expect(parsePicks('Here:\n```json\n{"ids": ["a-cause"]}\n```', known)).toEqual([
+      { id: "a-cause", fit: "related" },
+    ]);
   });
   it("gives none for anything else", () => {
     expect(parsePicks("no idea", known)).toEqual([]);
@@ -74,30 +98,43 @@ describe("parsePicks()", () => {
 describe("picksFrom()", () => {
   const known = new Set(["a-cause", "b-cause"]);
   it("reads the tool call's ids", () => {
-    expect(picksFrom(toolReply(["b-cause", "zzz", "a-cause"]), known)).toEqual(["b-cause", "a-cause"]);
+    expect(picksFrom(toolReply(["b-cause", "zzz", "a-cause"]), known)).toEqual([
+      { id: "b-cause", fit: "related" },
+      { id: "a-cause", fit: "related" },
+    ]);
+    expect(picksFrom(toolCauses([{ id: "a-cause", fit: "explains" }]), known)).toEqual([
+      { id: "a-cause", fit: "explains" },
+    ]);
   });
   it("gives none for a tool call with no list", () => {
     expect(picksFrom(toolReply("a-cause"), known)).toEqual([]);
   });
   it("reads JSON in text when the model answers without the tool", () => {
     expect(
-      picksFrom({ role: "assistant", content: [{ type: "text", text: '{"ids":["a-cause"]}' }] }, known)
-    ).toEqual(["a-cause"]);
-    expect(picksFrom({ role: "assistant", content: '{"ids":["b-cause"]}' }, known)).toEqual(["b-cause"]);
+      picksFrom(
+        { role: "assistant", content: [{ type: "text", text: '{"ids":["a-cause"]}' }] },
+        known
+      )
+    ).toEqual([{ id: "a-cause", fit: "related" }]);
+    expect(picksFrom({ role: "assistant", content: '{"ids":["b-cause"]}' }, known)).toEqual([
+      { id: "b-cause", fit: "related" },
+    ]);
   });
   it("gives none for prose or an empty reply", () => {
     // Both happened live when the model was asked for JSON in text.
     const prose = "The most likely explanation is that the new rep has no territory assignment.";
-    expect(picksFrom({ role: "assistant", content: [{ type: "text", text: prose }] }, known)).toEqual([]);
+    expect(
+      picksFrom({ role: "assistant", content: [{ type: "text", text: prose }] }, known)
+    ).toEqual([]);
     expect(picksFrom({ role: "assistant", content: [] }, known)).toEqual([]);
   });
 });
 
 describe("pickCauses()", () => {
   it("sends the cause list and the message, offers the tool without forcing it, and returns its picks", async () => {
-    const llm = fakeLlm(toolReply(["b-cause"]));
+    const llm = fakeLlm(toolCauses([{ id: "b-cause", fit: "explains" }]));
     const picks = await pickCauses(llm, "  reps can't log in  ", { model: "m", titles });
-    expect(picks).toEqual(["b-cause"]);
+    expect(picks).toEqual([{ id: "b-cause", fit: "explains" }]);
     const [system, messages, tools, config] = llm.chat.mock.calls[0];
     expect(system).toBe(pickerPrompt(titles));
     expect(system).toContain("b-cause [permissions]: Second cause");
@@ -133,22 +170,25 @@ describe("pickCauses()", () => {
 });
 
 describe("diagnosePreflightWithPicks()", () => {
-  it("adds the picks to the diagnose call", async () => {
+  const explains = (id: string) => ({ id, fit: "explains" as const });
+  const related = (id: string) => ({ id, fit: "related" as const });
+
+  it("adds every pick to the diagnose call when the word check takes the message", async () => {
     const calls = await diagnosePreflightWithPicks(
       "sync failed on the iPad",
       new Set(),
-      async () => ["a-cause"]
+      async () => [related("a-cause"), explains("b-cause")]
     );
     expect(calls).toHaveLength(1);
     expect(calls[0].input).toMatchObject({
       symptom: "sync failed on the iPad",
       format: "json",
-      suggested: ["a-cause"],
+      suggested: ["a-cause", "b-cause"],
     });
   });
 
   it("asks for no picks when the message isn't a problem", async () => {
-    const pick = vi.fn(async () => ["a-cause"]);
+    const pick = vi.fn(async () => [explains("a-cause")]);
     expect(
       await diagnosePreflightWithPicks("how do I configure samples?", new Set(), pick)
     ).toEqual([]);
@@ -162,5 +202,42 @@ describe("diagnosePreflightWithPicks()", () => {
     expect(failed.input).not.toHaveProperty("suggested");
     const [none] = await diagnosePreflightWithPicks("sync failed again", new Set(), async () => []);
     expect(none.input).not.toHaveProperty("suggested");
+  });
+
+  it("diagnoses plain wording the word check lets go when a pick explains it, with only those picks", async () => {
+    const seen = new Set<string>();
+    const pick = vi.fn(async () => [related("a-cause"), explains("b-cause")]);
+    const text = "the rep taps the order button and the screen goes white";
+    expect(await diagnosePreflightWithPicks(text, seen, pick)).toEqual([
+      {
+        name: "diagnose_lsc_issue",
+        input: { symptom: text, format: "json", suggested: ["b-cause"], quietWhenEmpty: true },
+      },
+    ]);
+    // Not run twice for the same text.
+    expect(await diagnosePreflightWithPicks(text.toUpperCase(), seen, pick)).toEqual([]);
+    expect(pick).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs nothing for plain wording when no pick explains it", async () => {
+    const text = "the rep taps the order button and the screen goes white";
+    expect(
+      await diagnosePreflightWithPicks(text, new Set(), async () => [related("a-cause")])
+    ).toEqual([]);
+    expect(await diagnosePreflightWithPicks(text, new Set(), async () => [])).toEqual([]);
+  });
+
+  it("never asks the picker about requests, how-to questions or slash commands", async () => {
+    const pick = vi.fn(async () => [explains("a-cause")]);
+    for (const text of [
+      "create a quick action for orders",
+      "explain sample limits",
+      "/lsc:status",
+      "list every rep in the org",
+      "ok",
+    ]) {
+      expect(await diagnosePreflightWithPicks(text, new Set(), pick)).toEqual([]);
+    }
+    expect(pick).not.toHaveBeenCalled();
   });
 });

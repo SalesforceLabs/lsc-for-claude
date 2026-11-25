@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { diagnosePreflight, problemReading, readsLikeProblem } from "../../../src-electron/engine/diagnose-first.js";
+import { diagnosePreflight, pickerMayRead, problemReading, readsLikeProblem } from "../../../src-electron/engine/diagnose-first.js";
 
 const positives = [
   "No such column 'LastModifiedDate' on entity 'ContentDocumentLink'",
@@ -121,5 +121,21 @@ describe("diagnosePreflight", () => {
   it("caps very long pastes", () => {
     const [call] = diagnosePreflight("Error: " + "x".repeat(10_000));
     expect((call.input.symptom as string).length).toBe(4000);
+  });
+});
+
+describe("pickerMayRead", () => {
+  it("is true for plain statements the word check lets go", () => {
+    expect(pickerMayRead("the rep taps the order button and the screen goes white")).toBe(true);
+    expect(pickerMayRead("totals on the tablet are a cent off from the browser")).toBe(true);
+  });
+
+  it("is false for what the word check already takes, and for requests and how-to questions", () => {
+    expect(pickerMayRead("visits don't save on the ipad")).toBe(false);
+    expect(pickerMayRead("create a permission set for field reps")).toBe(false);
+    expect(pickerMayRead("how do I configure samples?")).toBe(false);
+    expect(pickerMayRead("count the accounts that have no territory")).toBe(false);
+    expect(pickerMayRead("/lsc:health-check")).toBe(false);
+    expect(pickerMayRead("hi")).toBe(false);
   });
 });
