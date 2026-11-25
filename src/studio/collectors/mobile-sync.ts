@@ -185,8 +185,7 @@ function cacheFindings(r: Row): StudioFinding[] {
 export function noAppSettings(
   profile: string,
   profileId: string | undefined,
-  profileSettings: ConfigRecord[],
-  all: ConfigRecord[]
+  profileSettings: ConfigRecord[]
 ): StudioFinding {
   const finding: StudioFinding = {
     severity: "info",
@@ -350,10 +349,7 @@ export const collectMobileSync: CustomCollector = async (org) => {
                 : "Generate the mobile metadata cache for this profile (Admin Console or /lsc:generate-metadata-cache) so the iPad picks up its schema.",
             });
           }
-          if (!app)
-            findings.push(
-              noAppSettings(profile, profileIds.get(profile), profileSettings, appSettings)
-            );
+          if (!app) findings.push(noAppSettings(profile, profileIds.get(profile), profileSettings));
           if (tabs === 0) findings.push(noNavTabs(profile, activeTabs));
           return item(`profile:${profile}`, profile, {
             sublabel: `${plural(schemaCount, "object")} · ${plural(tabs, "tab")}`,

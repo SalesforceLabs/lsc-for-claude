@@ -93184,7 +93184,7 @@ var ParentPortServerTransport = class {
 
 // src/knowledge-loader.ts
 import { readFileSync as readFileSync2, readdirSync as readdirSync2, existsSync as existsSync2 } from "fs";
-import { join as join2, basename as basename2 } from "path";
+import { join as join2, basename } from "path";
 import { fileURLToPath as fileURLToPath2 } from "url";
 import { dirname as dirname2 } from "path";
 
@@ -93812,7 +93812,7 @@ function loadModuleContent(modulePath) {
   for (const file of files) {
     const filePath = join2(modulePath, file);
     const fileContent = readFileSync2(filePath, "utf-8");
-    const fileName = basename2(file, ".md");
+    const fileName = basename(file, ".md");
     content += `
 
 ## ${slugToTitle(fileName)}
@@ -93857,7 +93857,7 @@ function searchKnowledge(query2) {
       for (const file of files) {
         const filePath = join2(modulePath, file);
         const content = readFileSync2(filePath, "utf-8");
-        const title = slugToTitle(basename2(file, ".md"));
+        const title = slugToTitle(basename(file, ".md"));
         const match = matchText(content, query2, title);
         if (match) {
           results.push({
@@ -93866,7 +93866,7 @@ function searchKnowledge(query2) {
             excerpt: extractExcerpt(content, match),
             section: sectionAround(content, match.index, SECTION_LIMIT),
             source: "modules",
-            sourceFile: basename2(file, ".md"),
+            sourceFile: basename(file, ".md"),
             score: match.score
           });
         }
@@ -93875,7 +93875,7 @@ function searchKnowledge(query2) {
   }
   searchDirectory(HELP_DOCS_PATH, query2, "help", results);
   searchDirectory(EXERCISES_PATH, query2, "exercises", results);
-  searchDirectory(GUIDES_PATH2, query2, "guides", results, true);
+  searchDirectory(GUIDES_PATH2, query2, "guides", results);
   const guideResults = searchGuides(query2);
   for (const gr of guideResults) {
     results.push({
@@ -93911,13 +93911,13 @@ function extractExcerpt(content, match) {
   if (end < content.length) excerpt = excerpt + "...";
   return excerpt;
 }
-function searchDirectory(dirPath, query2, source, results, filesOnly) {
+function searchDirectory(dirPath, query2, source, results) {
   if (!existsSync2(dirPath)) return;
   const files = readdirSync2(dirPath, { withFileTypes: true }).filter((f) => f.isFile() && f.name.endsWith(".md")).map((f) => f.name);
   for (const file of files) {
     const filePath = join2(dirPath, file);
     const content = readFileSync2(filePath, "utf-8");
-    const title = slugToTitle(basename2(file, ".md"));
+    const title = slugToTitle(basename(file, ".md"));
     const match = matchText(content, query2, title);
     if (match) {
       results.push({
@@ -93926,7 +93926,7 @@ function searchDirectory(dirPath, query2, source, results, filesOnly) {
         excerpt: extractExcerpt(content, match),
         section: sectionAround(content, match.index, SECTION_LIMIT),
         source,
-        sourceFile: basename2(file, ".md"),
+        sourceFile: basename(file, ".md"),
         score: match.score
       });
     }
@@ -93938,8 +93938,8 @@ function getHelpDocList() {
   }
   const files = readdirSync2(HELP_DOCS_PATH).filter((f) => f.endsWith(".md"));
   return files.map((file) => ({
-    slug: basename2(file, ".md"),
-    title: slugToTitle(basename2(file, ".md"))
+    slug: basename(file, ".md"),
+    title: slugToTitle(basename(file, ".md"))
   }));
 }
 function getHelpDocContent(slug) {
@@ -93955,8 +93955,8 @@ function getExerciseList() {
   }
   const files = readdirSync2(EXERCISES_PATH).filter((f) => f.endsWith(".md"));
   return files.map((file) => ({
-    slug: basename2(file, ".md"),
-    title: slugToTitle(basename2(file, ".md"))
+    slug: basename(file, ".md"),
+    title: slugToTitle(basename(file, ".md"))
   }));
 }
 function getExerciseContent(slug) {
@@ -93972,8 +93972,8 @@ function getGuideList() {
   }
   const files = readdirSync2(GUIDES_PATH2, { withFileTypes: true }).filter((f) => f.isFile() && f.name.endsWith(".md")).map((f) => f.name);
   return files.map((file) => ({
-    slug: basename2(file, ".md"),
-    title: slugToTitle(basename2(file, ".md"))
+    slug: basename(file, ".md"),
+    title: slugToTitle(basename(file, ".md"))
   }));
 }
 function getGuideContent(slug) {
@@ -93989,8 +93989,8 @@ function getTroubleshootingList() {
   }
   const files = readdirSync2(TROUBLESHOOTING_PATH).filter((f) => f.endsWith(".md"));
   return files.map((file) => ({
-    slug: basename2(file, ".md"),
-    title: slugToTitle(basename2(file, ".md"))
+    slug: basename(file, ".md"),
+    title: slugToTitle(basename(file, ".md"))
   }));
 }
 function getTroubleshootingContent(slug) {
@@ -94013,7 +94013,7 @@ function resolveFilePath(sourceFile2, moduleName) {
 function formatCitation(sourceFile2, moduleName) {
   const info = getCitation(sourceFile2, moduleName);
   const filePath = resolveFilePath(sourceFile2, moduleName);
-  const fileLink = `[${basename2(filePath)}](lsc-file://${filePath})`;
+  const fileLink = `[${basename(filePath)}](lsc-file://${filePath})`;
   if (!info) {
     const label2 = slugToTitle(sourceFile2);
     const category = moduleName ? "PM Enablement" : "Documentation";
@@ -96012,7 +96012,7 @@ ${results.join("")}` }]
       actionName: external_exports.string().optional().describe("Optional: The action name/label for confirmation message"),
       targetOrg: external_exports.string().optional().describe("Optional: specific org to delete from")
     },
-    async ({ actionId, actionName, targetOrg }) => {
+    async ({ actionId, targetOrg }) => {
       const validation = await validateOrgConnection();
       const effectiveOrg = targetOrg || validation.targetOrg;
       if (!effectiveOrg) {
@@ -101138,7 +101138,6 @@ function diagnosisItems(diagnosis) {
 }
 
 // src/tools/validation.ts
-init_cli();
 init_read_cache();
 
 // src/studio/user-trace.ts
@@ -103879,7 +103878,7 @@ function cacheFindings(r) {
   }
   return [];
 }
-function noAppSettings(profile, profileId, profileSettings, all) {
+function noAppSettings(profile, profileId, profileSettings) {
   const finding = {
     severity: "info",
     title: "No profile app settings",
@@ -104013,10 +104012,7 @@ var collectMobileSync = async (org) => {
               detail: orgCache ? "Only the org-level cache is active. Generate a profile cache if this profile's schema differs." : "Generate the mobile metadata cache for this profile (Admin Console or /lsc:generate-metadata-cache) so the iPad picks up its schema."
             });
           }
-          if (!app)
-            findings.push(
-              noAppSettings(profile, profileIds.get(profile), profileSettings, appSettings)
-            );
+          if (!app) findings.push(noAppSettings(profile, profileIds.get(profile), profileSettings));
           if (tabs === 0) findings.push(noNavTabs(profile, activeTabs));
           return item(`profile:${profile}`, profile, {
             sublabel: `${plural(schemaCount, "object")} \xB7 ${plural(tabs, "tab")}`,
@@ -119361,7 +119357,7 @@ var readiness18 = {
             (await query(`SELECT Id, Name FROM Profile WHERE Name IN (${inList(missing)})`, org)).map((p) => [String(p.Name), String(p.Id)])
           );
           const pbs = byCategory(all, "ProfileBasedAppSettings");
-          const fixes = missing.flatMap((p) => noAppSettings(p, ids.get(p), pbs, all).fixes ?? []);
+          const fixes = missing.flatMap((p) => noAppSettings(p, ids.get(p), pbs).fixes ?? []);
           return {
             pass: false,
             detail: `${plural(missing.length, "synced profile")} without app settings: ${missing.join(", ")}.`,
@@ -121330,147 +121326,6 @@ _No org checked: ${validation.error ?? "no org connected"}_
       }
     }
   );
-  async function queryAssignments2(recordIds, targetOrg) {
-    const result2 = /* @__PURE__ */ new Map();
-    if (recordIds.length === 0) return result2;
-    const idFilter = recordIds.length === 1 ? `LifeSciConfigRecordId = '${recordIds[0]}'` : `LifeSciConfigRecordId IN (${recordIds.map((id2) => `'${id2}'`).join(",")})`;
-    const assignQuery = `SELECT Id, LifeSciConfigRecordId, AssignedToId, AssignmentLevel FROM LifeSciConfigAssignment WHERE ${idFilter}`;
-    const assignResult = await runToolingQuery(assignQuery, targetOrg);
-    if (!assignResult.success || !assignResult.data?.records?.length) {
-      return result2;
-    }
-    const assignedToIds = /* @__PURE__ */ new Set();
-    const rawAssignments = [];
-    for (const r of assignResult.data.records) {
-      const a = r;
-      rawAssignments.push(a);
-      if (a.AssignedToId) assignedToIds.add(a.AssignedToId);
-    }
-    const nameMap = /* @__PURE__ */ new Map();
-    if (assignedToIds.size > 0) {
-      const idList = [...assignedToIds].map((id2) => `'${id2}'`).join(",");
-      const profileQuery = `SELECT Id, Name FROM Profile WHERE Id IN (${idList})`;
-      const profileResult = await runToolingQuery(profileQuery, targetOrg);
-      if (profileResult.success && profileResult.data?.records) {
-        for (const p of profileResult.data.records) {
-          const pr = p;
-          nameMap.set(pr.Id, pr.Name);
-        }
-      }
-      const unresolvedIds = [...assignedToIds].filter((id2) => !nameMap.has(id2));
-      if (unresolvedIds.length > 0) {
-        const psIdList = unresolvedIds.map((id2) => `'${id2}'`).join(",");
-        const psQuery = `SELECT Id, Name FROM PermissionSet WHERE Id IN (${psIdList})`;
-        const psResult = await runToolingQuery(psQuery, targetOrg);
-        if (psResult.success && psResult.data?.records) {
-          for (const ps of psResult.data.records) {
-            const psr = ps;
-            nameMap.set(psr.Id, psr.Name);
-          }
-        }
-      }
-    }
-    for (const a of rawAssignments) {
-      const parentId = a.LifeSciConfigRecordId;
-      const assignedToId = a.AssignedToId;
-      const level = a.AssignmentLevel || "Profile";
-      const name = nameMap.get(assignedToId) || assignedToId;
-      if (!result2.has(parentId)) {
-        result2.set(parentId, []);
-      }
-      result2.get(parentId).push({ id: assignedToId, name, level });
-    }
-    return result2;
-  }
-  async function resolveProfileId2(profileName3, targetOrg) {
-    const query2 = `SELECT Id FROM Profile WHERE Name = '${profileName3.replace(/'/g, "\\'")}' LIMIT 1`;
-    const result2 = await runToolingQuery(query2, targetOrg);
-    if (result2.success && result2.data?.records?.length) {
-      return result2.data.records[0].Id;
-    }
-    return null;
-  }
-  function getValueColumn2(dataType) {
-    switch (dataType) {
-      case "TEXT":
-        return "TextValue";
-      case "INTEGER":
-        return "IntegerValue";
-      case "PICKLIST":
-        return "PicklistValue";
-      case "BOOLEAN":
-        return "HasBooleanValue";
-      case "LONGTEXT":
-        return "LongTextValue";
-      case "OBJECT":
-        return "ObjectValue";
-      case "FIELD":
-        return "FieldValue";
-      case "URL":
-        return "UrlValue";
-      case "NUMBER":
-        return "NumberValue";
-      case "PHONE":
-        return "PhoneValue";
-      case "MULTIPICKLIST":
-        return "LongTextValue";
-      case "RECORDREFERENCE":
-        return "TextValue";
-      default:
-        return "TextValue";
-    }
-  }
-  function extractFieldValue2(f) {
-    return f.TextValue ?? f.PicklistValue ?? f.IntegerValue ?? f.LongTextValue ?? f.ObjectValue ?? f.FieldValue ?? f.UrlValue ?? f.NumberValue ?? f.PhoneValue ?? f.DateTimeValue ?? f.DateValue ?? (f.HasBooleanValue !== null && f.HasBooleanValue !== void 0 ? f.HasBooleanValue : null);
-  }
-  function normalizeDbSchemaName2(name) {
-    return /^dbschema_/i.test(name) ? name : `DbSchema_${name}`;
-  }
-  const FV_VALUE_COLUMNS2 = [
-    "TextValue",
-    "IntegerValue",
-    "PicklistValue",
-    "HasBooleanValue",
-    "LongTextValue",
-    "ObjectValue",
-    "FieldValue",
-    "UrlValue",
-    "NumberValue",
-    "PhoneValue",
-    "DateTimeValue",
-    "DateValue"
-  ];
-  async function queryFieldValues2(recordIds, targetOrg, includeParentId = false) {
-    const columns = FV_VALUE_COLUMNS2;
-    const fieldValuesByRecord = /* @__PURE__ */ new Map();
-    const parentIdCol = includeParentId ? ", LifeSciConfigRecordId" : "";
-    const chunkSize = 50;
-    for (let i = 0; i < recordIds.length; i += chunkSize) {
-      const chunk2 = recordIds.slice(i, i + chunkSize);
-      let fvQuery;
-      if (chunk2.length === 1) {
-        fvQuery = `SELECT Id, FieldName, DataType, ${columns.join(", ")}${parentIdCol} FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecordId = '${chunk2[0]}' ORDER BY FieldName`;
-      } else {
-        const idList = chunk2.map((id2) => `'${id2}'`).join(",");
-        fvQuery = `SELECT Id, FieldName, DataType, ${columns.join(", ")}, LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecordId IN (${idList}) ORDER BY FieldName`;
-      }
-      const fvResult = await runToolingQuery(fvQuery, targetOrg);
-      if (!fvResult.success) {
-        return { fieldValuesByRecord, queryError: fvResult.error || "Unknown query error" };
-      }
-      if (fvResult.data?.records) {
-        for (const fv of fvResult.data.records) {
-          const f = fv;
-          const parentId = f.LifeSciConfigRecordId || chunk2[0];
-          if (!fieldValuesByRecord.has(parentId)) {
-            fieldValuesByRecord.set(parentId, []);
-          }
-          fieldValuesByRecord.get(parentId).push(f);
-        }
-      }
-    }
-    return { fieldValuesByRecord };
-  }
 }
 
 // src/tools/db-schema.ts
@@ -123165,7 +123020,6 @@ async function convertPptxViaLibreOfficeHtml(pptxPath, outputDir) {
     const slideDir = path10.join(htmlDir, `slide_${slideNum}`);
     fs11.mkdirSync(slideDir, { recursive: true });
     let svgContent = null;
-    const expectedSvgPath = path10.join(svgDir, `slide_${slideNum}.svg`);
     try {
       await run2(
         soffice,
@@ -127847,7 +127701,6 @@ ${instructions.command}
       let message = "# Briefings (Daily Podcasts) Configuration Report\n\n";
       const issues = [];
       const warnings = [];
-      const recommendations = [];
       const checkResults = [];
       let briefingsEnabled = false;
       try {

@@ -3,7 +3,7 @@
  */
 
 import type { SfOrg } from "./cli.js";
-import { isSfCliInstalled, getSfCliVersion, listOrgs, SfOrgListResult } from "./cli.js";
+import { isSfCliInstalled, getSfCliVersion, listOrgs } from "./cli.js";
 import { cacheInvalidateOrg } from "../cache.js";
 import { clearReportCacheForOrg } from "../studio/screens/report-data.js";
 
@@ -354,7 +354,7 @@ export async function validateOrgConnection(): Promise<{
 /**
  * Identify if an org has LSC installed (heuristic check)
  */
-export async function checkLscInstalled(targetOrg: string): Promise<{
+export async function checkLscInstalled(_targetOrg: string): Promise<{
   installed: boolean;
   indicators: string[];
 }> {

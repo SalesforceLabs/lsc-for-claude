@@ -785,7 +785,7 @@ const readiness: ReadinessModule = {
             ).map((p) => [String(p.Name), String(p.Id)])
           );
           const pbs = byCategory(all, "ProfileBasedAppSettings");
-          const fixes = missing.flatMap((p) => noAppSettings(p, ids.get(p), pbs, all).fixes ?? []);
+          const fixes = missing.flatMap((p) => noAppSettings(p, ids.get(p), pbs).fixes ?? []);
           return {
             pass: false,
             detail: `${plural(missing.length, "synced profile")} without app settings: ${missing.join(", ")}.`,

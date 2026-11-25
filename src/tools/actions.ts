@@ -157,7 +157,7 @@ export function register(server: McpServer) {
         .describe("Optional: The action name/label for confirmation message"),
       targetOrg: z.string().optional().describe("Optional: specific org to delete from"),
     },
-    async ({ actionId, actionName, targetOrg }) => {
+    async ({ actionId, targetOrg }) => {
       const validation = await validateOrgConnection();
       const effectiveOrg = targetOrg || validation.targetOrg;
 

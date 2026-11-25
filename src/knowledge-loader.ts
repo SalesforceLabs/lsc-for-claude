@@ -3,7 +3,7 @@ import { join, basename } from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { getCitation } from "./citation-map.js";
-import { searchGuides, type GuideSectionSearchResult } from "./guide-loader.js";
+import { searchGuides } from "./guide-loader.js";
 import { matchText, sectionAround, type TextMatch } from "./search-match.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -202,8 +202,8 @@ export function searchKnowledge(query: string): SearchResult[] {
   // Search exercises
   searchDirectory(EXERCISES_PATH, query, "exercises", results);
 
-  // Search standalone guide files (skip section directories like admin-guide/, dev-guide/)
-  searchDirectory(GUIDES_PATH, query, "guides", results, true);
+  // Search standalone guide files (only files are read, so section directories like admin-guide/ are skipped)
+  searchDirectory(GUIDES_PATH, query, "guides", results);
 
   // Search guide sections (section-chunked PDFs)
   const guideResults = searchGuides(query);
@@ -261,8 +261,7 @@ function searchDirectory(
   dirPath: string,
   query: string,
   source: string,
-  results: SearchResult[],
-  filesOnly?: boolean
+  results: SearchResult[]
 ): void {
   if (!existsSync(dirPath)) return;
 

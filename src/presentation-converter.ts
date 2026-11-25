@@ -566,7 +566,6 @@ async function convertPptxViaLibreOfficeHtml(
 
     // Convert per-page PDF → SVG
     let svgContent: string | null = null;
-    const expectedSvgPath = path.join(svgDir, `slide_${slideNum}.svg`);
     try {
       await run(
         soffice,
@@ -1008,26 +1007,6 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function createSlideZip(zipPath: string, htmlPath: string, thumbnailPath: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const output = fs.createWriteStream(zipPath);
-    const archive = archiver("zip", { zlib: { level: 9 } });
-
-    output.on("close", () => resolve());
-    archive.on("error", (err: Error) => reject(err));
-
-    archive.pipe(output);
-    archive.file(htmlPath, { name: "01_slide.html" });
-    archive.file(thumbnailPath, { name: "01_thumbnail.jpg" });
-    archive.finalize();
-  });
-}
-
-/**
- * Create a ZIP from a directory of slide assets plus a thumbnail.
- * Archives the entire slideDir contents (index.html + any referenced assets)
- * and adds the thumbnail at the root level.
- */
 function createSlideZipFromDir(
   zipPath: string,
   slideDir: string,
