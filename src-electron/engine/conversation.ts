@@ -32,7 +32,8 @@ export interface ConversationCallbacks {
  */
 export interface ConversationHooks {
   preflight?: (
-    userText: string
+    userText: string,
+    context: { model?: string }
   ) => Promise<Array<{ name: string; input: Record<string, unknown> }>>;
   /** `signal` aborts when the run is stopped or replaced, so a gate waiting on the user doesn't hang it. */
   gateTool?: (call: {
@@ -274,7 +275,7 @@ export class ConversationEngine {
     if (!this.hooks.preflight) return;
     let calls: Array<{ name: string; input: Record<string, unknown> }> = [];
     try {
-      calls = await this.hooks.preflight(userText);
+      calls = await this.hooks.preflight(userText, { model: this.model });
     } catch {
       return; // A preflight that can't decide never blocks the run
     }

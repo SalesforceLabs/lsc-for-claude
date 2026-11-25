@@ -50,6 +50,19 @@ describe("cardFor", () => {
     expect(diag?.items[0].failedRules).toEqual([{ id: "", name: "R", message: "m" }]);
   });
 
+  it("draws nothing for a quiet run that found nothing or failed, and the usual card when it found something", () => {
+    const quiet = (status: "running" | "success" | "error", result?: string) => ({
+      ...tool("diagnose_lsc_issue", status, result),
+      input: { symptom: "x", format: "json", quietWhenEmpty: true },
+    });
+    expect(cardFor(quiet("success", JSON.stringify({ items: [] })))?.kind).toBe("quiet");
+    expect(cardHidesStep(cardFor(quiet("success", JSON.stringify({ items: [] }))))).toBe(true);
+    expect(cardFor(quiet("running"))?.kind).toBe("loading");
+    expect(cardFor(quiet("error", "Error: timeout"))?.kind).toBe("quiet");
+    expect(cardFor(quiet("success", JSON.stringify({ items: [item] })))?.kind).toBe("diagnosis");
+    expect(cardHidesStep(cardFor(quiet("success", JSON.stringify({ items: [item] }))))).toBe(false);
+  });
+
   it("hides the step row only over an empty diagnosis", () => {
     expect(cardHidesStep(cardFor(tool("diagnose_lsc_issue", "success", JSON.stringify({ items: [] }))))).toBe(true);
     expect(cardHidesStep(cardFor(tool("diagnose_lsc_issue", "success", JSON.stringify({ items: [item] }))))).toBe(false);

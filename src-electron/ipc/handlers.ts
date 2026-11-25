@@ -18,7 +18,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { ConversationEngine } from "../engine/conversation.js";
 import { EngineCache } from "../engine/engine-cache.js";
-import { diagnosePreflight } from "../engine/diagnose-first.js";
+import { diagnosePreflightWithPicks } from "../engine/diagnose-first.js";
+import { pickCauses } from "../engine/cause-picker.js";
 import { ApprovalBroker, createWriteGate } from "../engine/write-gate.js";
 import { McpClient, STUDIO_TOOL_PREFIX } from "../mcp/client.js";
 import { McpPool, type PoolOrg } from "../mcp/pool.js";
@@ -373,7 +374,11 @@ async function getOrCreateEngine(convId: string, ref: OrgRef | null): Promise<Co
   const diagnosed = new Set<string>();
   const host = mcpPool.host(pool);
   const engine = new ConversationEngine(llm, host, promptBuilder, org, {
-    preflight: async (text) => diagnosePreflight(text, diagnosed),
+    // The session's model picks causes from their titles, for wording no stored symptom shares.
+    preflight: async (text, { model }) =>
+      diagnosePreflightWithPicks(text, diagnosed, (t) =>
+        llm ? pickCauses(llm, t, { model: model ?? llmConnection?.model }) : Promise.resolve([])
+      ),
     gateTool: createWriteGate({
       convId,
       org,

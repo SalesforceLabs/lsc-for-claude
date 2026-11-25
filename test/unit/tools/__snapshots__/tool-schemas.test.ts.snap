@@ -757,6 +757,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "optional": true,
         "type": "ZodEnum",
       },
+      "suggested": {
+        "optional": true,
+        "type": "ZodArray",
+      },
       "symptom": {
         "optional": false,
         "type": "ZodString",
