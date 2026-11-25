@@ -473,8 +473,11 @@ interface LscApi {
   }): Promise<{ orgs: SfOrg[]; error?: string }>;
   /** The full listing after a `quick` one; returns an unsubscribe function. */
   onSfOrgListed(callback: (list: { orgs: SfOrg[]; error?: string }) => void): () => void;
-  /** Roles by lowercased username, sent as background checks finish. */
-  onSfOrgRoles(callback: (roles: Record<string, OrgRole>) => void): () => void;
+  /**
+   * Roles by lowercased username, and each org's kind from its own Organization record by 15-character
+   * org Id, sent as background checks finish.
+   */
+  onSfOrgRoles(callback: (update: { roles: Record<string, OrgRole>; kinds: Record<string, OrgKind> }) => void): () => void;
   /** Select the org for Studio, Library and new sessions; returns the key it was stored as. */
   setSfOrg(org: string): Promise<{ ok: boolean; org: string }>;
   /** Called with the new org whenever Settings or the status bar switches it; returns an unsubscribe function. */

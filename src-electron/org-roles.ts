@@ -1,6 +1,7 @@
 import { execFile } from "child_process";
 import fs from "fs";
 import path from "path";
+import type { OrgKind } from "./orgs.js";
 
 /**
  * Which sf CLI connections are LSC admins. Only an admin's connection makes sense as the app's
@@ -10,6 +11,10 @@ import path from "path";
  * Each connection is checked as itself: one query for the standard `LifeSciencesCommercialAdmin`
  * permission set and whether its user is assigned it. Customers clone that permission set, but a
  * clone can't be told from any other custom set, so only the standard one counts.
+ *
+ * The same check reads the org's Organization record, so the org menu, the session prompt and the
+ * write gate say production only when the org itself says so (as Studio's `isProductionOrg` does):
+ * the sf CLI's saved login can lack the trial date or edition, or keep a trial's after it converts.
  */
 
 /** `admin`: holds the LSC admin permission set. `user`: an LSC org, but not an admin. `other`: no LSC. */
@@ -48,7 +53,40 @@ export function parseRoleResult(stdout: string): OrgRole | undefined {
   return records.some((r) => (r.Assignments?.totalSize ?? 0) > 0) ? "admin" : "user";
 }
 
-type RoleEntry = { role: OrgRole; checkedAt: number };
+export const ORGANIZATION_QUERY = "SELECT Id, IsSandbox, TrialExpirationDate, OrganizationType FROM Organization LIMIT 1";
+
+/** What the Organization record says the org is, as Studio's `isProductionOrg` reads it. */
+export function kindFromOrganization(rec: {
+  IsSandbox?: boolean | null;
+  TrialExpirationDate?: string | null;
+  OrganizationType?: string | null;
+}): OrgKind {
+  if (rec.IsSandbox) return "sandbox";
+  if (rec.OrganizationType === "Developer Edition") return "developer";
+  if (rec.TrialExpirationDate) return "trial";
+  return "production";
+}
+
+/** The org's Id and kind in `sf data query --json` output for `ORGANIZATION_QUERY`, or null if it failed. */
+export function parseOrganizationResult(stdout: string): { orgId: string; kind: OrgKind } | null {
+  const start = stdout.indexOf("{");
+  if (start < 0) return null;
+  let data;
+  try {
+    data = JSON.parse(stdout.slice(start));
+  } catch {
+    return null;
+  }
+  const rec = data?.status === 0 ? data?.result?.records?.[0] : undefined;
+  if (!rec || typeof rec.Id !== "string" || typeof rec.IsSandbox !== "boolean") return null;
+  return { orgId: rec.Id, kind: kindFromOrganization(rec) };
+}
+
+/** One connection's check: its role, and the org's kind (null when the Organization record couldn't be read). */
+export type RoleCheck = { role: OrgRole; org: { orgId: string; kind: OrgKind } | null };
+
+/** `org` is absent on entries saved before the kind was read, so they're checked again. */
+type RoleEntry = { role: OrgRole; checkedAt: number; org?: RoleCheck["org"] };
 
 export class OrgRoles {
   private entries: Record<string, RoleEntry> = {};
@@ -58,8 +96,8 @@ export class OrgRoles {
 
   constructor(
     private file: string,
-    private onChange: (roles: Record<string, OrgRole>) => void,
-    private runCheck: (username: string) => Promise<OrgRole | undefined> = checkRole
+    private onChange: (roles: Record<string, OrgRole>, kinds: Record<string, OrgKind>) => void,
+    private runCheck: (username: string) => Promise<RoleCheck | undefined> = checkRole
   ) {
     try {
       this.entries = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -77,6 +115,13 @@ export class OrgRoles {
     return this.entries[username.toLowerCase()]?.role;
   }
 
+  /** The kind each org's Organization record gave, by 15-character org Id. */
+  kinds(): Record<string, OrgKind> {
+    const out: Record<string, OrgKind> = {};
+    for (const e of Object.values(this.entries)) if (e.org) out[e.org.orgId.slice(0, 15)] = e.org.kind;
+    return out;
+  }
+
   /**
    * Check the connections that have no role yet, or an old one (all of them with `force`), in the
    * background; `onChange` gets the roles as checks finish. Logged-out connections can't be
@@ -88,7 +133,7 @@ export class OrgRoles {
       const key = c.username.toLowerCase();
       const entry = this.entries[key];
       if (!c.connected || this.checking.has(key)) continue;
-      if (!options.force && entry && now - entry.checkedAt < ROLE_TTL_MS) continue;
+      if (!options.force && entry && entry.org !== undefined && now - entry.checkedAt < ROLE_TTL_MS) continue;
       this.checking.add(key);
       this.queue.push(c.username);
     }
@@ -101,16 +146,19 @@ export class OrgRoles {
       this.active++;
       this.runCheck(username)
         .catch(() => undefined)
-        .then((role) => {
+        .then((result) => {
           const key = username.toLowerCase();
           this.checking.delete(key);
           this.active--;
           // A failed check keeps the last answer; it's tried again on the next listing.
-          if (role) {
-            const changed = this.entries[key]?.role !== role;
-            this.entries[key] = { role, checkedAt: Date.now() };
+          if (result) {
+            const before = this.entries[key];
+            // A kind that couldn't be read this time keeps the last one read.
+            const org = result.org ?? before?.org ?? null;
+            const changed = before?.role !== result.role || before?.org?.kind !== org?.kind;
+            this.entries[key] = { role: result.role, checkedAt: Date.now(), org };
             this.save();
-            if (changed) this.onChange(this.all());
+            if (changed) this.onChange(this.all(), this.kinds());
           }
           this.pump();
         });
@@ -127,13 +175,17 @@ export class OrgRoles {
   }
 }
 
-function checkRole(username: string): Promise<OrgRole | undefined> {
+function sfQuery(username: string, query: string): Promise<string> {
   return new Promise((resolve) => {
-    execFile(
-      "sf",
-      ["data", "query", "--target-org", username, "--query", roleQuery(username), "--json"],
-      { timeout: 30_000 },
-      (_error, stdout) => resolve(parseRoleResult(stdout ?? ""))
+    execFile("sf", ["data", "query", "--target-org", username, "--query", query, "--json"], { timeout: 30_000 }, (_error, stdout) =>
+      resolve(stdout ?? "")
     );
   });
+}
+
+/** One after the other, so a check never runs more sf processes than before. */
+async function checkRole(username: string): Promise<RoleCheck | undefined> {
+  const role = parseRoleResult(await sfQuery(username, roleQuery(username)));
+  if (!role) return undefined;
+  return { role, org: parseOrganizationResult(await sfQuery(username, ORGANIZATION_QUERY)) };
 }
