@@ -69,7 +69,11 @@ export function OrgsProvider({ children }: { children: React.ReactNode }) {
     // The first listing skips checking each login (seconds per dozen orgs); the full one follows.
     refresh({ quick: true });
     const offListed = window.lscApi.onSfOrgListed((list) => {
-      if (!list.error) setOrgs(list.orgs);
+      // A full listing that worked clears a failed quick one's error.
+      if (!list.error) {
+        setOrgs(list.orgs);
+        setError("");
+      }
     });
     const offRoles = window.lscApi.onSfOrgRoles(setRoles);
     const offChanged = window.lscApi.onSfOrgChanged((org) => setChosen(org));

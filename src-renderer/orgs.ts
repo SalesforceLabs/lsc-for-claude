@@ -81,20 +81,23 @@ export interface SessionOrgView {
   ref: OrgRef;
   label: string;
   kind?: OrgKind;
-  /** `expired`: the sf CLI can't refresh the login; `missing`: the connection is gone from `sf org list`. */
-  state: "ok" | "expired" | "missing";
+  /**
+   * `expired`: the sf CLI can't refresh the login; `missing`: the connection is gone from `sf org list`;
+   * `unchecked`: `sf org list` failed, so whether it's still there isn't known.
+   */
+  state: "ok" | "expired" | "missing" | "unchecked";
   /** The alias to log in again with, so the new login replaces the old one. */
   loginAlias?: string;
 }
 
-export function sessionOrgView(ref: OrgRef, orgs: SfOrg[], loading: boolean): SessionOrgView {
+export function sessionOrgView(ref: OrgRef, orgs: SfOrg[], loading: boolean, listFailed = false): SessionOrgView {
   const live = orgs.find((o) => sameUsername(o.username, ref.username) || matchesOrg(o, ref.username));
   if (live) {
     return { ref, label: orgKey(live), kind: live.kind, state: live.connected ? "ok" : "expired", loginAlias: live.alias };
   }
   // A label that isn't the username is the alias the connection had.
   const alias = ref.label && !sameUsername(ref.label, ref.username) ? ref.label : undefined;
-  return { ref, label: ref.label, state: loading ? "ok" : "missing", loginAlias: alias };
+  return { ref, label: ref.label, state: loading ? "ok" : listFailed ? "unchecked" : "missing", loginAlias: alias };
 }
 
 /** Another org's sessions, for the sidebar's empty state: where to switch to find them. */

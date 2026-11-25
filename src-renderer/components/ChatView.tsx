@@ -758,6 +758,8 @@ interface ChatViewProps {
   org?: SessionOrgView | null;
   /** Log in to the session's org again, when its login has expired. */
   onOrgLogin?: () => void;
+  /** List the sf CLI connections again, when the last listing failed. */
+  onOrgRecheck?: () => void;
   waitingLogin?: boolean;
   /** Open Studio, optionally at a place (review the tray, a rep's sync…). */
   onOpenStudio?: (request?: StudioRequest) => void;
@@ -822,6 +824,7 @@ export default function ChatView({
   onPrefillConsumed,
   org,
   onOrgLogin,
+  onOrgRecheck,
   waitingLogin,
   onOpenStudio,
 }: ChatViewProps) {
@@ -1245,14 +1248,22 @@ export default function ChatView({
       <span className="composer-notice-text">
         {org.state === "expired"
           ? `Your login to ${org.label} has expired. Tools that read or change the org will fail until you log in again.`
-          : `${org.label} isn't in your sf CLI connections any more. Log in to it again to use its data in this session.`}
+          : org.state === "unchecked"
+            ? `Couldn't list your sf CLI connections, so it isn't known whether ${org.label} is still logged in. Tools that read or change the org may fail.`
+            : `${org.label} isn't in your sf CLI connections any more. Log in to it again to use its data in this session.`}
       </span>
-      {onOrgLogin && (
-        <button className="studio-btn sm" onClick={onOrgLogin} disabled={waitingLogin}>
-          {waitingLogin && <Spinner size={12} />}
-          {waitingLogin ? "Waiting for login…" : "Log in again"}
-        </button>
-      )}
+      {org.state === "unchecked"
+        ? onOrgRecheck && (
+            <button className="studio-btn sm" onClick={onOrgRecheck}>
+              Check again
+            </button>
+          )
+        : onOrgLogin && (
+            <button className="studio-btn sm" onClick={onOrgLogin} disabled={waitingLogin}>
+              {waitingLogin && <Spinner size={12} />}
+              {waitingLogin ? "Waiting for login…" : "Log in again"}
+            </button>
+          )}
     </div>
   );
 
