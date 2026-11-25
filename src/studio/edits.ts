@@ -8,13 +8,7 @@
  * returns the inverse fix.
  */
 
-import {
-  apiRequest,
-  cachedDescribeSObject,
-  deployMetadata,
-  describeSObject,
-  updateToolingRecord,
-} from "../salesforce/cli.js";
+import { deployMetadata, updateToolingRecord } from "../salesforce/cli.js";
 import {
   MAX_SIDEBAR_RELATED_LISTS,
   countRelatedLists,
@@ -77,7 +71,6 @@ import type {
   CompactOp,
   FixPreview,
   FixResult,
-  FlexiPageEditFix,
   FlexiPageOp,
   LayoutOp,
   ListViewOp,

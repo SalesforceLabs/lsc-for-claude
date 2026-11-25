@@ -7,7 +7,7 @@
 
 import { readFileSync, readdirSync, existsSync } from "fs";
 import { matchText } from "./search-match.js";
-import { join, basename } from "path";
+import { join } from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 

@@ -39,7 +39,6 @@ export function register(server: McpServer) {
       let message = "# Briefings (Daily Podcasts) Configuration Report\n\n";
       const issues: string[] = [];
       const warnings: string[] = [];
-      const recommendations: string[] = [];
       const checkResults: Array<{ num: number; check: string; status: string; detail: string }> =
         [];
       let briefingsEnabled = false;

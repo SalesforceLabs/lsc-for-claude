@@ -13,7 +13,6 @@ import {
   getTroubleshootingList,
   getTroubleshootingContent,
   formatCitation,
-  formatGuideSectionCitation,
 } from "../knowledge-loader.js";
 import { searchGuides } from "../guide-loader.js";
 
