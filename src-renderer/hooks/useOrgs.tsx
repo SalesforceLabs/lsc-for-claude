@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { matchesOrg, orgKey, type OrgRole, type SfOrg } from "../orgs";
+import { matchesOrg, orgKey, type OrgKind, type OrgRole, type SfOrg } from "../orgs";
 
 /** How long to wait for a browser login to finish. */
 const LOGIN_WAIT_MS = 5 * 60_000;
@@ -47,6 +47,8 @@ export function OrgsProvider({ children }: { children: React.ReactNode }) {
 
   // Roles arrive after the list, as each connection's check finishes.
   const [roles, setRoles] = useState<Record<string, OrgRole>>({});
+  // Kinds from each org's own Organization record, by 15-character org Id; main's listings already use them.
+  const [kinds, setKinds] = useState<Record<string, OrgKind>>({});
 
   const refresh = useCallback(async (options?: { recheckRoles?: boolean; quick?: boolean }): Promise<SfOrg[]> => {
     setLoading(true);
@@ -71,7 +73,10 @@ export function OrgsProvider({ children }: { children: React.ReactNode }) {
     const offListed = window.lscApi.onSfOrgListed((list) => {
       if (!list.error) setOrgs(list.orgs);
     });
-    const offRoles = window.lscApi.onSfOrgRoles(setRoles);
+    const offRoles = window.lscApi.onSfOrgRoles((update) => {
+      setRoles(update.roles);
+      setKinds(update.kinds);
+    });
     const offChanged = window.lscApi.onSfOrgChanged((org) => setChosen(org));
     return () => {
       offListed();
@@ -81,8 +86,12 @@ export function OrgsProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const withRoles = useMemo(
-    () => orgs.map((o) => ({ ...o, role: roles[o.username.toLowerCase()] ?? o.role })),
-    [orgs, roles]
+    () =>
+      orgs.map((o) => {
+        const kind = o.orgId && o.kind !== "scratch" ? kinds[o.orgId.slice(0, 15)] : undefined;
+        return { ...o, role: roles[o.username.toLowerCase()] ?? o.role, ...(kind ? { kind } : {}) };
+      }),
+    [orgs, roles, kinds]
   );
 
   // Not optimistic: sessions and the Library are listed by the org the main process has

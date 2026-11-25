@@ -31,6 +31,7 @@ import {
   pendingOrgList,
   pickOrg,
   resolveOrg,
+  setOrgKinds,
   sameOrgId,
   startOrgLogin,
   toOrgRef,
@@ -1291,9 +1292,12 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   // --- Salesforce Org Management ---
 
   // Which connections are LSC admins, checked in the background; the renderer hears as roles arrive.
-  const orgRoles = new OrgRoles(path.join(app.getPath("userData"), "org-roles.json"), (roles) => {
-    if (!mainWindow.isDestroyed()) mainWindow.webContents.send("sfOrg:roles", roles);
+  // The same check reads each org's Organization record; its kind replaces the sf CLI's guess.
+  const orgRoles = new OrgRoles(path.join(app.getPath("userData"), "org-roles.json"), (roles, kinds) => {
+    setOrgKinds(kinds);
+    if (!mainWindow.isDestroyed()) mainWindow.webContents.send("sfOrg:roles", { roles, kinds });
   });
+  setOrgKinds(orgRoles.kinds());
 
   const withRoles = (list: Awaited<ReturnType<typeof listSfOrgs>>) => ({
     ...list,

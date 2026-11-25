@@ -77,11 +77,34 @@ export function orgKind(o: {
   return "production";
 }
 
+/** Kinds read from each org's Organization record (by the role check), by 15-character org Id. */
+let orgKinds: Record<string, OrgKind> = {};
+
+/** Use these kinds over what the sf CLI's saved logins suggest; see `OrgRoles`. */
+export function setOrgKinds(kinds: Record<string, OrgKind>): void {
+  orgKinds = kinds;
+}
+
+/**
+ * `orgs` with the kind each org's own record gave. A scratch org stays scratch: its record reads
+ * like a trial's.
+ */
+export function withOrgKinds(orgs: SfOrg[], kinds: Record<string, OrgKind> = orgKinds): SfOrg[] {
+  return orgs.map((o) => {
+    const kind = o.orgId ? kinds[o.orgId.slice(0, 15)] : undefined;
+    return kind && o.kind !== "scratch" && kind !== o.kind ? { ...o, kind } : o;
+  });
+}
+
+const withKinds = (list: OrgList): OrgList => (list.error ? list : { ...list, orgs: withOrgKinds(list.orgs) });
+
 /** Parse `sf org list --json` into one entry per username. */
 export function parseOrgList(stdout: string): SfOrg[] {
   const data = JSON.parse(stdout);
   const orgs: SfOrg[] = [];
   const seen = new Set<string>();
+  /** Connections whose record says what the org is (edition, trial expiry or sandbox flag). */
+  const described = new Set<SfOrg>();
   for (const category of ["nonScratchOrgs", "scratchOrgs", "sandboxes", "devHubs", "other"]) {
     const list = data?.result?.[category];
     if (!Array.isArray(list)) continue;
@@ -92,7 +115,7 @@ export function parseOrgList(stdout: string): SfOrg[] {
       // Scratch orgs report `status` ("Active") rather than `connectedStatus`.
       const status: string | undefined = o.connectedStatus;
       const connected = !status || status === "Connected" || status === "Unknown";
-      orgs.push({
+      const entry: SfOrg = {
         alias: o.alias || undefined,
         username,
         orgId: o.orgId || "",
@@ -107,8 +130,18 @@ export function parseOrgList(stdout: string): SfOrg[] {
         }),
         connected,
         status: connected ? undefined : firstLine(status),
-      });
+      };
+      if (o.orgEdition || (o.trailExpirationDate ?? o.trialExpirationDate) || typeof o.isSandbox === "boolean") described.add(entry);
+      orgs.push(entry);
     }
+  }
+  // A login made without `sf org login web` (a token or JWT login, e.g. a test rep's) has no edition,
+  // trial expiry or sandbox flag, so on its own it reads as production. Another connection to the same
+  // org that has them knows better.
+  for (const entry of orgs) {
+    if (described.has(entry) || !entry.orgId) continue;
+    const sibling = orgs.find((o) => o !== entry && described.has(o) && o.orgId === entry.orgId);
+    if (sibling) entry.kind = sibling.kind;
   }
   return orgs;
 }
@@ -134,6 +167,10 @@ let running: Promise<OrgList> | undefined;
  * get a quick one without connection status while the full one runs (`pendingOrgList`).
  */
 export function listSfOrgs(options: { fresh?: boolean } = {}): Promise<OrgList> {
+  return listOrgsRaw(options).then(withKinds);
+}
+
+function listOrgsRaw(options: { fresh?: boolean }): Promise<OrgList> {
   if (!options.fresh && cached && Date.now() - cached.at < LIST_TTL_MS) return Promise.resolve(cached.list);
   const listing = running ?? runOrgList();
   if (options.fresh) return listing;
@@ -142,7 +179,7 @@ export function listSfOrgs(options: { fresh?: boolean } = {}): Promise<OrgList> 
 
 /** The full listing in progress, if any — for telling the renderer when it lands. */
 export function pendingOrgList(): Promise<OrgList> | undefined {
-  return running;
+  return running?.then(withKinds);
 }
 
 /** One listing in flight at a time; only one that worked is kept. */
@@ -202,7 +239,7 @@ export async function listAfterLogin(username: string): Promise<OrgList> {
   const merged = { orgs: withKnownStatus(list.orgs, cached?.list.orgs ?? [], username) };
   cached = { at: Date.now(), list: merged };
   if (!running) runOrgList();
-  return merged;
+  return withKinds(merged);
 }
 
 /** `quick`'s connections with the statuses `known` has for them, `loggedIn` connected. */

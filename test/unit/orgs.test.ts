@@ -78,6 +78,25 @@ describe("parseOrgList", () => {
     expect([trial.kind, dev.kind, prod.kind]).toEqual(["trial", "developer", "production"]);
   });
 
+  it("takes the kind from another connection to the same org when a login's record doesn't say", () => {
+    const host = "https://acme-engg.test1.my.pc-rnd.salesforce.com";
+    const [admin, rep, lone] = parseOrgList(
+      JSON.stringify({
+        result: {
+          nonScratchOrgs: [
+            { username: "admin@acme.com", orgId: "00DA", instanceUrl: host, isSandbox: false, trailExpirationDate: "2026-12-12T04:09:32.000+0000", orgEdition: "Enterprise Edition" },
+            // A token login: no edition, trial expiry or sandbox flag.
+            { username: "rep@acme.test", orgId: "00DA", instanceUrl: host, isSandbox: null, trailExpirationDate: null },
+            { username: "lone@other.test", orgId: "00DB", instanceUrl: "https://other.my.salesforce.com", isSandbox: null },
+          ],
+        },
+      })
+    );
+    expect([admin.kind, rep.kind]).toEqual(["trial", "trial"]);
+    // Nothing better to go on: stays production, the kind that asks before writing.
+    expect(lone.kind).toBe("production");
+  });
+
   it("picks by alias or username, else the sf default, else the only connection", () => {
     const orgs = parseOrgList(stdout);
     expect(pickOrg(orgs, "CARMEN")?.username).toBe("carmen@acme.com");
