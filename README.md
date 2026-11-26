@@ -22,10 +22,10 @@ This repo ships one knowledge base and one set of org tools, packaged two ways. 
 Both talk to your org through the [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) (`sf`) and your existing `sf org login`. Neither needs anything installed in the org.
 
 <p align="center">
-  <img src="docs/media/export-config-demo.gif" alt="Exporting LSC DB Schema configuration from the terminal and generating a browsable HTML report" width="820">
+  <img src="docs/media/roz/hero.gif" alt="A tour of Roz for LSC: the setup overview, the iPad preview, a reviewed write in the Studio tray, and sync testing" width="880">
 </p>
 
-<p align="center"><sub><code>/lsc:export-config</code> in Claude Code: snapshot org configuration and generate a browsable HTML report</sub></p>
+<p align="center"><sub><b>Roz for LSC</b>: go-live readiness, a live iPad preview, reviewed writes and sync testing, all read from your org</sub></p>
 
 ## What it can do
 
@@ -48,6 +48,47 @@ Only in the desktop app, through **Studio**:
 - **Build**: a custom script editor with a test runner, an LSC app builder (describe an iPad app, Roz writes the LWC and runs it live before deploy), and Intelligent Content presentations, including draft pages
 - **Testing**: org-wide sync health from device telemetry, test plans against NFR targets with a sign-off report, first-sync simulation as a real test user, and test-user logins
 - **Release bar**: every change shows where it is: **Your changes** (queued), **In the org**, or **On iPads** (published). Changes are previewed before apply, can be undone, and can be saved as sfdx source files
+
+### See it in action
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/media/roz/overview.gif"><img src="docs/media/roz/overview.gif" alt="Setup overview showing go-live readiness per feature and per profile"></a>
+      <p align="center"><b>Setup overview</b><br><sub>Go-live readiness for every feature and profile, checked read-only</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/media/roz/features.gif"><img src="docs/media/roz/features.gif" alt="Feature board listing every configuration surface behind a feature"></a>
+      <p align="center"><b>Feature board</b><br><sub>Every configuration surface behind one feature, mapped from the org</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/media/roz/health-check.gif"><img src="docs/media/roz/health-check.gif" alt="Asking Roz in chat to run a health check"></a>
+      <p align="center"><b>Ask in plain English</b><br><sub>Roz runs a health check against your org and explains what to fix</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/media/roz/diagnose.gif"><img src="docs/media/roz/diagnose.gif" alt="Diagnosing a pasted error against known causes"></a>
+      <p align="center"><b>Diagnose an error</b><br><sub>Matched against 143 known causes, each one checked in your org</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/media/roz/ipad.gif"><img src="docs/media/roz/ipad.gif" alt="iPad preview of what a profile's reps see"></a>
+      <p align="center"><b>iPad preview</b><br><sub>What a profile's reps have on their iPads, straight from the metadata cache</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/media/roz/review.gif"><img src="docs/media/roz/review.gif" alt="A change previewed in the Studio tray before it is applied"></a>
+      <p align="center"><b>Reviewed writes</b><br><sub>Every change is previewed in the tray before it touches the org</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top" align="center">
+      <a href="docs/media/roz/testing.gif"><img src="docs/media/roz/testing.gif" alt="Sync testing: device telemetry, mobile sync readiness and first-sync simulation" width="50%"></a>
+      <p align="center"><b>Sync testing</b><br><sub>Sync health from device telemetry, mobile sync readiness, first-sync simulation</sub></p>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -113,6 +154,12 @@ Builds from the **Build Desktop App** workflow (Actions → run → Artifacts) a
 ---
 
 ## Claude Code plugin (CLI and MCP server)
+
+<p align="center">
+  <img src="docs/media/export-config-demo.gif" alt="Exporting LSC DB Schema configuration from the terminal and generating a browsable HTML report" width="820">
+</p>
+
+<p align="center"><sub><code>/lsc:export-config</code> in Claude Code: snapshot org configuration and generate a browsable HTML report</sub></p>
 
 ### Prerequisites
 
