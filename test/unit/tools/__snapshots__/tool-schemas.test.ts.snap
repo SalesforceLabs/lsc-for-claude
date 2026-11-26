@@ -850,6 +850,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
   {
     "name": "update_db_schema",
     "params": {
+      "addProfiles": {
+        "optional": true,
+        "type": "ZodArray",
+      },
       "attachmentsSupport": {
         "optional": true,
         "type": "ZodEnum",
@@ -875,6 +879,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "type": "ZodBoolean",
       },
       "permissionSets": {
+        "optional": true,
+        "type": "ZodArray",
+      },
+      "removeProfiles": {
         "optional": true,
         "type": "ZodArray",
       },

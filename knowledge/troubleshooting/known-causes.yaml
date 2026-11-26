@@ -68,6 +68,29 @@ causes:
         AND Id IN (SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = 'DeltaDateField' AND FieldValue = 'LastModifiedDate')
       expect: "records.length == 0"
 
+  - id: dbschema-object-not-assigned-to-profile
+    title: A related list or tab fails with "SObject <name> not found" because the object's DB Schema record isn't assigned to the rep's profile
+    module: mobile-sync
+    symptoms:
+      - "SObject medicalinsightaccount not found"
+      - "SObject not found on a related list on the iPad"
+      - "an object's tab or related list shows an error with the object name in lowercase"
+      - "the related list works for some reps and shows an error for others"
+    keywords: [sobject, not found, DbSchema, profile, assignment, related list, table]
+    cause: |
+      The iPad only downloads the tables of DB Schema records assigned to the rep's
+      profile. The object exists and the rep can read it in the web app, but with no
+      DB Schema record for it on their profile the app has no local table, so a page
+      that reads it fails with "SObject <name> not found". A rep on a profile that is on
+      the record (a different profile with the same permission sets) doesn't see it.
+    fix:
+      - "Open the object's DB Schema record (Object Sync in Studio, or Admin Console > Mobile > Object Metadata Cache Configuration)."
+      - "Add the rep's profile to the record, and to the records of any related objects the page reads."
+      - "Regenerate the metadata cache for that profile (Publish to iPad), then have the rep sync."
+    ui_path: "Admin Console > Mobile > Object Metadata Cache Configuration"
+    no_check_reason: "The object and the profile come from the error and the rep, and a DB Schema record assigned to other profiles can't be told apart from one that is meant to be."
+    check_scope: "Reading the record's profile list and the rep's profile is the check; the PermissionSets field on the record is separate and doesn't replace assigning the profile."
+
   - id: dbschema-dstr-wrong-type
     title: DeviceSyncTransactionRecord DB Schema record has Type Configuration
     module: mobile-sync

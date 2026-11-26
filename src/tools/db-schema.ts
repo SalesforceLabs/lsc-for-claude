@@ -5,6 +5,7 @@ import {
   cachedToolingQuery,
   createToolingRecord,
   updateToolingRecord,
+  deleteToolingRecord,
 } from "../salesforce/cli.js";
 import { validateOrgConnection } from "../salesforce/auth.js";
 import {
@@ -568,7 +569,7 @@ export function register(server: McpServer) {
   // Tool: Update DB Schema Record
   server.tool(
     "update_db_schema",
-    "Update an existing DB Schema record. Looks up the record by name and updates only specified fields using correct data type mappings. Accepts short name (e.g., 'Visit') or full name ('DbSchema_Visit').",
+    "Update an existing DB Schema record. Looks up the record by name and updates only specified fields using correct data type mappings. Also assigns or removes profiles (addProfiles / removeProfiles): a rep whose profile isn't on the record doesn't get the object, which shows on the iPad as 'SObject <name> not found'. Accepts short name (e.g., 'Visit') or full name ('DbSchema_Visit').",
     {
       name: z.string().describe("The DB Schema record name — accepts 'Visit' or 'DbSchema_Visit'"),
       whereSoql: z
@@ -593,8 +594,18 @@ export function register(server: McpServer) {
         .array(z.string())
         .optional()
         .describe(
-          "Permission set API names (NOT labels) that gate this object's sync. Stored as a semicolon-delimited list in the PermissionSets field. Pass an empty array to clear."
+          "Permission set API names (NOT labels) that gate this object's sync. Stored as a semicolon-delimited list in the PermissionSets field. Pass an empty array to clear. This adds to the record's profile assignments, it doesn't replace them: to make a profile sync the object, use addProfiles."
         ),
+      addProfiles: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "Profile names (exact, e.g. 'LS PH Field Sales Representative') to assign to this record, so those profiles' iPads download the object. Use this when a rep gets 'SObject <name> not found': the record's profile list is what decides who syncs the table."
+        ),
+      removeProfiles: z
+        .array(z.string())
+        .optional()
+        .describe("Profile names to take off this record (stops the object syncing for them)"),
       targetOrg: z.string().optional().describe("Optional: specific org to update"),
     },
     async ({
@@ -606,6 +617,8 @@ export function register(server: McpServer) {
       mandatoryFields,
       deltaDateField,
       permissionSets,
+      addProfiles,
+      removeProfiles,
       targetOrg,
     }) => {
       const validation = await validateOrgConnection();
@@ -751,12 +764,69 @@ export function register(server: McpServer) {
           }
         }
 
+        if (addProfiles?.length || removeProfiles?.length) {
+          const current = (await queryAssignments([recordId], effectiveOrg)).get(recordId) ?? [];
+          for (const profile of addProfiles ?? []) {
+            const profileId = await resolveProfileId(profile, effectiveOrg);
+            if (!profileId) {
+              changes.push(`Profile ${profile}: FAILED — Profile not found`);
+            } else if (current.some((a) => a.id === profileId)) {
+              changes.push(`Profile ${profile}: already assigned`);
+            } else {
+              const res = await createToolingRecord(
+                "LifeSciConfigAssignment",
+                {
+                  LifeSciConfigRecordId: recordId,
+                  AssignedToId: profileId,
+                  AssignmentLevel: "Profile",
+                },
+                effectiveOrg
+              );
+              changes.push(
+                res.success
+                  ? `Profile ${profile}: assigned`
+                  : `Profile ${profile}: FAILED — ${res.error}`
+              );
+            }
+          }
+          for (const profile of removeProfiles ?? []) {
+            const profileId = await resolveProfileId(profile, effectiveOrg);
+            const held = profileId
+              ? await runToolingQuery(
+                  `SELECT Id FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId = '${recordId}' AND AssignedToId = '${profileId}' AND AssignmentLevel = 'Profile'`,
+                  effectiveOrg
+                )
+              : null;
+            const rows = (held?.data?.records ?? []) as Array<Record<string, unknown>>;
+            if (!profileId) {
+              changes.push(`Profile ${profile}: FAILED — Profile not found`);
+            } else if (!held?.success) {
+              changes.push(`Profile ${profile}: FAILED — ${held?.error}`);
+            } else if (!rows.length) {
+              changes.push(`Profile ${profile}: not assigned`);
+            } else {
+              let failed = "";
+              for (const row of rows) {
+                const res = await deleteToolingRecord(
+                  "LifeSciConfigAssignment",
+                  String(row.Id),
+                  effectiveOrg
+                );
+                if (!res.success) failed = res.error ?? "unknown error";
+              }
+              changes.push(
+                failed ? `Profile ${profile}: FAILED — ${failed}` : `Profile ${profile}: removed`
+              );
+            }
+          }
+        }
+
         if (changes.length === 0) {
           return {
             content: [
               {
                 type: "text",
-                text: `# Nothing to Update\n\nNo changes specified. Provide at least one field to update (whereSoql, oneWaySync, isActive, attachmentsSupport, mandatoryFields, deltaDateField, permissionSets).`,
+                text: `# Nothing to Update\n\nNo changes specified. Provide at least one field to update (whereSoql, oneWaySync, isActive, attachmentsSupport, mandatoryFields, deltaDateField, permissionSets, addProfiles, removeProfiles).`,
               },
             ],
           };

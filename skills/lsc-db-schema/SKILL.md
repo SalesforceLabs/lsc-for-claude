@@ -15,6 +15,7 @@ description: Manages Life Sciences Cloud (LSC) DB Schema records (mobile object 
 | Full details for a specific record | `get_db_schema({ name: "Visit" })` |
 | Create a new DB Schema record | `create_db_schema({ objectName: "Product2" })` |
 | Update a DB Schema record | `update_db_schema({ name: "Visit", whereSoql: "..." })` |
+| Assign / unassign a profile | `update_db_schema({ name: "Visit", addProfiles: ["LS Rep"], removeProfiles: [...] })` — a rep only syncs tables assigned to their profile; "SObject X not found" on the iPad usually means the table isn't. Regenerate the cache after |
 | Enable/disable a DB Schema record | `toggle_db_schema({ name: "Visit", active: false })` |
 | Mobile cache status | `check_mobile_cache_status()` |
 
