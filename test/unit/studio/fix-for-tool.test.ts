@@ -60,6 +60,18 @@ describe("fixesForToolCall", () => {
     });
   });
 
+  it("maps addProfiles / removeProfiles on update_db_schema to setProfileAssignments", async () => {
+    const res = await fixesForToolCall("update_db_schema", { name: "Visit", removeProfiles: ["LS Rep"] }, "org");
+    expect(res).toMatchObject({
+      changes: [{ fix: { kind: "setProfileAssignments", developerName: "DbSchema_Visit", from: ["LS Rep"], to: [] } }],
+    });
+  });
+
+  it("reports no change when the profile is already assigned, and is unsupported for an unknown profile", async () => {
+    expect(await fixesForToolCall("update_db_schema", { name: "Visit", addProfiles: ["LS Rep"] }, "org")).toMatchObject({ changes: [] });
+    expect(await fixesForToolCall("update_db_schema", { name: "Visit", addProfiles: ["Nope"] }, "org")).toHaveProperty("unsupported");
+  });
+
   it("maps isActive on update_db_schema and toggle_db_schema to setActive", async () => {
     const expected = {
       fix: { kind: "setActive", label: "Deactivate Visit", record: { type: "config", category: "DbSchema", developerName: "DbSchema_Visit", label: "Visit" }, from: true, to: false },

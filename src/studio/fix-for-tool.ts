@@ -280,7 +280,81 @@ async function updateDbSchema(input: Input, org: string): Promise<ToolFixes> {
   const set = await fieldFixes(target, updates, org);
   if (isUnsupported(set)) return set;
   fixes.push(...set);
-  return result(await withAffects(target, fixes, org), `${target.label} already has these values.`);
+  const profiles = await profileFix(
+    target,
+    strings(input.addProfiles),
+    strings(input.removeProfiles),
+    org
+  );
+  if (isUnsupported(profiles)) return profiles;
+  const changes = await withAffects(target, fixes, org);
+  if (profiles) changes.push(profiles);
+  return result(changes, `${target.label} already has these values.`);
+}
+
+/**
+ * One `setProfileAssignments` for the profiles to add and take off, from the assignments the record has now;
+ * null when it already matches. Profile names must exist exactly, as the tool resolves them by name.
+ */
+async function profileFix(
+  target: ConfigTarget,
+  add: string[],
+  remove: string[],
+  org: string
+): Promise<ToolChange | { unsupported: string } | null> {
+  if (!add.length && !remove.length) return null;
+  const rows = await query(
+    `SELECT AssignedToId FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId = '${target.id}' AND AssignmentLevel = 'Profile'`,
+    org,
+    true
+  );
+  const heldIds = [...new Set(rows.map((r) => String(r.AssignedToId)))];
+  const held = heldIds.length
+    ? (await query(`SELECT Name FROM Profile WHERE Id IN (${inList(heldIds)})`, org)).map((p) =>
+        String(p.Name)
+      )
+    : [];
+  const asked = [...add, ...remove];
+  const known = asked.length
+    ? (await query(`SELECT Name FROM Profile WHERE Name IN (${inList(asked)})`, org)).map((p) =>
+        String(p.Name)
+      )
+    : [];
+  const exact = (n: string) => known.find((k) => k.toLowerCase() === n.toLowerCase());
+  const missing = asked.filter((n) => !exact(n));
+  if (missing.length) return unsupported(`No profile is named exactly ${missing.join(", ")}.`);
+  const drop = new Set(remove.map((n) => exact(n)!.toLowerCase()));
+  const to = held.filter((n) => !drop.has(n.toLowerCase()));
+  for (const n of add.map((a) => exact(a)!))
+    if (!to.some((t) => t.toLowerCase() === n.toLowerCase())) to.push(n);
+  const same = (a: string[], b: string[]) =>
+    a
+      .map((n) => n.toLowerCase())
+      .sort()
+      .join("|") ===
+    b
+      .map((n) => n.toLowerCase())
+      .sort()
+      .join("|");
+  if (same(held, to)) return null;
+  const added = to.filter((n) => !held.some((h) => h.toLowerCase() === n.toLowerCase()));
+  const removed = held.filter((n) => !to.some((t) => t.toLowerCase() === n.toLowerCase()));
+  const parts = [
+    added.length ? `add ${added.join(", ")}` : "",
+    removed.length ? `remove ${removed.join(", ")}` : "",
+  ].filter(Boolean);
+  return {
+    fix: {
+      kind: "setProfileAssignments",
+      label: `Profiles on ${target.label}: ${parts.join("; ")}`,
+      category: target.category,
+      developerName: target.developerName,
+      recordLabel: target.label,
+      from: held,
+      to,
+    },
+    affects: [...new Set([...added, ...removed])],
+  };
 }
 
 async function toggleDbSchema(input: Input, org: string): Promise<ToolFixes> {

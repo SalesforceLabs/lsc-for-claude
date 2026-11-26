@@ -121900,7 +121900,7 @@ ${error2 instanceof Error ? error2.message : String(error2)}`
   );
   server2.tool(
     "update_db_schema",
-    "Update an existing DB Schema record. Looks up the record by name and updates only specified fields using correct data type mappings. Accepts short name (e.g., 'Visit') or full name ('DbSchema_Visit').",
+    "Update an existing DB Schema record. Looks up the record by name and updates only specified fields using correct data type mappings. Also assigns or removes profiles (addProfiles / removeProfiles): a rep whose profile isn't on the record doesn't get the object, which shows on the iPad as 'SObject <name> not found'. Accepts short name (e.g., 'Visit') or full name ('DbSchema_Visit').",
     {
       name: external_exports.string().describe("The DB Schema record name \u2014 accepts 'Visit' or 'DbSchema_Visit'"),
       whereSoql: external_exports.string().optional().describe("New SOQL WHERE clause filter. Must be wrapped in parentheses."),
@@ -121910,8 +121910,12 @@ ${error2 instanceof Error ? error2.message : String(error2)}`
       mandatoryFields: external_exports.string().optional().describe("Comma-separated list of mandatory fields"),
       deltaDateField: external_exports.string().optional().describe("Field used for delta sync (e.g., 'LastModifiedDate')"),
       permissionSets: external_exports.array(external_exports.string()).optional().describe(
-        "Permission set API names (NOT labels) that gate this object's sync. Stored as a semicolon-delimited list in the PermissionSets field. Pass an empty array to clear."
+        "Permission set API names (NOT labels) that gate this object's sync. Stored as a semicolon-delimited list in the PermissionSets field. Pass an empty array to clear. This adds to the record's profile assignments, it doesn't replace them: to make a profile sync the object, use addProfiles."
       ),
+      addProfiles: external_exports.array(external_exports.string()).optional().describe(
+        "Profile names (exact, e.g. 'LS PH Field Sales Representative') to assign to this record, so those profiles' iPads download the object. Use this when a rep gets 'SObject <name> not found': the record's profile list is what decides who syncs the table."
+      ),
+      removeProfiles: external_exports.array(external_exports.string()).optional().describe("Profile names to take off this record (stops the object syncing for them)"),
       targetOrg: external_exports.string().optional().describe("Optional: specific org to update")
     },
     async ({
@@ -121923,6 +121927,8 @@ ${error2 instanceof Error ? error2.message : String(error2)}`
       mandatoryFields,
       deltaDateField,
       permissionSets,
+      addProfiles,
+      removeProfiles,
       targetOrg
     }) => {
       const validation = await validateOrgConnection();
@@ -122055,6 +122061,58 @@ Cannot safely update without knowing current values.`
             }
           }
         }
+        if (addProfiles?.length || removeProfiles?.length) {
+          const current2 = (await queryAssignments([recordId], effectiveOrg)).get(recordId) ?? [];
+          for (const profile of addProfiles ?? []) {
+            const profileId = await resolveProfileId(profile, effectiveOrg);
+            if (!profileId) {
+              changes.push(`Profile ${profile}: FAILED \u2014 Profile not found`);
+            } else if (current2.some((a) => a.id === profileId)) {
+              changes.push(`Profile ${profile}: already assigned`);
+            } else {
+              const res = await createToolingRecord(
+                "LifeSciConfigAssignment",
+                {
+                  LifeSciConfigRecordId: recordId,
+                  AssignedToId: profileId,
+                  AssignmentLevel: "Profile"
+                },
+                effectiveOrg
+              );
+              changes.push(
+                res.success ? `Profile ${profile}: assigned` : `Profile ${profile}: FAILED \u2014 ${res.error}`
+              );
+            }
+          }
+          for (const profile of removeProfiles ?? []) {
+            const profileId = await resolveProfileId(profile, effectiveOrg);
+            const held = profileId ? await runToolingQuery(
+              `SELECT Id FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId = '${recordId}' AND AssignedToId = '${profileId}' AND AssignmentLevel = 'Profile'`,
+              effectiveOrg
+            ) : null;
+            const rows4 = held?.data?.records ?? [];
+            if (!profileId) {
+              changes.push(`Profile ${profile}: FAILED \u2014 Profile not found`);
+            } else if (!held?.success) {
+              changes.push(`Profile ${profile}: FAILED \u2014 ${held?.error}`);
+            } else if (!rows4.length) {
+              changes.push(`Profile ${profile}: not assigned`);
+            } else {
+              let failed2 = "";
+              for (const row of rows4) {
+                const res = await deleteToolingRecord(
+                  "LifeSciConfigAssignment",
+                  String(row.Id),
+                  effectiveOrg
+                );
+                if (!res.success) failed2 = res.error ?? "unknown error";
+              }
+              changes.push(
+                failed2 ? `Profile ${profile}: FAILED \u2014 ${failed2}` : `Profile ${profile}: removed`
+              );
+            }
+          }
+        }
         if (changes.length === 0) {
           return {
             content: [
@@ -122062,7 +122120,7 @@ Cannot safely update without knowing current values.`
                 type: "text",
                 text: `# Nothing to Update
 
-No changes specified. Provide at least one field to update (whereSoql, oneWaySync, isActive, attachmentsSupport, mandatoryFields, deltaDateField, permissionSets).`
+No changes specified. Provide at least one field to update (whereSoql, oneWaySync, isActive, attachmentsSupport, mandatoryFields, deltaDateField, permissionSets, addProfiles, removeProfiles).`
               }
             ]
           };
@@ -139672,7 +139730,59 @@ async function updateDbSchema(input, org) {
   const set = await fieldFixes(target3, updates, org);
   if (isUnsupported(set)) return set;
   fixes.push(...set);
-  return result(await withAffects(target3, fixes, org), `${target3.label} already has these values.`);
+  const profiles = await profileFix(
+    target3,
+    strings(input.addProfiles),
+    strings(input.removeProfiles),
+    org
+  );
+  if (isUnsupported(profiles)) return profiles;
+  const changes = await withAffects(target3, fixes, org);
+  if (profiles) changes.push(profiles);
+  return result(changes, `${target3.label} already has these values.`);
+}
+async function profileFix(target3, add, remove2, org) {
+  if (!add.length && !remove2.length) return null;
+  const rows4 = await query(
+    `SELECT AssignedToId FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId = '${target3.id}' AND AssignmentLevel = 'Profile'`,
+    org,
+    true
+  );
+  const heldIds = [...new Set(rows4.map((r) => String(r.AssignedToId)))];
+  const held = heldIds.length ? (await query(`SELECT Name FROM Profile WHERE Id IN (${inList(heldIds)})`, org)).map(
+    (p) => String(p.Name)
+  ) : [];
+  const asked = [...add, ...remove2];
+  const known = asked.length ? (await query(`SELECT Name FROM Profile WHERE Name IN (${inList(asked)})`, org)).map(
+    (p) => String(p.Name)
+  ) : [];
+  const exact = (n2) => known.find((k) => k.toLowerCase() === n2.toLowerCase());
+  const missing = asked.filter((n2) => !exact(n2));
+  if (missing.length) return unsupported(`No profile is named exactly ${missing.join(", ")}.`);
+  const drop = new Set(remove2.map((n2) => exact(n2).toLowerCase()));
+  const to = held.filter((n2) => !drop.has(n2.toLowerCase()));
+  for (const n2 of add.map((a) => exact(a)))
+    if (!to.some((t) => t.toLowerCase() === n2.toLowerCase())) to.push(n2);
+  const same3 = (a, b) => a.map((n2) => n2.toLowerCase()).sort().join("|") === b.map((n2) => n2.toLowerCase()).sort().join("|");
+  if (same3(held, to)) return null;
+  const added = to.filter((n2) => !held.some((h) => h.toLowerCase() === n2.toLowerCase()));
+  const removed = held.filter((n2) => !to.some((t) => t.toLowerCase() === n2.toLowerCase()));
+  const parts = [
+    added.length ? `add ${added.join(", ")}` : "",
+    removed.length ? `remove ${removed.join(", ")}` : ""
+  ].filter(Boolean);
+  return {
+    fix: {
+      kind: "setProfileAssignments",
+      label: `Profiles on ${target3.label}: ${parts.join("; ")}`,
+      category: target3.category,
+      developerName: target3.developerName,
+      recordLabel: target3.label,
+      from: held,
+      to
+    },
+    affects: [.../* @__PURE__ */ new Set([...added, ...removed])]
+  };
 }
 async function toggleDbSchema(input, org) {
   const target3 = await dbSchemaTarget(input.name, org);
